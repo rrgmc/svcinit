@@ -91,6 +91,7 @@ func ExampleSvcInit() {
 
     err := sinit.Run()
     if err != nil {
+		// err will be "timed out"
         fmt.Println("err:", err)
     }
 }
