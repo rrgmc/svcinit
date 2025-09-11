@@ -53,7 +53,7 @@ func TestInit(t *testing.T) {
 		return defaultTaskSvc(taskNo).Start
 	}
 
-	sinit.RunTask(defaultTask(1))
+	sinit.ExecuteTask(defaultTask(1))
 
 	task2 := defaultTaskSvc(2)
 	i2Stop := sinit.
@@ -68,7 +68,7 @@ func TestInit(t *testing.T) {
 		StartService(defaultTaskSvc(4)).
 		Stop()
 
-	sinit.RunTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+	sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
 
 	sinit.StopTask(i2Stop)
 	sinit.StopTask(i3Stop)

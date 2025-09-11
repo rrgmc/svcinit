@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-func (s *SvcInit) RunTask(fn Task) {
+func (s *SvcInit) ExecuteTask(fn Task) {
 	s.addTask(s.cancelCtx, fn)
 }
 
