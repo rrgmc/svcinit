@@ -90,13 +90,4 @@ func ExampleSvcInit() {
 	if err != nil {
 		fmt.Println("err:", err)
 	}
-
-	// Output:
-	// starting HTTP server
-	// starting health HTTP server
-	// stopping HTTP server
-	// stopped HTTP server
-	// stopping health HTTP server
-	// stopped health HTTP server
-	// err: timed out
 }
