@@ -48,16 +48,47 @@ func TestSvcInit(t *testing.T) {
 			cancelFn: func() []int {
 				return []int{1}
 			},
+			expectedTaskErr:         1,
 			expectedOrderedFinish:   []int{2, 3, 4},
 			expectedOrderedStop:     []int{2, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 		{
-			name: "stop 2: cancel task service ordered",
+			name: "stop 2: cancel task ordered",
 			cancelFn: func() []int {
 				return []int{2}
 			},
 			expectedTaskErr:         2,
+			expectedOrderedFinish:   []int{2, 3, 4},
+			expectedOrderedStop:     []int{2, 4},
+			expectedUnorderedFinish: []int{1, 5},
+		},
+		{
+			name: "stop 3: cancel task context ordered",
+			cancelFn: func() []int {
+				return []int{3}
+			},
+			expectedTaskErr:         3,
+			expectedOrderedFinish:   []int{3, 2, 4},
+			expectedOrderedStop:     []int{2, 4},
+			expectedUnorderedFinish: []int{1, 5},
+		},
+		{
+			name: "stop 4: cancel service ordered",
+			cancelFn: func() []int {
+				return []int{4}
+			},
+			expectedTaskErr:         4,
+			expectedOrderedFinish:   []int{4, 2, 3},
+			expectedOrderedStop:     []int{2, 4},
+			expectedUnorderedFinish: []int{1, 5},
+		},
+		{
+			name: "stop 5: cancel task auto",
+			cancelFn: func() []int {
+				return []int{5}
+			},
+			expectedTaskErr:         5,
 			expectedOrderedFinish:   []int{2, 3, 4},
 			expectedOrderedStop:     []int{2, 4},
 			expectedUnorderedFinish: []int{1, 5},
@@ -172,7 +203,6 @@ func TestSvcInit(t *testing.T) {
 			sinit.StopTask(i4Stop)
 
 			err := sinit.Run()
-			fmt.Println("err:", err)
 			if test.expectedErr != nil {
 				assert.ErrorIs(t, err, test.expectedErr)
 			} else if test.expectedTaskErr > 0 {
