@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// ExecuteTask executes the passed task when the shutdown order does not matter.
+// ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 func (s *SvcInit) ExecuteTask(fn Task) {
 	s.addTask(s.cancelCtx, fn)
@@ -48,7 +48,7 @@ func (s *SvcInit) StopTaskFunc(fn Task) {
 	s.cleanup = append(s.cleanup, fn)
 }
 
-// AutoStopTask adds a shutdown task, when the shutdown order doesn't matter.
+// AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTask(fn Task) {
 	s.autoCleanup = append(s.autoCleanup, fn)
 }
@@ -59,11 +59,16 @@ type StartTaskCmd struct {
 	resolved resolved
 }
 
+// AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
+// The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop() {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.cancelCtx, s.start)
 }
 
+// CtxStop returns a StopTask to be stopped when the order matters.
+// The context passed to the task will be canceled.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartTaskCmd) CtxStop() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
@@ -74,6 +79,9 @@ func (s StartTaskCmd) CtxStop() StopTask {
 	})
 }
 
+// Stop returns a StopTask to be stopped when the order matters.
+// The context passed to the task will NOT be canceled.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartTaskCmd) Stop(stop Task) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
@@ -90,6 +98,8 @@ type StartServiceCmd struct {
 	resolved resolved
 }
 
+// AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
+// The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.cancelCtx, func(ctx context.Context) error {
@@ -100,6 +110,9 @@ func (s StartServiceCmd) AutoStop() {
 	})
 }
 
+// CtxStop returns a StopTask to be stopped when the order matters.
+// The context passed to the task will be canceled.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartServiceCmd) CtxStop() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
@@ -112,6 +125,9 @@ func (s StartServiceCmd) CtxStop() StopTask {
 	})
 }
 
+// Stop returns a StopTask to be stopped when the order matters.
+// The context passed to the task will NOT be canceled.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartServiceCmd) Stop() StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, func(ctx context.Context) error {
