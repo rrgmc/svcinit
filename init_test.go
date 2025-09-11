@@ -12,7 +12,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestInit(t *testing.T) {
+func TestSvcInit(t *testing.T) {
 	ctx := context.Background()
 
 	sinit := New(ctx)
