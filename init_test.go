@@ -33,7 +33,7 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 }
 
 func TestSvcInit(t *testing.T) {
-	isDebug := true
+	isDebug := false
 
 	for _, test := range []struct {
 		name                                           string

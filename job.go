@@ -2,7 +2,6 @@ package svcinit_poc1
 
 import (
 	"context"
-	"fmt"
 )
 
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
@@ -207,8 +206,6 @@ func (p pendingStopTaskImpl) setResolved() {
 func finishedWait(ctx, finishedCtx context.Context) {
 	select {
 	case <-finishedCtx.Done():
-		fmt.Println("finishedCtxDone")
 	case <-ctx.Done():
-		fmt.Println("ctxDone")
 	}
 }
