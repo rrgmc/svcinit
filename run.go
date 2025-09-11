@@ -15,7 +15,10 @@ func (s *SvcInit) start() {
 		runWg.Add(1)
 		go func(ctx context.Context, fn Task, taskFinished context.CancelFunc) {
 			if task.taskFinished != nil {
-				defer taskFinished()
+				defer func() {
+					taskFinished()
+				}()
+				// defer taskFinished()
 			}
 			defer s.wg.Done()
 			runWg.Done()

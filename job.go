@@ -2,6 +2,7 @@ package svcinit_poc1
 
 import (
 	"context"
+	"fmt"
 )
 
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
@@ -88,10 +89,7 @@ func (s StartTaskCmd) Stop(stop Task) StopTask {
 	finishedCtx := s.s.addTask(s.s.ctx, s.start, true)
 	return s.s.addPendingStopTask(func(ctx context.Context) error {
 		err := stop(ctx)
-		select {
-		case <-finishedCtx.Done():
-		case <-ctx.Done():
-		}
+		finishedWait(ctx, finishedCtx)
 		return err
 	})
 }
@@ -105,10 +103,7 @@ func (s StartTaskCmd) stopCancel(stop Task) StopTask {
 		if stop != nil {
 			err = stop(ctx)
 		}
-		select {
-		case <-finishedCtx.Done():
-		case <-ctx.Done():
-		}
+		finishedWait(ctx, finishedCtx)
 		return
 	})
 }
@@ -141,10 +136,7 @@ func (s StartServiceCmd) StopCancel() StopTask {
 	return s.s.addPendingStopTask(func(ctx context.Context) error {
 		cancel(ErrExit)
 		err := s.svc.Stop(ctx)
-		select {
-		case <-finishedCtx.Done():
-		case <-ctx.Done():
-		}
+		finishedWait(ctx, finishedCtx)
 		return err
 	})
 }
@@ -157,10 +149,7 @@ func (s StartServiceCmd) Stop() StopTask {
 	finishedCtx := s.s.addTask(s.s.ctx, s.svc.Start, true)
 	return s.s.addPendingStopTask(func(ctx context.Context) error {
 		err := s.svc.Stop(ctx)
-		select {
-		case <-finishedCtx.Done():
-		case <-ctx.Done():
-		}
+		finishedWait(ctx, finishedCtx)
 		return err
 	})
 }
@@ -213,4 +202,13 @@ func (p pendingStopTaskImpl) isResolved() bool {
 
 func (p pendingStopTaskImpl) setResolved() {
 	p.resolved.setResolved()
+}
+
+func finishedWait(ctx, finishedCtx context.Context) {
+	select {
+	case <-finishedCtx.Done():
+		fmt.Println("finishedCtxDone")
+	case <-ctx.Done():
+		fmt.Println("ctxDone")
+	}
 }

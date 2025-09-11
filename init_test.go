@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
@@ -108,7 +109,7 @@ func TestSvcInit(t *testing.T) {
 				}
 			}
 
-			sinit := New(ctx)
+			sinit := New(ctx, WithShutdownTimeout(time.Hour))
 
 			task1 := defaultTaskSvc(1, false)
 			sinit.ExecuteTask(task1.svc.Start)
