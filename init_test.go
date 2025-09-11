@@ -38,6 +38,7 @@ func TestSvcInit(t *testing.T) {
 				return []int{1}
 			},
 			expectedOrderedFinish:   []int{2, 3, 4},
+			expectedOrderedStop:     []int{2, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 	} {

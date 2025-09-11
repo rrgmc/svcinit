@@ -164,7 +164,7 @@ func (s *SvcInit) addTask(ctx context.Context, fn Task, checkFinished bool) (fin
 		task: fn,
 	}
 	if checkFinished {
-		task.taskFinishedCtx, task.taskFinished = context.WithCancel(ctx)
+		task.taskFinishedCtx, task.taskFinished = context.WithCancel(s.ctx)
 	}
 	s.tasks = append(s.tasks, task)
 	return task.taskFinishedCtx
