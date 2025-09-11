@@ -11,6 +11,9 @@ var (
 	ErrExit = errors.New("normal exit")
 )
 
+// SvcInit schedules tasks to be run and stopped on service initialization.
+// The first task to return, with an error or nil, will cause all the other tasks to stop and return the error
+// from that one.
 type SvcInit struct {
 	ctx             context.Context
 	cancelCtx       context.Context
@@ -61,10 +64,12 @@ func (s *SvcInit) Run() error {
 	return err
 }
 
+// Shutdown starts the shutdown process as if a task returned.
 func (s *SvcInit) Shutdown() {
 	s.cancel(ErrExit)
 }
 
+// WithShutdownTimeout sets a shutdown timeout. The default is 10 seconds.
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
 	return func(g *SvcInit) {
 		g.shutdownTimeout = shutdownTimeout
