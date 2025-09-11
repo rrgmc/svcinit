@@ -3,6 +3,7 @@ package svcinit_poc1
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -22,21 +23,41 @@ func (t testTaskNoError) Error() string {
 	return fmt.Sprintf("task %d error", t.taskNo)
 }
 
+func checkTestTaskError(t *testing.T, err error, taskNo int) {
+	var tne testTaskNoError
+	if errors.As(err, &tne) {
+		assert.Equal(t, tne.taskNo, taskNo, "expected task %d error got task %d", taskNo, tne.taskNo)
+	} else {
+		assert.Assert(t, false, "unexpected error type %T", err)
+	}
+}
+
 func TestSvcInit(t *testing.T) {
 	isDebug := true
 
 	for _, test := range []struct {
 		name                                           string
 		cancelFn                                       func() []int
+		expectedTaskErr                                int
 		expectedErr                                    error
 		expectedOrderedFinish, expectedOrderedStop     []int
 		expectedUnorderedFinish, expectedUnorderedStop []int
 	}{
 		{
-			name: "cancel execute unordered",
+			name: "stop 1: cancel execute unordered",
 			cancelFn: func() []int {
 				return []int{1}
 			},
+			expectedOrderedFinish:   []int{2, 3, 4},
+			expectedOrderedStop:     []int{2, 4},
+			expectedUnorderedFinish: []int{1, 5},
+		},
+		{
+			name: "stop 2: cancel task service ordered",
+			cancelFn: func() []int {
+				return []int{2}
+			},
+			expectedTaskErr:         2,
 			expectedOrderedFinish:   []int{2, 3, 4},
 			expectedOrderedStop:     []int{2, 4},
 			expectedUnorderedFinish: []int{1, 5},
@@ -84,10 +105,10 @@ func TestSvcInit(t *testing.T) {
 								if isDebug {
 									fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
 								}
-								return context.Cause(ctx)
+								return context.Cause(dtCtx)
 							case <-ctx.Done():
 								if isDebug {
-									fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(dtCtx))
+									fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(ctx))
 								}
 								return context.Cause(ctx)
 							}
@@ -151,10 +172,13 @@ func TestSvcInit(t *testing.T) {
 			sinit.StopTask(i4Stop)
 
 			err := sinit.Run()
-			if test.expectedErr == nil {
-				assert.NilError(t, err)
-			} else {
+			fmt.Println("err:", err)
+			if test.expectedErr != nil {
 				assert.ErrorIs(t, err, test.expectedErr)
+			} else if test.expectedTaskErr > 0 {
+				checkTestTaskError(t, err, test.expectedTaskErr)
+			} else {
+				assert.NilError(t, err)
 			}
 
 			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish)
