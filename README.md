@@ -1,4 +1,5 @@
 # svcinit
+[![GoDoc](https://godoc.org/github.com/rrgmc/svcinit?status.png)](https://godoc.org/github.com/rrgmc/svcinit)
 
 ## Example
 
