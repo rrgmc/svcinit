@@ -4,10 +4,14 @@ import (
 	"context"
 )
 
+// ExecuteTask executes the passed task when the shutdown order does not matter.
+// The context passed to the task will be canceled on stop.
 func (s *SvcInit) ExecuteTask(fn Task) {
 	s.addTask(s.cancelCtx, fn)
 }
 
+// StartTask executes a task and allows the shutdown method to be customized.
+// At least one method of StartTaskCmd must be called, or Run will fail.
 func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
@@ -18,6 +22,9 @@ func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	return cmd
 }
 
+// StartService executes a service task and allows the shutdown method to be customized.
+// A service is a task with Start and Stop methods.
+// At least one method of StartServiceCmd must be called, or Run will fail.
 func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	cmd := StartServiceCmd{
 		s:        s,
@@ -28,6 +35,7 @@ func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	return cmd
 }
 
+// StopTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTask(fn StopTask) {
 	if ps, ok := fn.(pendingStopTask); ok {
 		ps.setResolved()
@@ -35,10 +43,12 @@ func (s *SvcInit) StopTask(fn StopTask) {
 	s.cleanup = append(s.cleanup, fn.Stop)
 }
 
+// StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTaskFunc(fn Task) {
 	s.cleanup = append(s.cleanup, fn)
 }
 
+// AutoStopTask adds a shutdown task, when the shutdown order doesn't matter.
 func (s *SvcInit) AutoStopTask(fn Task) {
 	s.autoCleanup = append(s.autoCleanup, fn)
 }
