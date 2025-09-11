@@ -66,17 +66,18 @@ func (s StartTaskCmd) AutoStop() {
 	s.s.addTask(s.s.serviceCancelCtx, s.start)
 }
 
-// StopCtx returns a StopTask to be stopped when the order matters.
+// StopCancel returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) StopCtx() StopTask {
-	s.resolved.setResolved()
-	ctx, cancel := context.WithCancelCause(s.s.ctx)
-	s.s.addTask(ctx, s.start)
-	return s.s.addPendingStopTask(func(_ context.Context) error {
-		cancel(ErrExit)
-		return nil
-	})
+func (s StartTaskCmd) StopCancel() StopTask {
+	return s.stopCancel(nil)
+}
+
+// StopFuncCancel returns a StopTask to be stopped when the order matters.
+// The context passed to the task will be canceled BEFORE calling the stop task.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
+func (s StartTaskCmd) StopFuncCancel(stop Task) StopTask {
+	return s.stopCancel(stop)
 }
 
 // Stop returns a StopTask to be stopped when the order matters.
@@ -86,6 +87,19 @@ func (s StartTaskCmd) Stop(stop Task) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
 	return s.s.addPendingStopTask(stop)
+}
+
+func (s StartTaskCmd) stopCancel(stop Task) StopTask {
+	s.resolved.setResolved()
+	ctx, cancel := context.WithCancelCause(s.s.ctx)
+	s.s.addTask(ctx, s.start)
+	return s.s.addPendingStopTask(func(ctx context.Context) error {
+		cancel(ErrExit)
+		if stop != nil {
+			return stop(ctx)
+		}
+		return nil
+	})
 }
 
 func (s StartTaskCmd) isResolved() bool {
@@ -110,10 +124,10 @@ func (s StartServiceCmd) AutoStop() {
 	})
 }
 
-// StopCtx returns a StopTask to be stopped when the order matters.
-// The context passed to the task will be canceled.
+// StopCancel returns a StopTask to be stopped when the order matters.
+// The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartServiceCmd) StopCtx() StopTask {
+func (s StartServiceCmd) StopCancel() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, func(ctx context.Context) error {
