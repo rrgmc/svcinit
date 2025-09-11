@@ -102,9 +102,7 @@ func TestSvcInit(t *testing.T) {
 								}
 								m.Unlock()
 							}()
-							if dtCancel != nil {
-								dtCancel(ErrExit)
-							}
+							dtCancel(ErrExit)
 							return nil
 						}),
 				}

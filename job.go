@@ -7,7 +7,7 @@ import (
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 func (s *SvcInit) ExecuteTask(fn Task) {
-	s.addTask(s.serviceCancelCtx, fn)
+	_ = s.addTask(s.serviceCancelCtx, fn, false)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
@@ -63,7 +63,7 @@ type StartTaskCmd struct {
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop() {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.serviceCancelCtx, s.start)
+	_ = s.s.addTask(s.s.serviceCancelCtx, s.start, false)
 }
 
 // StopCancel returns a StopTask to be stopped when the order matters.
@@ -85,20 +85,31 @@ func (s StartTaskCmd) StopFuncCancel(stop Task) StopTask {
 // The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartTaskCmd) Stop(stop Task) StopTask {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.ctx, s.start)
-	return s.s.addPendingStopTask(stop)
+	finishedCtx := s.s.addTask(s.s.ctx, s.start, true)
+	return s.s.addPendingStopTask(func(ctx context.Context) error {
+		err := stop(ctx)
+		select {
+		case <-finishedCtx.Done():
+		case <-ctx.Done():
+		}
+		return err
+	})
 }
 
 func (s StartTaskCmd) stopCancel(stop Task) StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
-	s.s.addTask(ctx, s.start)
-	return s.s.addPendingStopTask(func(ctx context.Context) error {
+	finishedCtx := s.s.addTask(ctx, s.start, true)
+	return s.s.addPendingStopTask(func(ctx context.Context) (err error) {
 		cancel(ErrExit)
 		if stop != nil {
-			return stop(ctx)
+			err = stop(ctx)
 		}
-		return nil
+		select {
+		case <-finishedCtx.Done():
+		case <-ctx.Done():
+		}
+		return
 	})
 }
 
@@ -116,12 +127,8 @@ type StartServiceCmd struct {
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.serviceCancelCtx, func(ctx context.Context) error {
-		return s.svc.Start(ctx)
-	})
-	s.s.AutoStopTask(func(ctx context.Context) error {
-		return s.svc.Stop(ctx)
-	})
+	_ = s.s.addTask(s.s.serviceCancelCtx, s.svc.Start, false)
+	s.s.AutoStopTask(s.svc.Stop)
 }
 
 // StopCancel returns a StopTask to be stopped when the order matters.
@@ -130,12 +137,15 @@ func (s StartServiceCmd) AutoStop() {
 func (s StartServiceCmd) StopCancel() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
-	s.s.addTask(ctx, func(ctx context.Context) error {
-		return s.svc.Start(ctx)
-	})
-	return s.s.addPendingStopTask(func(_ context.Context) error {
+	finishedCtx := s.s.addTask(ctx, s.svc.Start, true)
+	return s.s.addPendingStopTask(func(ctx context.Context) error {
 		cancel(ErrExit)
-		return s.svc.Stop(ctx)
+		err := s.svc.Stop(ctx)
+		select {
+		case <-finishedCtx.Done():
+		case <-ctx.Done():
+		}
+		return err
 	})
 }
 
@@ -144,11 +154,14 @@ func (s StartServiceCmd) StopCancel() StopTask {
 // The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartServiceCmd) Stop() StopTask {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.ctx, func(ctx context.Context) error {
-		return s.svc.Start(ctx)
-	})
+	finishedCtx := s.s.addTask(s.s.ctx, s.svc.Start, true)
 	return s.s.addPendingStopTask(func(ctx context.Context) error {
-		return s.svc.Stop(ctx)
+		err := s.svc.Stop(ctx)
+		select {
+		case <-finishedCtx.Done():
+		case <-ctx.Done():
+		}
+		return err
 	})
 }
 
@@ -156,11 +169,16 @@ func (s StartServiceCmd) isResolved() bool {
 	return s.resolved.isResolved()
 }
 
-func (s *SvcInit) addTask(ctx context.Context, fn Task) {
-	s.tasks = append(s.tasks, taskWrapper{
+func (s *SvcInit) addTask(ctx context.Context, fn Task, checkFinished bool) (finishedCtx context.Context) {
+	task := taskWrapper{
 		ctx:  ctx,
 		task: fn,
-	})
+	}
+	if checkFinished {
+		task.taskFinishedCtx, task.taskFinished = context.WithCancel(ctx)
+	}
+	s.tasks = append(s.tasks, task)
+	return task.taskFinishedCtx
 }
 
 type pendingTask interface {

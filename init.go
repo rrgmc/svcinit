@@ -96,6 +96,8 @@ func WithStartedCallback(startedCallback Task) Option {
 type Option func(*SvcInit)
 
 type taskWrapper struct {
-	ctx  context.Context
-	task Task
+	ctx             context.Context
+	task            Task
+	taskFinishedCtx context.Context
+	taskFinished    context.CancelFunc
 }

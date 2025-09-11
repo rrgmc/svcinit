@@ -13,7 +13,10 @@ func (s *SvcInit) start() {
 	for _, task := range s.tasks {
 		s.wg.Add(1)
 		runWg.Add(1)
-		go func(ctx context.Context, fn Task) {
+		go func(ctx context.Context, fn Task, taskFinished context.CancelFunc) {
+			if task.taskFinished != nil {
+				defer taskFinished()
+			}
 			defer s.wg.Done()
 			runWg.Done()
 			err := fn(ctx)
@@ -22,7 +25,7 @@ func (s *SvcInit) start() {
 			} else {
 				s.cancel(ErrExit)
 			}
-		}(task.ctx, task.task)
+		}(task.ctx, task.task, task.taskFinished)
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
