@@ -94,7 +94,7 @@ func TestSvcInit(t *testing.T) {
 	task3 := defaultTaskSvc(3, true)
 	i3Stop := sinit.
 		StartTask(task3.svc.Start).
-		CtxStop()
+		StopCtx()
 
 	task4 := defaultTaskSvc(4, true)
 	i4Stop := sinit.

@@ -66,10 +66,10 @@ func (s StartTaskCmd) AutoStop() {
 	s.s.addTask(s.s.serviceCancelCtx, s.start)
 }
 
-// CtxStop returns a StopTask to be stopped when the order matters.
+// StopCtx returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) CtxStop() StopTask {
+func (s StartTaskCmd) StopCtx() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, s.start)
@@ -110,10 +110,10 @@ func (s StartServiceCmd) AutoStop() {
 	})
 }
 
-// CtxStop returns a StopTask to be stopped when the order matters.
+// StopCtx returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartServiceCmd) CtxStop() StopTask {
+func (s StartServiceCmd) StopCtx() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, func(ctx context.Context) error {
