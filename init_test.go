@@ -1,4 +1,4 @@
-package svcinit_poc1
+package svcinit
 
 import (
 	"cmp"

@@ -1,4 +1,4 @@
-package svcinit_poc1
+package svcinit
 
 type resolved struct {
 	value *bool

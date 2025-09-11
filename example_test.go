@@ -1,0 +1,5 @@
+package svcinit
+
+func ExampleSvcInit() {
+
+}
