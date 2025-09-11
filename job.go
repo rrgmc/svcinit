@@ -7,7 +7,7 @@ import (
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 func (s *SvcInit) ExecuteTask(fn Task) {
-	s.addTask(s.cancelCtx, fn)
+	s.addTask(s.serviceCancelCtx, fn)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
@@ -63,7 +63,7 @@ type StartTaskCmd struct {
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop() {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.cancelCtx, s.start)
+	s.s.addTask(s.s.serviceCancelCtx, s.start)
 }
 
 // CtxStop returns a StopTask to be stopped when the order matters.
@@ -102,7 +102,7 @@ type StartServiceCmd struct {
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.cancelCtx, func(ctx context.Context) error {
+	s.s.addTask(s.s.serviceCancelCtx, func(ctx context.Context) error {
 		return s.svc.Start(ctx)
 	})
 	s.s.AutoStopTask(func(ctx context.Context) error {

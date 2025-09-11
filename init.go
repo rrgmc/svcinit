@@ -15,25 +15,30 @@ var (
 // The first task to return, with an error or nil, will cause all the other tasks to stop and return the error
 // from that one.
 type SvcInit struct {
-	ctx             context.Context
-	cancelCtx       context.Context
-	cancel          context.CancelCauseFunc
-	tasks           []taskWrapper
-	autoCleanup     []Task
-	cleanup         []Task
-	pendingStarts   []pendingTask
-	pendingStops    []pendingTask
-	wg              sync.WaitGroup
-	shutdownTimeout time.Duration
+	ctx              context.Context
+	cancelCtx        context.Context
+	cancel           context.CancelCauseFunc
+	serviceCancelCtx context.Context
+	serviceCancel    context.CancelCauseFunc
+	tasks            []taskWrapper
+	autoCleanup      []Task
+	cleanup          []Task
+	pendingStarts    []pendingTask
+	pendingStops     []pendingTask
+	wg               sync.WaitGroup
+	shutdownTimeout  time.Duration
 }
 
 func New(ctx context.Context, options ...Option) *SvcInit {
 	cancelCtx, cancel := context.WithCancelCause(ctx)
+	serviceCancelCtx, serviceCancel := context.WithCancelCause(ctx)
 	s := &SvcInit{
-		ctx:             ctx,
-		cancelCtx:       cancelCtx,
-		cancel:          cancel,
-		shutdownTimeout: 10 * time.Second,
+		ctx:              ctx,
+		cancelCtx:        cancelCtx,
+		cancel:           cancel,
+		serviceCancelCtx: serviceCancelCtx,
+		serviceCancel:    serviceCancel,
+		shutdownTimeout:  10 * time.Second,
 	}
 	for _, opt := range options {
 		opt(s)
@@ -50,6 +55,7 @@ func (s *SvcInit) RunWithErrors() (error, []error) {
 	}
 	s.start()
 	<-s.cancelCtx.Done()
+	s.serviceCancel(context.Cause(s.cancelCtx))
 	cleanupErr := s.shutdown()
 	s.wg.Wait()
 	cause := context.Cause(s.cancelCtx)
