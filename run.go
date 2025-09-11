@@ -7,6 +7,7 @@ import (
 )
 
 func (s *SvcInit) start() {
+	// start all tasks in separate goroutines.
 	for _, task := range s.tasks {
 		s.wg.Add(1)
 		go func(ctx context.Context, fn Task) {
@@ -32,6 +33,7 @@ func (s *SvcInit) shutdown() []error {
 	defer cancel()
 
 	if len(s.autoCleanup) > 0 {
+		// cleanups where order don't matter are done in parallel
 		wg.Add(len(s.autoCleanup))
 		for _, fn := range s.autoCleanup {
 			go func(fn Task) {
@@ -46,6 +48,7 @@ func (s *SvcInit) shutdown() []error {
 		}
 	}
 
+	// execute ordered cleanups synchronously
 	for _, fn := range s.cleanup {
 		err := fn(ctx)
 		if err != nil {
@@ -55,6 +58,7 @@ func (s *SvcInit) shutdown() []error {
 		}
 	}
 
+	// wait for auto cleanups, if any
 	wg.Wait()
 
 	return errs
