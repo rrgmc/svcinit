@@ -3,76 +3,115 @@ package svcinit_poc1
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
+	"sync"
 	"syscall"
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 )
 
+type testTaskNoError struct {
+	taskNo int
+}
+
+func (t testTaskNoError) Error() string {
+	return fmt.Sprintf("task %d error", t.taskNo)
+}
+
 func TestSvcInit(t *testing.T) {
 	ctx := context.Background()
 
+	var m sync.Mutex
+	var orderedFinish, orderedStop []int
+	var unorderedFinish, unorderedStop []int
+
 	sinit := New(ctx)
 
-	defaultTaskSvc := func(taskNo int) Service {
-		durationSec := 3 + rand.Intn(5)
-		var dtCtx context.Context
-		var dtCancel context.CancelCauseFunc
-		return ServiceFunc(
-			func(ctx context.Context) error {
-				dtCtx, dtCancel = context.WithCancelCause(ctx)
-				fmt.Printf("Task %d running [%d seconds]\n", taskNo, durationSec)
-				defer func() {
-					fmt.Printf("Task %d finished\n", taskNo)
-				}()
-
-				select {
-				case <-dtCtx.Done():
-					fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
-					return context.Cause(ctx)
-				case <-ctx.Done():
-					fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(ctx))
-					return context.Cause(ctx)
-				case <-time.After(time.Duration(durationSec) * time.Second):
-					fmt.Printf("Task %d timeout [%d seconds]\n", taskNo, durationSec)
-				}
-				return nil
-			}, func(ctx context.Context) error {
-				fmt.Printf("Stopping task %d\n", taskNo)
-				if dtCancel != nil {
-					dtCancel(ErrExit)
-				}
-				return nil
-			})
+	type testService struct {
+		svc    Service
+		cancel context.CancelFunc
 	}
 
-	defaultTask := func(taskNo int) Task {
-		return defaultTaskSvc(taskNo).Start
+	defaultTaskSvc := func(taskNo int, ordered bool) testService {
+		dtCtx, dtCancel := context.WithCancelCause(ctx)
+		return testService{
+			cancel: func() {
+				dtCancel(testTaskNoError{taskNo: taskNo})
+			},
+			svc: ServiceFunc(
+				func(ctx context.Context) error {
+					fmt.Printf("Task %d running\n", taskNo)
+					defer func() {
+						fmt.Printf("Task %d finished\n", taskNo)
+					}()
+
+					defer func() {
+						m.Lock()
+						if ordered {
+							orderedFinish = append(orderedFinish, taskNo)
+						} else {
+							unorderedFinish = append(unorderedFinish, taskNo)
+						}
+						m.Unlock()
+					}()
+
+					select {
+					case <-dtCtx.Done():
+						fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
+						return context.Cause(ctx)
+					case <-ctx.Done():
+						fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(dtCtx))
+						return context.Cause(ctx)
+					}
+				}, func(ctx context.Context) error {
+					fmt.Printf("Stopping task %d\n", taskNo)
+					defer func() {
+						m.Lock()
+						if ordered {
+							orderedStop = append(orderedStop, taskNo)
+						} else {
+							unorderedStop = append(unorderedStop, taskNo)
+						}
+						m.Unlock()
+					}()
+					if dtCancel != nil {
+						dtCancel(ErrExit)
+					}
+					return nil
+				}),
+		}
 	}
 
-	sinit.ExecuteTask(defaultTask(1))
+	task1 := defaultTaskSvc(1, false)
+	sinit.ExecuteTask(task1.svc.Start)
 
-	task2 := defaultTaskSvc(2)
+	task2 := defaultTaskSvc(2, true)
 	i2Stop := sinit.
-		StartTask(task2.Start).
-		Stop(task2.Stop)
+		StartTask(task2.svc.Start).
+		Stop(task2.svc.Stop)
 
+	task3 := defaultTaskSvc(3, true)
 	i3Stop := sinit.
-		StartTask(defaultTask(3)).
+		StartTask(task3.svc.Start).
 		CtxStop()
 
+	task4 := defaultTaskSvc(4, true)
 	i4Stop := sinit.
-		StartService(defaultTaskSvc(4)).
+		StartService(task4.svc).
 		Stop()
 
+	task5 := defaultTaskSvc(5, false)
 	sinit.
-		StartTask(defaultTask(5)).
+		StartTask(task5.svc.Start).
 		AutoStop()
 
 	sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+
+	sinit.ExecuteTask(func(ctx context.Context) error {
+		task4.cancel()
+		return nil
+	})
 
 	sinit.StopTask(i2Stop)
 	sinit.StopTask(i3Stop)
