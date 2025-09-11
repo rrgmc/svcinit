@@ -6,12 +6,14 @@ import (
 
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
+// The task is only executed at the Run call.
 func (s *SvcInit) ExecuteTask(fn Task) {
 	_ = s.addTask(s.serviceCancelCtx, fn, false)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
+// The task is only executed at the Run call.
 func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
@@ -25,6 +27,7 @@ func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with Start and Stop methods.
 // At least one method of StartServiceCmd must be called, or Run will fail.
+// The task is only executed at the Run call.
 func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	cmd := StartServiceCmd{
 		s:        s,

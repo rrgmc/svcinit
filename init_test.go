@@ -186,7 +186,7 @@ func TestSvcInit(t *testing.T) {
 				StartTask(task5.svc.Start).
 				AutoStop()
 
-			sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+			sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGTERM))
 
 			tasks := []testService{task1, task2, task3, task4, task5}
 
