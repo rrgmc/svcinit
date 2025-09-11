@@ -14,7 +14,7 @@ func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 		start:    start,
 		resolved: newResolved(),
 	}
-	s.addPending(cmd)
+	s.addPendingStart(cmd)
 	return cmd
 }
 
@@ -24,11 +24,18 @@ func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 		svc:      svc,
 		resolved: newResolved(),
 	}
-	s.addPending(cmd)
+	s.addPendingStart(cmd)
 	return cmd
 }
 
-func (s *SvcInit) StopTask(fn Task) {
+func (s *SvcInit) StopTask(fn StopTask) {
+	if ps, ok := fn.(pendingStopTask); ok {
+		ps.setResolved()
+	}
+	s.cleanup = append(s.cleanup, fn.Stop)
+}
+
+func (s *SvcInit) StopTaskFunc(fn Task) {
 	s.cleanup = append(s.cleanup, fn)
 }
 
@@ -47,20 +54,20 @@ func (s StartTaskCmd) AutoStop() {
 	s.s.addTask(s.s.cancelCtx, s.start)
 }
 
-func (s StartTaskCmd) CtxStop() (stopFn Task) {
+func (s StartTaskCmd) CtxStop() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, s.start)
-	return func(_ context.Context) error {
+	return s.s.addPendingStopTask(func(_ context.Context) error {
 		cancel(ErrExit)
 		return nil
-	}
+	})
 }
 
-func (s StartTaskCmd) Stop(stop Task) (stopFn Task) {
+func (s StartTaskCmd) Stop(stop Task) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
-	return stop
+	return s.s.addPendingStopTask(stop)
 }
 
 func (s StartTaskCmd) isResolved() bool {
@@ -83,26 +90,26 @@ func (s StartServiceCmd) AutoStop() {
 	})
 }
 
-func (s StartServiceCmd) CtxStop() (stopFn Task) {
+func (s StartServiceCmd) CtxStop() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, func(ctx context.Context) error {
 		return s.svc.Start(ctx)
 	})
-	return func(_ context.Context) error {
+	return s.s.addPendingStopTask(func(_ context.Context) error {
 		cancel(ErrExit)
 		return s.svc.Stop(ctx)
-	}
+	})
 }
 
-func (s StartServiceCmd) Stop() (stopFn Task) {
+func (s StartServiceCmd) Stop() StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, func(ctx context.Context) error {
 		return s.svc.Start(ctx)
 	})
-	return func(ctx context.Context) error {
+	return s.s.addPendingStopTask(func(ctx context.Context) error {
 		return s.svc.Stop(ctx)
-	}
+	})
 }
 
 func (s StartServiceCmd) isResolved() bool {
@@ -116,6 +123,36 @@ func (s *SvcInit) addTask(ctx context.Context, fn Task) {
 	})
 }
 
-type pendingStart interface {
+type pendingTask interface {
 	isResolved() bool
+}
+
+func newPendingStopTask(task Task) pendingStopTask {
+	return pendingStopTaskImpl{
+		stopTask: task,
+		resolved: newResolved(),
+	}
+}
+
+type pendingStopTask interface {
+	StopTask
+	isResolved() bool
+	setResolved()
+}
+
+type pendingStopTaskImpl struct {
+	stopTask Task
+	resolved resolved
+}
+
+func (p pendingStopTaskImpl) Stop(ctx context.Context) error {
+	return p.stopTask(ctx)
+}
+
+func (p pendingStopTaskImpl) isResolved() bool {
+	return p.resolved.isResolved()
+}
+
+func (p pendingStopTaskImpl) setResolved() {
+	p.resolved.setResolved()
 }

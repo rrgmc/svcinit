@@ -66,9 +66,24 @@ func (s *SvcInit) checkPending() error {
 			return errors.New("all start commands must be resolved")
 		}
 	}
+	for _, task := range s.pendingStops {
+		if !task.isResolved() {
+			return errors.New("all stop commands must be resolved")
+		}
+	}
 	return nil
 }
 
-func (s *SvcInit) addPending(p pendingStart) {
+func (s *SvcInit) addPendingStart(p pendingTask) {
 	s.pendingStarts = append(s.pendingStarts, p)
+}
+
+func (s *SvcInit) addPendingStop(p pendingTask) {
+	s.pendingStops = append(s.pendingStops, p)
+}
+
+func (s *SvcInit) addPendingStopTask(task Task) StopTask {
+	st := newPendingStopTask(task)
+	s.pendingStops = append(s.pendingStops, st)
+	return st
 }

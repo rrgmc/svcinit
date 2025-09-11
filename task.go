@@ -31,3 +31,13 @@ func (sf *serviceFunc) Stop(ctx context.Context) error {
 	}
 	return sf.stop(ctx)
 }
+
+type StopTask interface {
+	Stop(ctx context.Context) error
+}
+
+type StopTaskFunc func(ctx context.Context) error
+
+func (sf StopTaskFunc) Stop(ctx context.Context) error {
+	return sf(ctx)
+}

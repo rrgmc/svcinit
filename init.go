@@ -18,7 +18,8 @@ type SvcInit struct {
 	tasks           []taskWrapper
 	autoCleanup     []Task
 	cleanup         []Task
-	pendingStarts   []pendingStart
+	pendingStarts   []pendingTask
+	pendingStops    []pendingTask
 	wg              sync.WaitGroup
 	shutdownTimeout time.Duration
 }
