@@ -24,7 +24,6 @@ func SignalTask(signals ...os.Signal) Task {
 		case sig := <-c:
 			return SignalError{Signal: sig}
 		case <-ctx.Done():
-			fmt.Printf("signal task done: %v\n", context.Cause(ctx))
 			return context.Cause(ctx)
 		}
 	}

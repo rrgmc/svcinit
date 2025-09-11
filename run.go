@@ -37,7 +37,7 @@ func (s *SvcInit) shutdown() []error {
 func (s *SvcInit) checkPending() error {
 	for _, task := range s.pendingStarts {
 		if !task.isResolved() {
-			return errors.New("all tasks must be resolved")
+			return errors.New("all start commands must be resolved")
 		}
 	}
 	return nil
