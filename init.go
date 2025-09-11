@@ -20,6 +20,7 @@ type SvcInit struct {
 	cancel           context.CancelCauseFunc
 	serviceCancelCtx context.Context
 	serviceCancel    context.CancelCauseFunc
+	startedCallback  Task
 	tasks            []taskWrapper
 	autoCleanup      []Task
 	cleanup          []Task
@@ -75,10 +76,20 @@ func (s *SvcInit) Shutdown() {
 	s.cancel(ErrExit)
 }
 
+func (s *SvcInit) SetStartedCallback(startedCallback Task) {
+	s.startedCallback = startedCallback
+}
+
 // WithShutdownTimeout sets a shutdown timeout. The default is 10 seconds.
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
-	return func(g *SvcInit) {
-		g.shutdownTimeout = shutdownTimeout
+	return func(s *SvcInit) {
+		s.shutdownTimeout = shutdownTimeout
+	}
+}
+
+func WithStartedCallback(startedCallback Task) Option {
+	return func(s *SvcInit) {
+		s.startedCallback = startedCallback
 	}
 }
 

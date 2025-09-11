@@ -7,11 +7,15 @@ import (
 )
 
 func (s *SvcInit) start() {
+	var runWg sync.WaitGroup
+
 	// start all tasks in separate goroutines.
 	for _, task := range s.tasks {
 		s.wg.Add(1)
+		runWg.Add(1)
 		go func(ctx context.Context, fn Task) {
 			defer s.wg.Done()
+			runWg.Done()
 			err := fn(ctx)
 			if err != nil {
 				s.cancel(err)
@@ -19,6 +23,12 @@ func (s *SvcInit) start() {
 				s.cancel(ErrExit)
 			}
 		}(task.ctx, task.task)
+	}
+	runWg.Wait()
+	if s.startedCallback != nil {
+		if serr := s.startedCallback(s.ctx); serr != nil {
+			s.cancel(serr)
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package svcinit_poc1
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 )
 
@@ -20,103 +22,146 @@ func (t testTaskNoError) Error() string {
 }
 
 func TestSvcInit(t *testing.T) {
-	ctx := context.Background()
+	isDebug := true
 
-	var m sync.Mutex
-	var orderedFinish, orderedStop []int
-	var unorderedFinish, unorderedStop []int
-
-	sinit := New(ctx)
-
-	type testService struct {
-		svc    Service
-		cancel context.CancelFunc
-	}
-
-	defaultTaskSvc := func(taskNo int, ordered bool) testService {
-		dtCtx, dtCancel := context.WithCancelCause(ctx)
-		return testService{
-			cancel: func() {
-				dtCancel(testTaskNoError{taskNo: taskNo})
+	for _, test := range []struct {
+		name                                           string
+		cancelFn                                       func() []int
+		expectedErr                                    error
+		expectedOrderedFinish, expectedOrderedStop     []int
+		expectedUnorderedFinish, expectedUnorderedStop []int
+	}{
+		{
+			name: "cancel execute unordered",
+			cancelFn: func() []int {
+				return []int{1}
 			},
-			svc: ServiceFunc(
-				func(ctx context.Context) error {
-					fmt.Printf("Task %d running\n", taskNo)
-					defer func() {
-						fmt.Printf("Task %d finished\n", taskNo)
-					}()
+			expectedOrderedFinish:   []int{2, 3, 4},
+			expectedUnorderedFinish: []int{1, 5},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
 
-					defer func() {
-						m.Lock()
-						if ordered {
-							orderedFinish = append(orderedFinish, taskNo)
-						} else {
-							unorderedFinish = append(unorderedFinish, taskNo)
-						}
-						m.Unlock()
-					}()
+			var m sync.Mutex
+			var orderedFinish, orderedStop []int
+			var unorderedFinish, unorderedStop []int
 
-					select {
-					case <-dtCtx.Done():
-						fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
-						return context.Cause(ctx)
-					case <-ctx.Done():
-						fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(dtCtx))
-						return context.Cause(ctx)
-					}
-				}, func(ctx context.Context) error {
-					fmt.Printf("Stopping task %d\n", taskNo)
-					defer func() {
-						m.Lock()
-						if ordered {
-							orderedStop = append(orderedStop, taskNo)
-						} else {
-							unorderedStop = append(unorderedStop, taskNo)
-						}
-						m.Unlock()
-					}()
-					if dtCancel != nil {
-						dtCancel(ErrExit)
-					}
-					return nil
-				}),
-		}
+			type testService struct {
+				svc    Service
+				cancel context.CancelFunc
+			}
+
+			defaultTaskSvc := func(taskNo int, ordered bool) testService {
+				dtCtx, dtCancel := context.WithCancelCause(ctx)
+				return testService{
+					cancel: func() {
+						dtCancel(testTaskNoError{taskNo: taskNo})
+					},
+					svc: ServiceFunc(
+						func(ctx context.Context) error {
+							if isDebug {
+								fmt.Printf("Task %d running\n", taskNo)
+								defer func() {
+									fmt.Printf("Task %d finished\n", taskNo)
+								}()
+							}
+
+							defer func() {
+								m.Lock()
+								if ordered {
+									orderedFinish = append(orderedFinish, taskNo)
+								} else {
+									unorderedFinish = append(unorderedFinish, taskNo)
+								}
+								m.Unlock()
+							}()
+
+							select {
+							case <-dtCtx.Done():
+								if isDebug {
+									fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
+								}
+								return context.Cause(ctx)
+							case <-ctx.Done():
+								if isDebug {
+									fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(dtCtx))
+								}
+								return context.Cause(ctx)
+							}
+						}, func(ctx context.Context) error {
+							if isDebug {
+								fmt.Printf("Stopping task %d\n", taskNo)
+							}
+							defer func() {
+								m.Lock()
+								if ordered {
+									orderedStop = append(orderedStop, taskNo)
+								} else {
+									unorderedStop = append(unorderedStop, taskNo)
+								}
+								m.Unlock()
+							}()
+							if dtCancel != nil {
+								dtCancel(ErrExit)
+							}
+							return nil
+						}),
+				}
+			}
+
+			sinit := New(ctx)
+
+			task1 := defaultTaskSvc(1, false)
+			sinit.ExecuteTask(task1.svc.Start)
+
+			task2 := defaultTaskSvc(2, true)
+			i2Stop := sinit.
+				StartTask(task2.svc.Start).
+				Stop(task2.svc.Stop)
+
+			task3 := defaultTaskSvc(3, true)
+			i3Stop := sinit.
+				StartTask(task3.svc.Start).
+				StopCancel()
+
+			task4 := defaultTaskSvc(4, true)
+			i4Stop := sinit.
+				StartService(task4.svc).
+				Stop()
+
+			task5 := defaultTaskSvc(5, false)
+			sinit.
+				StartTask(task5.svc.Start).
+				AutoStop()
+
+			sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+
+			tasks := []testService{task1, task2, task3, task4, task5}
+
+			sinit.SetStartedCallback(func(ctx context.Context) error {
+				for _, taskNo := range test.cancelFn() {
+					tasks[taskNo-1].cancel()
+				}
+				return nil
+			})
+
+			sinit.StopTask(i2Stop)
+			sinit.StopTask(i3Stop)
+			sinit.StopTask(i4Stop)
+
+			err := sinit.Run()
+			if test.expectedErr == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorIs(t, err, test.expectedErr)
+			}
+
+			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish)
+			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop)
+			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish, cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop, cmpopts.SortSlices(cmp.Less[int]))
+		})
 	}
 
-	task1 := defaultTaskSvc(1, false)
-	sinit.ExecuteTask(task1.svc.Start)
-
-	task2 := defaultTaskSvc(2, true)
-	i2Stop := sinit.
-		StartTask(task2.svc.Start).
-		Stop(task2.svc.Stop)
-
-	task3 := defaultTaskSvc(3, true)
-	i3Stop := sinit.
-		StartTask(task3.svc.Start).
-		StopCancel()
-
-	task4 := defaultTaskSvc(4, true)
-	i4Stop := sinit.
-		StartService(task4.svc).
-		Stop()
-
-	task5 := defaultTaskSvc(5, false)
-	sinit.
-		StartTask(task5.svc.Start).
-		AutoStop()
-
-	sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
-
-	sinit.ExecuteTask(func(ctx context.Context) error {
-		task4.cancel()
-		return nil
-	})
-
-	sinit.StopTask(i2Stop)
-	sinit.StopTask(i3Stop)
-	sinit.StopTask(i4Stop)
-
-	err := sinit.Run()
-	assert.NilError(t, err)
 }
