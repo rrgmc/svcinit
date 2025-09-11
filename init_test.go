@@ -68,6 +68,10 @@ func TestInit(t *testing.T) {
 		StartService(defaultTaskSvc(4)).
 		Stop()
 
+	sinit.
+		StartTask(defaultTask(5)).
+		AutoStop()
+
 	sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
 
 	sinit.StopTask(i2Stop)
