@@ -10,8 +10,9 @@ func (s *SvcInit) RunTask(fn Task) {
 
 func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	cmd := StartTaskCmd{
-		s:     s,
-		start: start,
+		s:        s,
+		start:    start,
+		resolved: newResolved(),
 	}
 	s.addPending(cmd)
 	return cmd
@@ -19,8 +20,9 @@ func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 
 func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	cmd := StartServiceCmd{
-		s:   s,
-		svc: svc,
+		s:        s,
+		svc:      svc,
+		resolved: newResolved(),
 	}
 	s.addPending(cmd)
 	return cmd
