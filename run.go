@@ -3,6 +3,7 @@ package svcinit_poc1
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
 func (s *SvcInit) start() {
@@ -21,16 +22,41 @@ func (s *SvcInit) start() {
 }
 
 func (s *SvcInit) shutdown() []error {
-	var errs []error
+	var (
+		wg   sync.WaitGroup
+		lock sync.Mutex
+		errs []error
+	)
 
 	ctx, cancel := context.WithTimeout(s.ctx, s.shutdownTimeout)
 	defer cancel()
+
+	if len(s.autoCleanup) > 0 {
+		wg.Add(len(s.autoCleanup))
+		for _, fn := range s.autoCleanup {
+			go func(fn Task) {
+				defer wg.Done()
+				err := fn(ctx)
+				if err != nil {
+					lock.Lock()
+					errs = append(errs, err)
+					lock.Unlock()
+				}
+			}(fn)
+		}
+	}
+
 	for _, fn := range s.cleanup {
 		err := fn(ctx)
 		if err != nil {
+			lock.Lock()
 			errs = append(errs, err)
+			lock.Unlock()
 		}
 	}
+
+	wg.Wait()
+
 	return errs
 }
 
