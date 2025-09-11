@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrExit = errors.New("normal exit")
+	ErrExit    = errors.New("normal exit")
+	ErrPending = errors.New("pending start or stop command")
 )
 
 // SvcInit schedules tasks to be run and stopped on service initialization.

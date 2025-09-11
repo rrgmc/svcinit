@@ -9,7 +9,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
@@ -162,7 +161,7 @@ func TestSvcInit(t *testing.T) {
 				}
 			}
 
-			sinit := New(ctx, WithShutdownTimeout(time.Hour))
+			sinit := New(ctx)
 
 			task1 := defaultTaskSvc(1, false)
 			sinit.ExecuteTask(task1.svc.Start)
@@ -217,5 +216,58 @@ func TestSvcInit(t *testing.T) {
 			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop, cmpopts.SortSlices(cmp.Less[int]))
 		})
 	}
+}
 
+func TestSvcInitPendingStart(t *testing.T) {
+	sinit := New(context.Background())
+
+	// must call one StartTaskCmd method
+	_ = sinit.StartTask(func(ctx context.Context) error {
+		return nil
+	})
+
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrPending)
+}
+
+func TestSvcInitPendingStartService(t *testing.T) {
+	sinit := New(context.Background())
+
+	// must call one StartServiceCmd method
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
+		return nil
+	}, func(ctx context.Context) error {
+		return nil
+	}))
+
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrPending)
+}
+
+func TestSvcInitPendingStop(t *testing.T) {
+	sinit := New(context.Background())
+
+	// must add stop function to StopTask
+	_ = sinit.StartTask(func(ctx context.Context) error {
+		return nil
+	}).Stop(func(ctx context.Context) error {
+		return nil
+	})
+
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrPending)
+}
+
+func TestSvcInitPendingStopService(t *testing.T) {
+	sinit := New(context.Background())
+
+	// must add stop function to StopTask
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
+		return nil
+	}, func(ctx context.Context) error {
+		return nil
+	})).Stop()
+
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrPending)
 }

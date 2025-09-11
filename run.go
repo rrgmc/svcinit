@@ -2,7 +2,6 @@ package svcinit_poc1
 
 import (
 	"context"
-	"errors"
 	"sync"
 )
 
@@ -83,12 +82,12 @@ func (s *SvcInit) shutdown() []error {
 func (s *SvcInit) checkPending() error {
 	for _, task := range s.pendingStarts {
 		if !task.isResolved() {
-			return errors.New("all start commands must be resolved")
+			return ErrPending
 		}
 	}
 	for _, task := range s.pendingStops {
 		if !task.isResolved() {
-			return errors.New("all stop commands must be resolved")
+			return ErrPending
 		}
 	}
 	return nil
