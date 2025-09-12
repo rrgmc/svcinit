@@ -60,17 +60,20 @@ func ExampleSvcInit() {
         Stop() // stop the service using the Stop call WITHOUT cancelling the Start context.
 
     // start health HTTP server using manual stop ordering.
+    // uses the task method instead of the service call. In the end it is the same thing, but the Service interface
+    // can be implemented and reused.
     // it is only started on the Run call.
     healthStop := sinit.
-        StartService(svcinit.ServiceFunc(func(ctx context.Context) error {
+        StartTask(func(ctx context.Context) error {
             healthHTTPServer.BaseContext = func(net.Listener) context.Context {
                 return ctx
             }
             return healthHTTPServer.ListenAndServe()
-        }, func(ctx context.Context) error {
+        }).
+        // stop the service using the Stop call WITHOUT cancelling the Start context.
+        Stop(func(ctx context.Context) error {
             return healthHTTPServer.Shutdown(ctx)
-        })).
-        Stop() // stop the service using the Stop call WITHOUT cancelling the Start context.
+        })
 
     // start a dummy task where the stop order doesn't matter.
     // unordered tasks are stopped in parallel.
@@ -89,7 +92,7 @@ func ExampleSvcInit() {
 
     // sleep 10 seconds and shutdown.
     // it is only started on the Run call.
-    sinit.ExecuteTask(svcinit.TimeoutTask(2*time.Second, errors.New("timed out")))
+    sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
 
     // add manual stops. They will be stopped in the added order.
 
@@ -102,6 +105,8 @@ func ExampleSvcInit() {
         // err will be "timed out"
         fmt.Println("err:", err)
     }
+
+    // Output: err: timed out
 }
 ```
 
