@@ -18,6 +18,8 @@ var (
 type SvcInit struct {
 	// ctx is the original context passed on New.
 	ctx context.Context
+	// shutdownCtx is the context to use for shutdown. The default is context.WithoutCancel(ctx).
+	shutdownCtx context.Context
 	// cancelCtx and cancel are used to return the error of the first task to finish, and signal that the service should
 	// shut down.
 	cancelCtx context.Context

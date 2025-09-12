@@ -38,7 +38,7 @@ func (s *SvcInit) shutdown() []error {
 		errs []error
 	)
 
-	ctx, cancel := context.WithTimeout(s.ctx, s.shutdownTimeout)
+	ctx, cancel := context.WithTimeout(s.shutdownCtx, s.shutdownTimeout)
 	defer cancel()
 
 	if len(s.autoCleanup) > 0 {

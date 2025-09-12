@@ -19,7 +19,19 @@ func New(ctx context.Context, options ...Option) *SvcInit {
 	for _, opt := range options {
 		opt(s)
 	}
+	if s.shutdownCtx == nil {
+		s.shutdownCtx = context.WithoutCancel(ctx)
+	}
 	return s
+}
+
+// WithShutdownContext sets a separate context to use for shutdown.
+// If the main context can be cancelled, it can't be used for shutdown as the shutdown tasks won't run.
+// The default is context.WithoutCancel(baseContext).
+func WithShutdownContext(shutdownCtx context.Context) Option {
+	return func(s *SvcInit) {
+		s.shutdownCtx = shutdownCtx
+	}
 }
 
 // WithShutdownTimeout sets a shutdown timeout. The default is 10 seconds.
