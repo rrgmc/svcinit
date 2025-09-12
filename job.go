@@ -168,10 +168,7 @@ type pendingTask interface {
 }
 
 func newPendingStopTask(task Task) pendingStopTask {
-	return pendingStopTaskImpl{
-		stopTask: task,
-		resolved: newResolved(),
-	}
+	return newPendingStopTaskImpl(task)
 }
 
 type pendingStopTask interface {
@@ -183,6 +180,13 @@ type pendingStopTask interface {
 type pendingStopTaskImpl struct {
 	stopTask Task
 	resolved resolved
+}
+
+func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
+	return pendingStopTaskImpl{
+		stopTask: stopTask,
+		resolved: newResolved(),
+	}
 }
 
 func (p pendingStopTaskImpl) Stop(ctx context.Context) error {
