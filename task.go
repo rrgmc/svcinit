@@ -33,18 +33,29 @@ func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
 }
 
-// ServiceStartTask adapts a Service start method to a Task.
-func ServiceStartTask(svc Service) Task {
-	return TaskFunc(func(ctx context.Context) error {
-		return svc.Start(ctx)
-	})
+// ServiceAsTask creates and adapter from a service method to a task.
+func ServiceAsTask(svc Service, isStart bool) *ServiceTask {
+	return &ServiceTask{svc: svc, isStart: isStart}
 }
 
-// ServiceStopTask adapts a Service stop method to a Task.
-func ServiceStopTask(svc Service) Task {
-	return TaskFunc(func(ctx context.Context) error {
-		return svc.Stop(ctx)
-	})
+type ServiceTask struct {
+	svc     Service
+	isStart bool
+}
+
+func (s *ServiceTask) Service() Service {
+	return s.svc
+}
+
+func (s *ServiceTask) IsStart() bool {
+	return s.isStart
+}
+
+func (s *ServiceTask) Run(ctx context.Context) error {
+	if s.isStart {
+		return s.svc.Start(ctx)
+	}
+	return s.svc.Stop(ctx)
 }
 
 type StopTaskFunc func(ctx context.Context) error
