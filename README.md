@@ -83,11 +83,11 @@ func ExampleSvcInit() {
         }).
         AutoStop() // cancel the context of the start function on shutdown.
 
-    // stop tasks on OS signal.
+    // shutdown on OS signal.
     // it is only started on the Run call.
     sinit.ExecuteTask(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
-    // sleep 10 seconds and stops the task.
+    // sleep 10 seconds and shutdown.
     // it is only started on the Run call.
     sinit.ExecuteTask(svcinit.TimeoutTask(2*time.Second, errors.New("timed out")))
 
