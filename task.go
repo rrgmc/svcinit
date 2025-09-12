@@ -33,6 +33,11 @@ func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
 }
 
+// ServiceTaskFunc returns a Service from start and stop tasks.
+func ServiceTaskFunc(start, stop TaskFunc) Service {
+	return ServiceFunc(start, stop)
+}
+
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) *ServiceTask {
 	return &ServiceTask{svc: svc, isStart: isStart}

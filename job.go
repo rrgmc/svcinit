@@ -24,6 +24,13 @@ func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	return cmd
 }
 
+// StartTaskFunc executes a task and allows the shutdown method to be customized.
+// At least one method of StartTaskCmd must be called, or Run will fail.
+// The task is only executed at the Run call.
+func (s *SvcInit) StartTaskFunc(start TaskFunc) StartTaskCmd {
+	return s.StartTask(start)
+}
+
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with Start and ManualStop methods.
 // At least one method of StartServiceCmd must be called, or Run will fail.
@@ -97,6 +104,13 @@ func (s StartTaskCmd) ManualStop(stop Task) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
 	return s.s.addPendingStopTask(stop)
+}
+
+// ManualStopFunc returns a StopTask to be stopped when the order matters.
+// The context passed to the task will NOT be canceled.
+// The returned StopTask must be added in order to [SvcInit.StopTask].
+func (s StartTaskCmd) ManualStopFunc(stop TaskFunc) StopTask {
+	return s.ManualStop(stop)
 }
 
 func (s StartTaskCmd) stopCancel(stop Task) StopTask {
