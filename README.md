@@ -16,6 +16,7 @@ import (
     "context"
     "errors"
     "fmt"
+    "net"
     "net/http"
     "os"
     "syscall"
@@ -49,12 +50,11 @@ func ExampleSvcInit() {
     // it is only started on the Run call.
     httpStop := sinit.
         StartService(svcinit.ServiceFunc(func(ctx context.Context) error {
-            fmt.Println("starting HTTP server")
-            err := httpServer.ListenAndServe()
-            fmt.Println("stopped HTTP server")
-            return err
+            httpServer.BaseContext = func(net.Listener) context.Context {
+                return ctx
+            }
+            return httpServer.ListenAndServe()
         }, func(ctx context.Context) error {
-            fmt.Println("stopping HTTP server")
             return httpServer.Shutdown(ctx)
         })).
         Stop() // stop the service using the Stop call WITHOUT cancelling the Start context.
@@ -63,12 +63,11 @@ func ExampleSvcInit() {
     // it is only started on the Run call.
     healthStop := sinit.
         StartService(svcinit.ServiceFunc(func(ctx context.Context) error {
-            fmt.Println("starting health HTTP server")
-            err := healthHTTPServer.ListenAndServe()
-            fmt.Println("stopped health HTTP server")
-            return err
+            healthHTTPServer.BaseContext = func(net.Listener) context.Context {
+                return ctx
+            }
+            return healthHTTPServer.ListenAndServe()
         }, func(ctx context.Context) error {
-            fmt.Println("stopping health HTTP server")
             return healthHTTPServer.Shutdown(ctx)
         })).
         Stop() // stop the service using the Stop call WITHOUT cancelling the Start context.
@@ -100,7 +99,7 @@ func ExampleSvcInit() {
 
     err := sinit.Run()
     if err != nil {
-		// err will be "timed out"
+        // err will be "timed out"
         fmt.Println("err:", err)
     }
 }
