@@ -45,7 +45,7 @@ func ExampleSvcInit() {
 		}, func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
 		})).
-		Stop() // stop the service using the Stop call WITHOUT cancelling the Start context.
+		ManualStop() // stop the service using the Stop call WITHOUT cancelling the Start context.
 
 	// start health HTTP server using manual stop ordering.
 	// uses the task method instead of the service call. In the end it is the same thing, but the Service interface
@@ -59,7 +59,7 @@ func ExampleSvcInit() {
 			return healthHTTPServer.ListenAndServe()
 		}).
 		// stop the service using the Stop call WITHOUT cancelling the Start context.
-		Stop(func(ctx context.Context) error {
+		ManualStop(func(ctx context.Context) error {
 			return healthHTTPServer.Shutdown(ctx)
 		})
 
