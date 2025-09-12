@@ -16,7 +16,7 @@ func (s *SvcInit) start() {
 		go func(ctx context.Context, fn Task) {
 			defer s.wg.Done()
 			runWg.Done()
-			err := fn(ctx)
+			err := fn.Run(ctx)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -26,7 +26,7 @@ func (s *SvcInit) start() {
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
-		if serr := s.startedCallback(s.ctx); serr != nil {
+		if serr := s.startedCallback.Run(s.ctx); serr != nil {
 			s.cancel(serr)
 		}
 	}
@@ -52,7 +52,7 @@ func (s *SvcInit) shutdown() []error {
 		for _, fn := range s.autoCleanup {
 			go func(fn Task) {
 				defer wg.Done()
-				err := fn(ctx)
+				err := fn.Run(ctx)
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)
@@ -68,7 +68,7 @@ func (s *SvcInit) shutdown() []error {
 		go func() {
 			defer wg.Done()
 			for _, fn := range s.cleanup {
-				err := fn(ctx)
+				err := fn.Run(ctx)
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)
@@ -90,7 +90,7 @@ func (s *SvcInit) shutdown() []error {
 	}
 
 	if s.stoppedCallback != nil {
-		if serr := s.stoppedCallback(s.shutdownCtx); serr != nil {
+		if serr := s.stoppedCallback.Run(s.shutdownCtx); serr != nil {
 			lock.Lock()
 			errs = append(errs, serr)
 			lock.Unlock()

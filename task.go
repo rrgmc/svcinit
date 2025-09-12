@@ -6,10 +6,19 @@ import (
 	"sync"
 )
 
-type Task func(ctx context.Context) error
+type Task interface {
+	Run(ctx context.Context) error
+}
+
+type TaskFunc func(ctx context.Context) error
+
+func (fn TaskFunc) Run(ctx context.Context) error {
+	return fn(ctx)
+}
 
 // StopTask is a task meant for stopping other tasks.
 type StopTask interface {
+	Task
 	Stop(ctx context.Context) error
 }
 
@@ -24,10 +33,28 @@ func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
 }
 
+// ServiceStartTask adapts a Service start method to a Task.
+func ServiceStartTask(svc Service) Task {
+	return TaskFunc(func(ctx context.Context) error {
+		return svc.Start(ctx)
+	})
+}
+
+// ServiceStopTask adapts a Service stop method to a Task.
+func ServiceStopTask(svc Service) Task {
+	return TaskFunc(func(ctx context.Context) error {
+		return svc.Stop(ctx)
+	})
+}
+
 type StopTaskFunc func(ctx context.Context) error
 
 func (sf StopTaskFunc) Stop(ctx context.Context) error {
 	return sf(ctx)
+}
+
+func (sf StopTaskFunc) Run(ctx context.Context) error {
+	return sf.Stop(ctx)
 }
 
 type ParallelStopTask struct {
@@ -42,6 +69,10 @@ func NewParallelStopTask(tasks ...StopTask) StopTask {
 		tasks:    tasks,
 		resolved: newResolved(),
 	}
+}
+
+func (t *ParallelStopTask) Run(ctx context.Context) error {
+	return t.Stop(ctx)
 }
 
 func (t *ParallelStopTask) Stop(ctx context.Context) error {
@@ -81,20 +112,20 @@ func (t *ParallelStopTask) setResolved() {
 }
 
 type serviceFunc struct {
-	start func(ctx context.Context) error
-	stop  func(ctx context.Context) error
+	start Task
+	stop  Task
 }
 
 func (sf *serviceFunc) Start(ctx context.Context) error {
 	if sf.start == nil {
 		return nil
 	}
-	return sf.start(ctx)
+	return sf.start.Run(ctx)
 }
 
 func (sf *serviceFunc) Stop(ctx context.Context) error {
 	if sf.stop == nil {
 		return nil
 	}
-	return sf.stop(ctx)
+	return sf.stop.Run(ctx)
 }
