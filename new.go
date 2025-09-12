@@ -35,6 +35,7 @@ func WithShutdownContext(shutdownCtx context.Context) Option {
 }
 
 // WithShutdownTimeout sets a shutdown timeout. The default is 10 seconds.
+// If less then or equal to 0, no shutdown timeout will be set.
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
 	return func(s *SvcInit) {
 		s.shutdownTimeout = shutdownTimeout

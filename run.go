@@ -38,8 +38,12 @@ func (s *SvcInit) shutdown() []error {
 		errs []error
 	)
 
-	ctx, cancel := context.WithTimeout(s.shutdownCtx, s.shutdownTimeout)
-	defer cancel()
+	ctx := s.shutdownCtx
+	if s.shutdownTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(s.shutdownCtx, s.shutdownTimeout)
+		defer cancel()
+	}
 
 	if len(s.autoCleanup) > 0 {
 		// cleanups where order don't matter are done in parallel
