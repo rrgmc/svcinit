@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrExit    = errors.New("normal exit")
-	ErrPending = errors.New("pending start or stop command")
+	ErrExit            = errors.New("normal exit")
+	ErrShutdownTimeout = errors.New("shutdown timeout")
+	ErrPending         = errors.New("pending start or stop command")
 )
 
 // SvcInit schedules tasks to be run and stopped on service initialization.
@@ -39,9 +40,10 @@ type SvcInit struct {
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options
-	startedCallback Task
-	stoppedCallback Task
-	shutdownTimeout time.Duration
+	startedCallback        Task
+	stoppedCallback        Task
+	shutdownTimeout        time.Duration
+	enforceShutdownTimeout bool
 }
 
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,

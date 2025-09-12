@@ -9,12 +9,13 @@ func New(ctx context.Context, options ...Option) *SvcInit {
 	cancelCtx, cancel := context.WithCancelCause(ctx)
 	unorderedCancelCtx, unorderedCancel := context.WithCancelCause(ctx)
 	s := &SvcInit{
-		ctx:                ctx,
-		cancelCtx:          cancelCtx,
-		cancel:             cancel,
-		unorderedCancelCtx: unorderedCancelCtx,
-		unorderedCancel:    unorderedCancel,
-		shutdownTimeout:    10 * time.Second,
+		ctx:                    ctx,
+		cancelCtx:              cancelCtx,
+		cancel:                 cancel,
+		unorderedCancelCtx:     unorderedCancelCtx,
+		unorderedCancel:        unorderedCancel,
+		shutdownTimeout:        10 * time.Second,
+		enforceShutdownTimeout: true,
 	}
 	for _, opt := range options {
 		opt(s)
@@ -39,6 +40,15 @@ func WithShutdownContext(shutdownCtx context.Context) Option {
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
 	return func(s *SvcInit) {
 		s.shutdownTimeout = shutdownTimeout
+	}
+}
+
+// WithEnforceShutdownTimeout don't wait for all shutdown tasks to complete if they are over the shutdown timeout.
+// Usually the shutdown timeout only sets a timeout in the context, but it can't guarantee that all tasks will follow it.
+// Default is true.
+func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
+	return func(s *SvcInit) {
+		s.enforceShutdownTimeout = enforceShutdownTimeout
 	}
 }
 

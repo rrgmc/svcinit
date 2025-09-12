@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
@@ -62,24 +63,45 @@ func (s *SvcInit) shutdown() []error {
 	}
 
 	// execute ordered cleanups synchronously
-	for _, fn := range s.cleanup {
-		err := fn(ctx)
-		if err != nil {
+	if len(s.cleanup) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, fn := range s.cleanup {
+				err := fn(ctx)
+				if err != nil {
+					lock.Lock()
+					errs = append(errs, err)
+					lock.Unlock()
+				}
+			}
+		}()
+	}
+
+	// wait for auto cleanups, if any
+	if s.enforceShutdownTimeout {
+		if !WaitGroupWaitWithContext(ctx, &wg) {
 			lock.Lock()
-			errs = append(errs, err)
+			errs = append(errs, ErrShutdownTimeout)
+			lock.Unlock()
+		}
+	} else {
+		wg.Wait()
+	}
+
+	if s.stoppedCallback != nil {
+		if serr := s.stoppedCallback(s.shutdownCtx); serr != nil {
+			lock.Lock()
+			errs = append(errs, serr)
 			lock.Unlock()
 		}
 	}
 
-	// wait for auto cleanups, if any
-	wg.Wait()
-
-	if s.stoppedCallback != nil {
-		if serr := s.stoppedCallback(ctx); serr != nil {
-			errs = append(errs, serr)
-		}
+	lock.Lock()
+	defer lock.Unlock()
+	if s.enforceShutdownTimeout {
+		return slices.Clone(errs)
 	}
-
 	return errs
 }
 
