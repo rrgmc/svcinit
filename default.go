@@ -65,6 +65,7 @@ func (t *TaskSignalTask) Run(ctx context.Context) error {
 	}
 }
 
+// SignalError is returned from SignalTask if the signal was received.
 type SignalError struct {
 	Signal os.Signal
 }
