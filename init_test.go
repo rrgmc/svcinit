@@ -204,9 +204,9 @@ func TestSvcInit(t *testing.T) {
 				return nil
 			}))
 
-			sinit.StopTask(i2Stop)
-			sinit.StopTask(i3Stop)
-			sinit.StopTask(i4Stop)
+			sinit.Stop(i2Stop)
+			sinit.Stop(i3Stop)
+			sinit.Stop(i4Stop)
 
 			err := sinit.Run()
 			if test.expectedErr != nil {
@@ -260,7 +260,7 @@ func TestSvcInitParallelStop(t *testing.T) {
 			return nil
 		})
 
-	sinit.StopTasksParallel(stopTask1, stopTask2)
+	sinit.StopParallel(stopTask1, stopTask2)
 
 	err := sinit.Run()
 
@@ -299,7 +299,7 @@ func TestSvcInitPendingStartService(t *testing.T) {
 func TestSvcInitPendingStop(t *testing.T) {
 	sinit := New(context.Background())
 
-	// must add stop function to StopTask
+	// must add stop function to Stop
 	_ = sinit.StartTaskFunc(func(ctx context.Context) error {
 		return nil
 	}).ManualStopFunc(func(ctx context.Context) error {
@@ -313,7 +313,7 @@ func TestSvcInitPendingStop(t *testing.T) {
 func TestSvcInitPendingStopService(t *testing.T) {
 	sinit := New(context.Background())
 
-	// must add stop function to StopTask
+	// must add stop function to Stop
 	_ = sinit.StartService(ServiceTaskFunc(func(ctx context.Context) error {
 		return nil
 	}, func(ctx context.Context) error {

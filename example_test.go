@@ -85,8 +85,8 @@ func ExampleSvcInit() {
 	// add manual stops. They will be stopped in the added order.
 
 	// stop HTTP server before health server
-	sinit.StopTask(httpStop)
-	sinit.StopTask(healthStop)
+	sinit.Stop(httpStop)
+	sinit.Stop(healthStop)
 
 	err := sinit.Run()
 	if err != nil {
