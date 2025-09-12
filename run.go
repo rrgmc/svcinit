@@ -16,7 +16,13 @@ func (s *SvcInit) start() {
 		go func(ctx context.Context, fn Task) {
 			defer s.wg.Done()
 			runWg.Done()
+			if s.startTaskCallback != nil {
+				s.startTaskCallback(ctx, fn, true, nil)
+			}
 			err := fn.Run(ctx)
+			if s.startTaskCallback != nil {
+				s.startTaskCallback(ctx, fn, false, err)
+			}
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -52,7 +58,13 @@ func (s *SvcInit) shutdown() []error {
 		for _, fn := range s.autoCleanup {
 			go func(fn Task) {
 				defer wg.Done()
+				if s.stopTaskCallback != nil {
+					s.stopTaskCallback(ctx, fn, true, nil)
+				}
 				err := fn.Run(ctx)
+				if s.stopTaskCallback != nil {
+					s.stopTaskCallback(ctx, fn, false, err)
+				}
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)
@@ -68,7 +80,13 @@ func (s *SvcInit) shutdown() []error {
 		go func() {
 			defer wg.Done()
 			for _, fn := range s.cleanup {
+				if s.stopTaskCallback != nil {
+					s.stopTaskCallback(ctx, fn, true, nil)
+				}
 				err := fn.Run(ctx)
+				if s.stopTaskCallback != nil {
+					s.stopTaskCallback(ctx, fn, false, err)
+				}
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)

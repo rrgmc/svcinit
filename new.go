@@ -66,4 +66,18 @@ func WithStoppedCallback(stoppedCallback Task) Option {
 	}
 }
 
+// WithStartTaskCallback adds a function that is called before and after each start task runs.
+func WithStartTaskCallback(startTaskCallback TaskCallback) Option {
+	return func(s *SvcInit) {
+		s.startTaskCallback = startTaskCallback
+	}
+}
+
+// WithStopTaskCallback adds a function that is called before and after each stop task runs.
+func WithStopTaskCallback(stopTaskCallback TaskCallback) Option {
+	return func(s *SvcInit) {
+		s.stopTaskCallback = stopTaskCallback
+	}
+}
+
 type Option func(*SvcInit)
