@@ -107,11 +107,18 @@ func (s StartTaskCmd) ManualStopCancel() StopTask {
 	return s.stopCancel(nil)
 }
 
-// ManualStopFuncCancel returns a StopTask to be stopped when the order matters.
+// ManualStopCancelTask returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.Stop].
-func (s StartTaskCmd) ManualStopFuncCancel(stop Task) StopTask {
+func (s StartTaskCmd) ManualStopCancelTask(stop Task) StopTask {
 	return s.stopCancel(stop)
+}
+
+// ManualStopCancelTaskFunc returns a StopTask to be stopped when the order matters.
+// The context passed to the task will be canceled BEFORE calling the stop task.
+// The returned StopTask must be added in order to [SvcInit.Stop].
+func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc) StopTask {
+	return s.ManualStopCancelTask(stop)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.

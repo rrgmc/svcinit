@@ -181,7 +181,7 @@ func TestSvcInit(t *testing.T) {
 			task3 := defaultTaskSvc(3, true)
 			i3Stop := sinit.
 				StartTask(ServiceAsTask(task3.svc, true)).
-				ManualStopFuncCancel(ServiceAsTask(task3.svc, false))
+				ManualStopCancelTask(ServiceAsTask(task3.svc, false))
 
 			task4 := defaultTaskSvc(4, true)
 			i4Stop := sinit.
