@@ -18,7 +18,7 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 
 // StopTask is a task meant for stopping other tasks.
 type StopTask interface {
-	Task
+	Task // implement Task for convenience, its "Run" implementation MUST call its own Stop method.
 	Stop(ctx context.Context) error
 }
 
@@ -43,6 +43,8 @@ func ServiceAsTask(svc Service, isStart bool) *ServiceTask {
 	return &ServiceTask{svc: svc, isStart: isStart}
 }
 
+// ServiceTask is a Task implemented from a Service.
+// Use Service to get the source service instance.
 type ServiceTask struct {
 	svc     Service
 	isStart bool
