@@ -3,7 +3,7 @@
 
 ## Features
 
-- ordered and unordered shutdown callbacks.
+- ordered and unordered stop callbacks.
 - stop tasks can work with or without context cancellation.
 - ensures no race condition if any starting job returns before all jobs initialized.
 - checks all added tasks are properly initialized and all ordered stop tasks are set, ensuring all created tasks always executes. 
