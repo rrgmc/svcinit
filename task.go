@@ -4,13 +4,26 @@ import "context"
 
 type Task func(ctx context.Context) error
 
+// StopTask is a task meant for stopping other tasks.
+type StopTask interface {
+	Stop(ctx context.Context) error
+}
+
+// Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 }
 
+// ServiceFunc returns a Service from start and stop tasks.
 func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
+}
+
+type StopTaskFunc func(ctx context.Context) error
+
+func (sf StopTaskFunc) Stop(ctx context.Context) error {
+	return sf(ctx)
 }
 
 type serviceFunc struct {
@@ -30,14 +43,4 @@ func (sf *serviceFunc) Stop(ctx context.Context) error {
 		return nil
 	}
 	return sf.stop(ctx)
-}
-
-type StopTask interface {
-	Stop(ctx context.Context) error
-}
-
-type StopTaskFunc func(ctx context.Context) error
-
-func (sf StopTaskFunc) Stop(ctx context.Context) error {
-	return sf(ctx)
 }
