@@ -36,4 +36,11 @@ func WithStartedCallback(startedCallback Task) Option {
 	}
 }
 
+// WithStoppedCallback sets a callback to be called after all tasks were stopped.
+func WithStoppedCallback(stoppedCallback Task) Option {
+	return func(s *SvcInit) {
+		s.stoppedCallback = stoppedCallback
+	}
+}
+
 type Option func(*SvcInit)

@@ -73,6 +73,12 @@ func (s *SvcInit) shutdown() []error {
 	// wait for auto cleanups, if any
 	wg.Wait()
 
+	if s.stoppedCallback != nil {
+		if serr := s.stoppedCallback(ctx); serr != nil {
+			errs = append(errs, serr)
+		}
+	}
+
 	return errs
 }
 

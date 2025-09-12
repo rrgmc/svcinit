@@ -38,9 +38,12 @@ type SvcInit struct {
 	wg sync.WaitGroup
 	// options
 	startedCallback Task
+	stoppedCallback Task
 	shutdownTimeout time.Duration
 }
 
+// RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,
+// and a list of stop errors, if any.
 func (s *SvcInit) RunWithErrors() (error, []error) {
 	if err := s.checkPending(); err != nil {
 		return err, nil
@@ -60,18 +63,27 @@ func (s *SvcInit) RunWithErrors() (error, []error) {
 	return cause, cleanupErr
 }
 
+// Run runs all tasks and returns the error of the first task to finish, which can be nil.
 func (s *SvcInit) Run() error {
 	err, _ := s.RunWithErrors()
 	return err
 }
 
-// Shutdown starts the shutdown process as if a task returned.
+// Shutdown starts the shutdown process as if a task finished.
 func (s *SvcInit) Shutdown() {
 	s.cancel(ErrExit)
 }
 
+// SetStartedCallback sets a callback to be called after all tasks were initialized.
+// It overrides the WithStartedCallback option.
 func (s *SvcInit) SetStartedCallback(startedCallback Task) {
 	s.startedCallback = startedCallback
+}
+
+// SetStoppedCallback sets a callback to be called after all tasks were stopped.
+// It overrides the WithStoppedCallback option.
+func (s *SvcInit) SetStoppedCallback(stoppedCallback Task) {
+	s.stoppedCallback = stoppedCallback
 }
 
 type taskWrapper struct {
