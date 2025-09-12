@@ -49,7 +49,7 @@ func TestSvcInit(t *testing.T) {
 			},
 			expectedTaskErr:         1,
 			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 4},
+			expectedOrderedStop:     []int{2, 3, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 		{
@@ -59,7 +59,7 @@ func TestSvcInit(t *testing.T) {
 			},
 			expectedTaskErr:         2,
 			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 4},
+			expectedOrderedStop:     []int{2, 3, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 		{
@@ -69,7 +69,7 @@ func TestSvcInit(t *testing.T) {
 			},
 			expectedTaskErr:         3,
 			expectedOrderedFinish:   []int{3, 2, 4},
-			expectedOrderedStop:     []int{2, 4},
+			expectedOrderedStop:     []int{2, 3, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 		{
@@ -79,7 +79,7 @@ func TestSvcInit(t *testing.T) {
 			},
 			expectedTaskErr:         4,
 			expectedOrderedFinish:   []int{4, 2, 3},
-			expectedOrderedStop:     []int{2, 4},
+			expectedOrderedStop:     []int{2, 3, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 		{
@@ -89,7 +89,7 @@ func TestSvcInit(t *testing.T) {
 			},
 			expectedTaskErr:         5,
 			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 4},
+			expectedOrderedStop:     []int{2, 3, 4},
 			expectedUnorderedFinish: []int{1, 5},
 		},
 	} {
@@ -107,12 +107,15 @@ func TestSvcInit(t *testing.T) {
 
 			defaultTaskSvc := func(taskNo int, ordered bool) testService {
 				dtCtx, dtCancel := context.WithCancelCause(ctx)
+				stCtx, stCancel := context.WithCancel(ctx)
 				return testService{
 					cancel: func() {
 						dtCancel(testTaskNoError{taskNo: taskNo})
 					},
 					svc: ServiceFunc(
 						func(ctx context.Context) error {
+							defer stCancel()
+
 							if isDebug {
 								fmt.Printf("Task %d running\n", taskNo)
 								defer func() {
@@ -156,6 +159,10 @@ func TestSvcInit(t *testing.T) {
 								m.Unlock()
 							}()
 							dtCancel(ErrExit)
+							select {
+							case <-stCtx.Done():
+							case <-ctx.Done():
+							}
 							return nil
 						}),
 				}
@@ -174,7 +181,7 @@ func TestSvcInit(t *testing.T) {
 			task3 := defaultTaskSvc(3, true)
 			i3Stop := sinit.
 				StartTask(task3.svc.Start).
-				StopCancel()
+				StopFuncCancel(task3.svc.Stop)
 
 			task4 := defaultTaskSvc(4, true)
 			i4Stop := sinit.

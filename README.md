@@ -6,7 +6,6 @@
 - ordered and unordered shutdown callbacks.
 - stop tasks can work with or without context cancellation.
 - ensures no race condition if any starting job returns before all jobs initialized.
-- when running ordered stop callbacks, ensures the actual starting job finished before running the next stop task, not only waiting for the stop task to finish.
 - checks all added tasks are properly initialized and all ordered stop tasks are set, ensuring all created tasks always executes. 
 
 ## Example
