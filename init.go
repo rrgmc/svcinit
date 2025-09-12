@@ -87,8 +87,6 @@ func (s *SvcInit) SetStoppedCallback(stoppedCallback Task) {
 }
 
 type taskWrapper struct {
-	ctx             context.Context
-	task            Task
-	taskFinishedCtx context.Context
-	taskFinished    context.CancelFunc
+	ctx  context.Context
+	task Task
 }
