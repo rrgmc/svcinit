@@ -225,6 +225,51 @@ func TestSvcInit(t *testing.T) {
 	}
 }
 
+func TestSvcInitParallelStop(t *testing.T) {
+	sinit := New(context.Background())
+
+	var m sync.Mutex
+	var started []int
+	var stopped []int
+
+	stopTask1 := sinit.
+		StartTask(func(ctx context.Context) error {
+			m.Lock()
+			defer m.Unlock()
+			started = append(started, 1)
+			return nil
+		}).
+		ManualStop(func(ctx context.Context) error {
+			m.Lock()
+			defer m.Unlock()
+			stopped = append(stopped, 1)
+			return nil
+		})
+
+	stopTask2 := sinit.
+		StartTask(func(ctx context.Context) error {
+			m.Lock()
+			defer m.Unlock()
+			started = append(started, 2)
+			return nil
+		}).
+		ManualStop(func(ctx context.Context) error {
+			m.Lock()
+			defer m.Unlock()
+			stopped = append(stopped, 2)
+			return nil
+		})
+
+	sinit.StopTasksParallel(stopTask1, stopTask2)
+
+	err := sinit.Run()
+
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, []int{1, 2}, started, cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2}, stopped, cmpopts.SortSlices(cmp.Less[int]))
+}
+
 func TestSvcInitPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 

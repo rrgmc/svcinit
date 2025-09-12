@@ -46,6 +46,13 @@ func (s *SvcInit) StopTask(fn StopTask) {
 	s.cleanup = append(s.cleanup, fn.Stop)
 }
 
+// StopTasksParallel adds a shutdown task. The shutdown will be done in the order they are added.
+// This method groups a list of stop tasks into a single one and run all of them in parallel.
+// In this case, order between these tasks are undefined.
+func (s *SvcInit) StopTasksParallel(fn ...StopTask) {
+	s.StopTask(NewParallelStopTask(fn...))
+}
+
 // StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTaskFunc(fn Task) {
 	s.cleanup = append(s.cleanup, fn)
