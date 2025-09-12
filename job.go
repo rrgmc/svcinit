@@ -220,11 +220,17 @@ type pendingStopTaskImpl struct {
 	resolved resolved
 }
 
+var _ WrappedTask = (*pendingStopTaskImpl)(nil)
+
 func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
 	return pendingStopTaskImpl{
 		stopTask: stopTask,
 		resolved: newResolved(),
 	}
+}
+
+func (p pendingStopTaskImpl) WrappedTask() Task {
+	return p.stopTask
 }
 
 func (p pendingStopTaskImpl) Stop(ctx context.Context) error {

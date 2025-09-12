@@ -16,6 +16,18 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
+// WrappedTask is a task which was wrapped from a source Task.
+type WrappedTask interface {
+	Task
+	WrappedTask() Task
+}
+
+// WrappedTasks is a task which was wrapped from a list of [Task]s.
+type WrappedTasks interface {
+	Task
+	WrappedTasks() []Task
+}
+
 // Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
@@ -65,12 +77,17 @@ type ParallelStopTask struct {
 }
 
 var _ pendingStopTask = (*ParallelStopTask)(nil)
+var _ WrappedTasks = (*ParallelStopTask)(nil)
 
 func NewParallelStopTask(tasks ...Task) Task {
 	return &ParallelStopTask{
 		tasks:    tasks,
 		resolved: newResolved(),
 	}
+}
+
+func (t *ParallelStopTask) WrappedTasks() []Task {
+	return t.tasks
 }
 
 func (t *ParallelStopTask) Run(ctx context.Context) error {
