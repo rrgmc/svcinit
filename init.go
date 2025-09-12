@@ -35,8 +35,8 @@ type SvcInit struct {
 	// list of unordered cleanup tasks.
 	autoCleanup []Task
 	// list of pending starts and stops.
-	pendingStarts []pendingTask
-	pendingStops  []pendingTask
+	pendingStarts []pendingItem
+	pendingStops  []pendingItem
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options

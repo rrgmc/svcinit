@@ -16,12 +16,6 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
-// StopTask is a task meant for stopping other tasks.
-type StopTask interface {
-	Task // implement Task for convenience, its "Run" implementation MUST call its own Stop method.
-	Stop(ctx context.Context) error
-}
-
 // Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
@@ -65,24 +59,14 @@ func (s *ServiceTask) Run(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
-type StopTaskFunc func(ctx context.Context) error
-
-func (sf StopTaskFunc) Stop(ctx context.Context) error {
-	return sf(ctx)
-}
-
-func (sf StopTaskFunc) Run(ctx context.Context) error {
-	return sf.Stop(ctx)
-}
-
 type ParallelStopTask struct {
-	tasks    []StopTask
+	tasks    []Task
 	resolved resolved
 }
 
 var _ pendingStopTask = (*ParallelStopTask)(nil)
 
-func NewParallelStopTask(tasks ...StopTask) StopTask {
+func NewParallelStopTask(tasks ...Task) Task {
 	return &ParallelStopTask{
 		tasks:    tasks,
 		resolved: newResolved(),
@@ -90,10 +74,6 @@ func NewParallelStopTask(tasks ...StopTask) StopTask {
 }
 
 func (t *ParallelStopTask) Run(ctx context.Context) error {
-	return t.Stop(ctx)
-}
-
-func (t *ParallelStopTask) Stop(ctx context.Context) error {
 	var m sync.Mutex
 	var allErr []error
 
@@ -102,7 +82,7 @@ func (t *ParallelStopTask) Stop(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := st.Stop(ctx)
+			err := st.Run(ctx)
 			if err != nil {
 				m.Lock()
 				allErr = append(allErr, err)

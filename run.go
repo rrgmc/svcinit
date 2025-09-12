@@ -119,15 +119,15 @@ func (s *SvcInit) checkPending() error {
 	return nil
 }
 
-func (s *SvcInit) addPendingStart(p pendingTask) {
+func (s *SvcInit) addPendingStart(p pendingItem) {
 	s.pendingStarts = append(s.pendingStarts, p)
 }
 
-func (s *SvcInit) addPendingStop(p pendingTask) {
+func (s *SvcInit) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
-func (s *SvcInit) addPendingStopTask(task Task) StopTask {
+func (s *SvcInit) addPendingStopTask(task Task) Task {
 	st := newPendingStopTask(task)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
