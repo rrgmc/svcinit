@@ -160,6 +160,9 @@ func (s StartServiceCmd) isResolved() bool {
 	return s.resolved.isResolved()
 }
 
+// addTask adds a task to be started.
+// If checkFinished is true, a context will be returned that will be done when the task finishes executing.
+// This is used to make the stop task wait the start task finish.
 func (s *SvcInit) addTask(ctx context.Context, fn Task, checkFinished bool) (finishedCtx context.Context) {
 	task := taskWrapper{
 		ctx:  ctx,
