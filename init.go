@@ -16,19 +16,29 @@ var (
 // The first task to return, with an error or nil, will cause all the other tasks to stop and return the error
 // from that one.
 type SvcInit struct {
-	ctx              context.Context
-	cancelCtx        context.Context
-	cancel           context.CancelCauseFunc
-	serviceCancelCtx context.Context
-	serviceCancel    context.CancelCauseFunc
-	startedCallback  Task
-	tasks            []taskWrapper
-	autoCleanup      []Task
-	cleanup          []Task
-	pendingStarts    []pendingTask
-	pendingStops     []pendingTask
-	wg               sync.WaitGroup
-	shutdownTimeout  time.Duration
+	// ctx is the original context passed on New.
+	ctx context.Context
+	// cancelCtx and cancel are used to return the error of the first task to finish, and signal that the service should
+	// shut down.
+	cancelCtx context.Context
+	cancel    context.CancelCauseFunc
+	// unorderedCancelCtx and unorderedCancel are used as the context for unordered tasks and to cancel them.
+	unorderedCancelCtx context.Context
+	unorderedCancel    context.CancelCauseFunc
+	// list of tasks to start.
+	tasks []taskWrapper
+	// list of ordered cleanup tasks.
+	cleanup []Task
+	// list of unordered cleanup tasks.
+	autoCleanup []Task
+	// list of pending starts and stops.
+	pendingStarts []pendingTask
+	pendingStops  []pendingTask
+	// task finish wait group.
+	wg sync.WaitGroup
+	// options
+	startedCallback Task
+	shutdownTimeout time.Duration
 }
 
 func (s *SvcInit) RunWithErrors() (error, []error) {
@@ -40,7 +50,7 @@ func (s *SvcInit) RunWithErrors() (error, []error) {
 	}
 	s.start()
 	<-s.cancelCtx.Done()
-	s.serviceCancel(context.Cause(s.cancelCtx))
+	s.unorderedCancel(context.Cause(s.cancelCtx))
 	cleanupErr := s.shutdown()
 	s.wg.Wait()
 	cause := context.Cause(s.cancelCtx)

@@ -77,7 +77,7 @@ func ExampleSvcInit() {
 
 	// sleep 10 seconds and stops the task.
 	// it is only started on the Run call.
-	sinit.ExecuteTask(svcinit.TimeoutTask(2*time.Second, errors.New("timed out")))
+	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
 
 	// add manual stops. They will be stopped in the added order.
 

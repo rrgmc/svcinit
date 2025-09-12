@@ -7,14 +7,14 @@ import (
 
 func New(ctx context.Context, options ...Option) *SvcInit {
 	cancelCtx, cancel := context.WithCancelCause(ctx)
-	serviceCancelCtx, serviceCancel := context.WithCancelCause(ctx)
+	unorderedCancelCtx, unorderedCancel := context.WithCancelCause(ctx)
 	s := &SvcInit{
-		ctx:              ctx,
-		cancelCtx:        cancelCtx,
-		cancel:           cancel,
-		serviceCancelCtx: serviceCancelCtx,
-		serviceCancel:    serviceCancel,
-		shutdownTimeout:  10 * time.Second,
+		ctx:                ctx,
+		cancelCtx:          cancelCtx,
+		cancel:             cancel,
+		unorderedCancelCtx: unorderedCancelCtx,
+		unorderedCancel:    unorderedCancel,
+		shutdownTimeout:    10 * time.Second,
 	}
 	for _, opt := range options {
 		opt(s)
