@@ -122,7 +122,7 @@ func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, options ...TaskOpt
 func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) Task {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
-	return s.s.addPendingStopTask(parseTaskOptions(stop))
+	return s.s.addPendingStopTask(parseTaskOptions(stop, options...))
 }
 
 // ManualStopFunc returns a StopTask to be stopped when the order matters.

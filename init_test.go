@@ -316,10 +316,10 @@ func TestSvcInitCallback(t *testing.T) {
 	}
 
 	stopTask1 := sinit.
-		StartTask(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
+		StartTask(newTestTask(1, func(ctx context.Context) error {
 			started.add(1)
 			return nil
-		}), getTaskCallback(1, false))).
+		}), WithTaskCallback(getTaskCallback(1, false))).
 		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
@@ -330,10 +330,10 @@ func TestSvcInitCallback(t *testing.T) {
 			started.add(2)
 			return nil
 		}), getTaskCallback(2, false))).
-		ManualStop(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
+		ManualStop(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		}), getTaskCallback(2, true)))
+		}), WithTaskCallback(getTaskCallback(2, true)))
 
 	svc := newTestService(3, func(ctx context.Context) error {
 		started.add(3)
@@ -344,7 +344,7 @@ func TestSvcInitCallback(t *testing.T) {
 	})
 
 	stopService := sinit.
-		StartService(ServiceWithCallback(svc, getTaskCallback(3, false))).
+		StartService(svc, WithTaskCallback(getTaskCallback(3, false))).
 		ManualStop()
 
 	sinit.StopTask(stopTask1)
