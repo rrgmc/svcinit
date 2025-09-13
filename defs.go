@@ -2,11 +2,11 @@ package svcinit
 
 import "errors"
 
-type multiError struct {
+type MultiError struct {
 	Errors []error
 }
 
-func (e *multiError) Error() string {
+func (e *MultiError) Error() string {
 	err := e.Err()
 	if err == nil {
 		return "empty errors"
@@ -14,10 +14,10 @@ func (e *multiError) Error() string {
 	return err.Error()
 }
 
-func (e *multiError) Err() error {
+func (e *MultiError) Err() error {
 	return errors.Join(e.Errors...)
 }
 
-func (e *multiError) Unwrap() []error {
+func (e *MultiError) Unwrap() []error {
 	return e.Errors
 }
