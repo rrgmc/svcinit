@@ -2,7 +2,6 @@ package svcinit
 
 import (
 	"context"
-	"errors"
 	"sync"
 )
 
@@ -103,8 +102,7 @@ func (t *MultipleTask) WrappedTasks() []Task {
 }
 
 func (t *MultipleTask) Run(ctx context.Context) error {
-	var m sync.Mutex
-	var allErr []error
+	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
 	for _, st := range t.tasks {
@@ -113,16 +111,14 @@ func (t *MultipleTask) Run(ctx context.Context) error {
 			defer wg.Done()
 			err := st.Run(ctx)
 			if err != nil {
-				m.Lock()
-				allErr = append(allErr, err)
-				m.Unlock()
+				allErr.add(err)
 			}
 		}()
 	}
 
 	wg.Wait()
 
-	return errors.Join(allErr...)
+	return allErr.build()
 }
 
 func (t *MultipleTask) isResolved() bool {
