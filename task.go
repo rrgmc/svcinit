@@ -227,6 +227,17 @@ func taskFromCallback(task Task) Task {
 	}
 }
 
+// serviceFromCallback unwraps serviceWithCallback from services.
+func serviceFromCallback(task Service) Service {
+	for {
+		if tc, ok := task.(*serviceWithCallback); ok {
+			task = tc.svc
+		} else {
+			return task
+		}
+	}
+}
+
 type serviceFunc struct {
 	start Task
 	stop  Task
