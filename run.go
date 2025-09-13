@@ -10,25 +10,19 @@ func (s *SvcInit) start() {
 	var runWg sync.WaitGroup
 
 	// start all tasks in separate goroutines.
-	for _, task := range s.tasks {
+	for _, taskInfo := range s.tasks {
 		s.wg.Add(1)
 		runWg.Add(1)
-		go func(ctx context.Context, fn Task) {
+		go func(ctx context.Context, task Task) {
 			defer s.wg.Done()
 			runWg.Done()
-			if s.startTaskCallback != nil {
-				s.startTaskCallback(ctx, fn, true, nil)
-			}
-			err := fn.Run(ctx)
-			if s.startTaskCallback != nil {
-				s.startTaskCallback(ctx, fn, false, err)
-			}
+			err := s.runTask(ctx, task, s.startTaskCallback)
 			if err != nil {
 				s.cancel(err)
 			} else {
 				s.cancel(ErrExit)
 			}
-		}(task.ctx, task.task)
+		}(taskInfo.ctx, taskInfo.task)
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
@@ -55,22 +49,16 @@ func (s *SvcInit) shutdown() []error {
 	if len(s.autoCleanup) > 0 {
 		// cleanups where order don't matter are done in parallel
 		wg.Add(len(s.autoCleanup))
-		for _, fn := range s.autoCleanup {
-			go func(fn Task) {
+		for _, taskInfo := range s.autoCleanup {
+			go func(task Task) {
 				defer wg.Done()
-				if s.stopTaskCallback != nil {
-					s.stopTaskCallback(ctx, fn, true, nil)
-				}
-				err := fn.Run(ctx)
-				if s.stopTaskCallback != nil {
-					s.stopTaskCallback(ctx, fn, false, err)
-				}
+				err := s.runTask(ctx, task, s.stopTaskCallback)
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)
 					lock.Unlock()
 				}
-			}(fn)
+			}(taskInfo)
 		}
 	}
 
@@ -79,14 +67,8 @@ func (s *SvcInit) shutdown() []error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for _, fn := range s.cleanup {
-				if s.stopTaskCallback != nil {
-					s.stopTaskCallback(ctx, fn, true, nil)
-				}
-				err := fn.Run(ctx)
-				if s.stopTaskCallback != nil {
-					s.stopTaskCallback(ctx, fn, false, err)
-				}
+			for _, task := range s.cleanup {
+				err := s.runTask(ctx, task, s.stopTaskCallback)
 				if err != nil {
 					lock.Lock()
 					errs = append(errs, err)
@@ -149,4 +131,15 @@ func (s *SvcInit) addPendingStopTask(task Task) Task {
 	st := newPendingStopTask(task)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
+}
+
+func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback) error {
+	if callback != nil {
+		callback(ctx, task, true, nil)
+	}
+	err := task.Run(ctx)
+	if callback != nil {
+		callback(ctx, task, false, err)
+	}
+	return err
 }
