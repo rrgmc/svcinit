@@ -265,11 +265,12 @@ func TestSvcInitCallback(t *testing.T) {
 
 	globalTaskCallback := func(ctx context.Context, task Task) {
 		if st, ok := task.(*ServiceTask); ok {
-			if _, ok := st.Service().(*testService); !ok {
-				assert.Check(t, false, "service is not of the expected type, but %T", st.Service())
+			ust := UnwrapService(st.Service())
+			if _, ok := ust.(*testService); !ok {
+				assert.Check(t, false, "service is not of the expected type, but %T", ust)
 			}
-		} else if _, ok := task.(*testTask); !ok {
-			assert.Check(t, false, "task is not of the expected type, but %T", task)
+		} else if _, ok := UnwrapTask(task).(*testTask); !ok {
+			assert.Check(t, false, "task is not of the expected type, but %T", UnwrapTask(task))
 		}
 	}
 
@@ -277,12 +278,12 @@ func TestSvcInitCallback(t *testing.T) {
 		return func(ctx context.Context, task Task) {
 			stdAdd := 0
 			if st, ok := task.(*ServiceTask); ok {
-				if _, ok := st.Service().(*testService); !ok {
+				if _, ok := UnwrapService(st.Service()).(*testService); !ok {
 					assert.Check(t, false, "service is not of the expected type")
 				}
 				isStop = !st.IsStart()
 				stdAdd = 4
-			} else if _, ok := task.(*testTask); !ok {
+			} else if _, ok := UnwrapTask(task).(*testTask); !ok {
 				assert.Check(t, false, "task is not of the expected type")
 			}
 			if !isBefore {
@@ -302,7 +303,7 @@ func TestSvcInitCallback(t *testing.T) {
 	individualServiceCallback := func(taskNo int, isStop bool, isBefore bool) func(ctx context.Context, svc Service) {
 		return func(ctx context.Context, svc Service) {
 			stdAdd := 4
-			if _, ok := svc.(*testService); !ok {
+			if _, ok := UnwrapService(svc).(*testService); !ok {
 				assert.Check(t, false, "service is not of the expected type")
 			}
 			if !isBefore {
