@@ -159,9 +159,8 @@ type StartServiceCmd struct {
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(s.s.unorderedCancelCtx, startTask)
-	s.s.AutoStopTask(stopTask)
+	s.s.addTask(s.s.unorderedCancelCtx, ServiceAsTask(s.svc, true))
+	s.s.AutoStopTask(ServiceAsTask(s.svc, false))
 }
 
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
@@ -170,11 +169,10 @@ func (s StartServiceCmd) AutoStop() {
 func (s StartServiceCmd) ManualStopCancel() Task {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(ctx, startTask)
+	s.s.addTask(ctx, ServiceAsTask(s.svc, true))
 	return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
 		cancel(ErrExit)
-		return stopTask.Run(ctx)
+		return s.svc.Stop(ctx)
 	}))
 }
 
@@ -183,10 +181,9 @@ func (s StartServiceCmd) ManualStopCancel() Task {
 // The returned StopTask must be added in order to [SvcInit.StopTask].
 func (s StartServiceCmd) ManualStop() Task {
 	s.resolved.setResolved()
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(s.s.ctx, startTask)
+	s.s.addTask(s.s.ctx, ServiceAsTask(s.svc, true))
 	return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
-		return stopTask.Run(ctx)
+		return s.svc.Stop(ctx)
 	}))
 }
 
