@@ -16,8 +16,14 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
-// WrappedTask is a task which was wrapped from one or more [Task]s.
+// WrappedTask is a task which was wrapped from one Task.
 type WrappedTask interface {
+	Task
+	WrappedTask() Task
+}
+
+// WrappedTasks is a task which was wrapped from one or more [Task]s.
+type WrappedTasks interface {
 	Task
 	WrappedTasks() []Task
 }
@@ -83,7 +89,7 @@ type MultipleTask struct {
 }
 
 var _ pendingStopTask = (*MultipleTask)(nil)
-var _ WrappedTask = (*MultipleTask)(nil)
+var _ WrappedTasks = (*MultipleTask)(nil)
 
 func NewMultipleTask(tasks ...Task) Task {
 	return &MultipleTask{
@@ -167,8 +173,8 @@ type taskWithCallback struct {
 var _ Task = (*taskWithCallback)(nil)
 var _ WrappedTask = (*taskWithCallback)(nil)
 
-func (t *taskWithCallback) WrappedTasks() []Task {
-	return []Task{t.task}
+func (t *taskWithCallback) WrappedTask() Task {
+	return t.task
 }
 
 func (t *taskWithCallback) Run(ctx context.Context) error {
