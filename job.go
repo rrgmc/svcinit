@@ -7,24 +7,24 @@ import (
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTask(task Task) {
-	s.addTask(s.unorderedCancelCtx, task)
+func (s *SvcInit) ExecuteTask(fn Task) {
+	s.addTask(s.unorderedCancelCtx, fn)
 }
 
 // ExecuteTaskFunc executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTaskFunc(task TaskFunc) {
-	s.ExecuteTask(task)
+func (s *SvcInit) ExecuteTaskFunc(fn TaskFunc) {
+	s.ExecuteTask(fn)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTask(task Task) StartTaskCmd {
+func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
-		start:    task,
+		start:    start,
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -34,8 +34,8 @@ func (s *SvcInit) StartTask(task Task) StartTaskCmd {
 // StartTaskFunc executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTaskFunc(task TaskFunc) StartTaskCmd {
-	return s.StartTask(task)
+func (s *SvcInit) StartTaskFunc(start TaskFunc) StartTaskCmd {
+	return s.StartTask(start)
 }
 
 // StartService executes a service task and allows the shutdown method to be customized.
@@ -53,33 +53,33 @@ func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 }
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTask(task Task) {
-	if ps, ok := task.(pendingStopTask); ok {
+func (s *SvcInit) StopTask(fn Task) {
+	if ps, ok := fn.(pendingStopTask); ok {
 		ps.setResolved()
 	}
-	s.cleanup = append(s.cleanup, task)
+	s.cleanup = append(s.cleanup, fn)
 }
 
 // StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTaskFunc(task TaskFunc) {
-	s.StopTask(task)
+func (s *SvcInit) StopTaskFunc(fn TaskFunc) {
+	s.StopTask(fn)
 }
 
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
-func (s *SvcInit) StopMultipleTasks(tasks ...Task) {
-	s.StopTask(NewMultipleTask(tasks...))
+func (s *SvcInit) StopMultipleTasks(fn ...Task) {
+	s.StopTask(NewMultipleTask(fn...))
 }
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
-func (s *SvcInit) AutoStopTask(task Task) {
-	s.autoCleanup = append(s.autoCleanup, task)
+func (s *SvcInit) AutoStopTask(fn Task) {
+	s.autoCleanup = append(s.autoCleanup, fn)
 }
 
 // AutoStopTaskFunc adds a shutdown task, when the shutdown order DOES NOT matter.
-func (s *SvcInit) AutoStopTaskFunc(task TaskFunc) {
-	s.AutoStopTask(task)
+func (s *SvcInit) AutoStopTaskFunc(fn TaskFunc) {
+	s.AutoStopTask(fn)
 }
 
 type StartTaskCmd struct {
