@@ -151,7 +151,7 @@ func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
 }
 
 // ServiceWithCallback wraps a Service with a callback to be called before and after it runs.
-func ServiceWithCallback(service Service, callback TaskCallback) Service {
+func ServiceWithCallback(service Service, callback ServiceCallback) Service {
 	return &serviceWithCallback{
 		svc:      service,
 		callback: callback,
@@ -183,34 +183,31 @@ func (t *taskWithCallback) Run(ctx context.Context) error {
 
 type serviceWithCallback struct {
 	svc      Service
-	callback TaskCallback
+	callback ServiceCallback
 }
 
 var _ Service = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
-	return errors.New("this should never run")
-	// return s.svc.Start(ctx)
+	if s.callback != nil {
+		s.callback.StartBeforeRun(ctx, s.svc)
+	}
+	err := s.svc.Start(ctx)
+	if s.callback != nil {
+		s.callback.StartAfterRun(ctx, s.svc, err)
+	}
+	return err
 }
 
 func (s *serviceWithCallback) Stop(ctx context.Context) error {
-	return errors.New("this should never run")
-	// return s.svc.Stop(ctx)
-}
-
-func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
-	if stt, ok := s.svc.(ServiceToTask); ok {
-		tt = stt.ToTask(isStart)
-	} else {
-		tt = &ServiceTask{
-			svc:     s.svc,
-			isStart: isStart,
-		}
-	}
 	if s.callback != nil {
-		tt = TaskWithCallback(tt, s.callback)
+		s.callback.StopBeforeRun(ctx, s.svc)
 	}
-	return
+	err := s.svc.Start(ctx)
+	if s.callback != nil {
+		s.callback.StopAfterRun(ctx, s.svc, err)
+	}
+	return err
 }
 
 // taskFromCallback unwraps taskWithCallback from tasks.

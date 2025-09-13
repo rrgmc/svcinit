@@ -106,6 +106,36 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
 	}
 }
 
+// ServiceCallback is called before and after the service is started and stopped.
+type ServiceCallback interface {
+	StartBeforeRun(ctx context.Context, svc Service)
+	StartAfterRun(ctx context.Context, svc Service, err error)
+	StopBeforeRun(ctx context.Context, svc Service)
+	StopAfterRun(ctx context.Context, svc Service, err error)
+}
+
+// ServiceCallbackFunc is called before and after the service is started and stopped.
+func ServiceCallbackFunc(startBeforeRun func(ctx context.Context, svc Service),
+	startAfterRun func(ctx context.Context, svc Service, err error),
+	stopBeforeRun func(ctx context.Context, svc Service),
+	stopAfterRun func(ctx context.Context, svc Service, err error)) ServiceCallback {
+	return &serviceCallbackFunc{
+		startBeforeRun: startBeforeRun,
+		startAfterRun:  startAfterRun,
+		stopBeforeRun:  stopBeforeRun,
+		stopAfterRun:   stopAfterRun,
+	}
+}
+
+// NewServiceCallback is called before and after the service is started and stopped.
+func NewServiceCallback(options ...ServiceCallbackFuncOption) ServiceCallback {
+	f := &serviceCallbackFunc{}
+	for _, option := range options {
+		option(f)
+	}
+	return f
+}
+
 type taskCallbackFunc struct {
 	beforeRun func(ctx context.Context, task Task)
 	afterRun  func(ctx context.Context, task Task, err error)
@@ -120,5 +150,75 @@ func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task) {
 func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
 	if t.afterRun != nil {
 		t.afterRun(ctx, task, err)
+	}
+}
+
+type serviceCallbackFunc struct {
+	startBeforeRun func(ctx context.Context, svc Service)
+	startAfterRun  func(ctx context.Context, svc Service, err error)
+	stopBeforeRun  func(ctx context.Context, svc Service)
+	stopAfterRun   func(ctx context.Context, svc Service, err error)
+}
+
+func (s *serviceCallbackFunc) StartBeforeRun(ctx context.Context, svc Service) {
+	if s.startBeforeRun != nil {
+		s.startBeforeRun(ctx, svc)
+	}
+}
+
+func (s *serviceCallbackFunc) StartAfterRun(ctx context.Context, svc Service, err error) {
+	if s.startAfterRun != nil {
+		s.startAfterRun(ctx, svc, err)
+	}
+}
+
+func (s *serviceCallbackFunc) StopBeforeRun(ctx context.Context, svc Service) {
+	if s.stopBeforeRun != nil {
+		s.stopBeforeRun(ctx, svc)
+	}
+}
+
+func (s *serviceCallbackFunc) StopAfterRun(ctx context.Context, svc Service, err error) {
+	if s.stopAfterRun != nil {
+		s.stopAfterRun(ctx, svc, err)
+	}
+	return
+}
+
+type ServiceCallbackFuncOption func(*serviceCallbackFunc)
+
+func WithServiceCallback(startBeforeRun func(ctx context.Context, svc Service),
+	startAfterRun func(ctx context.Context, svc Service, err error),
+	stopBeforeRun func(ctx context.Context, svc Service),
+	stopAfterRun func(ctx context.Context, svc Service, err error)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.startBeforeRun = startBeforeRun
+		c.startAfterRun = startAfterRun
+		c.stopBeforeRun = stopBeforeRun
+		c.stopAfterRun = stopAfterRun
+	}
+}
+
+func WithServiceCallbackStartBeforeRun(f func(ctx context.Context, svc Service)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.startBeforeRun = f
+	}
+}
+
+func WithServiceCallbackStartAfterRun(f func(ctx context.Context, svc Service, err error)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.startAfterRun = f
+	}
+}
+
+func WithServiceCallbackStopBeforeRun(f func(ctx context.Context, svc Service)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.stopBeforeRun = f
+	}
+}
+
+func WithServiceCallbackStopAfterRun(f func(ctx context.Context, svc Service, err error)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.stopAfterRun = f
 	}
 }
