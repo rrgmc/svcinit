@@ -338,20 +338,16 @@ func TestSvcInitCallback(t *testing.T) {
 	getServiceCallback := func(taskNo int) ServiceCallback {
 		return ServiceCallbackFunc(
 			func(ctx context.Context, svc Service) {
-				fmt.Printf("SVCCB[%d]:StartBeforeRun\n", taskNo)
-				individualServiceCallback(taskNo, false, true)
+				individualServiceCallback(taskNo, false, true)(ctx, svc)
 			},
 			func(ctx context.Context, svc Service, err error) {
-				fmt.Printf("SVCCB[%d]:StartAfterRun\n", taskNo)
-				individualServiceCallback(taskNo, false, false)
+				individualServiceCallback(taskNo, false, false)(ctx, svc)
 			},
 			func(ctx context.Context, svc Service) {
-				fmt.Printf("SVCCB[%d]:StopBeforeRun\n", taskNo)
-				individualServiceCallback(taskNo, true, true)
+				individualServiceCallback(taskNo, true, true)(ctx, svc)
 			},
 			func(ctx context.Context, svc Service, err error) {
-				fmt.Printf("SVCCB[%d]:StopAfterRun\n", taskNo)
-				individualServiceCallback(taskNo, true, false)
+				individualServiceCallback(taskNo, true, false)(ctx, svc)
 			},
 		)
 	}
