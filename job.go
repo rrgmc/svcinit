@@ -57,7 +57,7 @@ func (s *SvcInit) StopTask(fn Task) {
 	if ps, ok := fn.(pendingStopTask); ok {
 		ps.setResolved()
 	}
-	s.cleanup = append(s.cleanup, newTaskWrapper(fn))
+	s.cleanup = append(s.cleanup, fn)
 }
 
 // StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
@@ -74,7 +74,7 @@ func (s *SvcInit) StopMultipleTasks(fn ...Task) {
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTask(fn Task) {
-	s.autoCleanup = append(s.autoCleanup, newTaskWrapper(fn))
+	s.autoCleanup = append(s.autoCleanup, fn)
 }
 
 // AutoStopTaskFunc adds a shutdown task, when the shutdown order DOES NOT matter.
@@ -195,8 +195,10 @@ func (s StartServiceCmd) isResolved() bool {
 // If checkFinished is true, a context will be returned that will be done when the task finishes executing.
 // This is used to make the stop task wait the start task finish.
 func (s *SvcInit) addTask(ctx context.Context, fn Task) {
-	s.tasks = append(s.tasks, newTaskWrapper(fn,
-		withTaskWrapperContext(ctx)))
+	s.tasks = append(s.tasks, taskWrapper{
+		ctx:  ctx,
+		task: fn,
+	})
 }
 
 type pendingItem interface {

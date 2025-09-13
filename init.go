@@ -31,9 +31,9 @@ type SvcInit struct {
 	// list of tasks to start.
 	tasks []taskWrapper
 	// list of ordered cleanup tasks.
-	cleanup []taskWrapper
+	cleanup []Task
 	// list of unordered cleanup tasks.
-	autoCleanup []taskWrapper
+	autoCleanup []Task
 	// list of pending starts and stops.
 	pendingStarts []pendingItem
 	pendingStops  []pendingItem
@@ -120,4 +120,9 @@ func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
 	if t.afterRun != nil {
 		t.afterRun(ctx, task, err)
 	}
+}
+
+type taskWrapper struct {
+	ctx  context.Context
+	task Task
 }
