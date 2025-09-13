@@ -208,8 +208,8 @@ type pendingItem interface {
 	isResolved() bool
 }
 
-func newPendingStopTask(task Task) pendingStopTask {
-	return newPendingStopTaskImpl(task)
+func newPendingStopTask(task Task, options ...TaskOption) pendingStopTask {
+	return newPendingStopTaskImpl(task, options...)
 }
 
 type pendingStopTask interface {
@@ -220,14 +220,16 @@ type pendingStopTask interface {
 
 type pendingStopTaskImpl struct {
 	stopTask Task
+	options  []TaskOption
 	resolved resolved
 }
 
 var _ WrappedTask = (*pendingStopTaskImpl)(nil)
 
-func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
+func newPendingStopTaskImpl(stopTask Task, options ...TaskOption) pendingStopTaskImpl {
 	return pendingStopTaskImpl{
 		stopTask: stopTask,
+		options:  options,
 		resolved: newResolved(),
 	}
 }
