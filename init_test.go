@@ -271,6 +271,63 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2}, stopped, cmpopts.SortSlices(cmp.Less[int]))
 }
 
+func TestSvcInitCallback(t *testing.T) {
+	sinit := New(context.Background())
+
+	started := &testList[int]{}
+	stopped := &testList[int]{}
+
+	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
+		stdAdd := 0
+		if isStop {
+			stdAdd = 2
+		}
+		return TaskCallbackFunc(func(ctx context.Context, task Task) {
+			if !isStop {
+				started.add((taskNo * 10) + stdAdd)
+			} else {
+				stopped.add((taskNo * 10) + stdAdd)
+			}
+		}, func(ctx context.Context, task Task, err error) {
+			if !isStop {
+				started.add((taskNo * 10) + stdAdd + 1)
+			} else {
+				stopped.add((taskNo * 10) + stdAdd + 1)
+			}
+		})
+	}
+
+	stopTask1 := sinit.
+		StartTask(TaskFuncWithCallback(func(ctx context.Context) error {
+			started.add(1)
+			return nil
+		}, getTaskCallback(1, false))).
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
+			stopped.add(1)
+			return nil
+		}, getTaskCallback(1, true)))
+
+	stopTask2 := sinit.
+		StartTaskFunc(func(ctx context.Context) error {
+			started.add(2)
+			return nil
+		}).
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
+			stopped.add(2)
+			return nil
+		}, getTaskCallback(2, true)))
+
+	sinit.StopTask(stopTask1)
+	sinit.StopTask(stopTask2)
+
+	err := sinit.Run()
+
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, []int{1, 2, 10, 11}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 12, 13, 22, 23}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+}
+
 func TestSvcInitPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 
@@ -323,4 +380,21 @@ func TestSvcInitPendingStopService(t *testing.T) {
 
 	err := sinit.Run()
 	assert.ErrorIs(t, err, ErrPending)
+}
+
+type testList[T any] struct {
+	m    sync.Mutex
+	list []T
+}
+
+func (l *testList[T]) add(item T) {
+	l.m.Lock()
+	l.list = append(l.list, item)
+	l.m.Unlock()
+}
+
+func (l *testList[T]) get() []T {
+	l.m.Lock()
+	defer l.m.Unlock()
+	return l.list
 }

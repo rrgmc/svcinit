@@ -132,6 +132,11 @@ func TaskWithCallback(task Task, callback TaskCallback) Task {
 	}
 }
 
+// TaskFuncWithCallback wraps a task with a callback to be called before and after it runs.
+func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
+	return TaskWithCallback(task, callback)
+}
+
 type taskWithCallback struct {
 	task     Task
 	callback TaskCallback
