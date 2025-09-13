@@ -121,6 +121,37 @@ func (t *MultipleTask) setResolved() {
 	t.resolved.setResolved()
 }
 
+// TaskWithCallback wraps a task with a callback to be called before and after it runs.
+func TaskWithCallback(task Task, callback TaskCallback) Task {
+	if callback == nil {
+		return task
+	}
+	return &taskWithCallback{
+		task:     task,
+		callback: callback,
+	}
+}
+
+type taskWithCallback struct {
+	task     Task
+	callback TaskCallback
+}
+
+func (t *taskWithCallback) WrappedTasks() []Task {
+	return []Task{t.task}
+}
+
+func (t *taskWithCallback) Run(ctx context.Context) error {
+	if t.callback != nil {
+		t.callback.BeforeRun(ctx, t.task)
+	}
+	err := t.task.Run(ctx)
+	if t.callback != nil {
+		t.callback.AfterRun(ctx, t.task, err)
+	}
+	return err
+}
+
 type serviceFunc struct {
 	start Task
 	stop  Task
