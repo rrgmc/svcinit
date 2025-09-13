@@ -7,25 +7,24 @@ import (
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTask(task Task, options ...TaskOption) {
-	s.addTask(s.unorderedCancelCtx, task, options...)
+func (s *SvcInit) ExecuteTask(fn Task) {
+	s.addTask(s.unorderedCancelCtx, fn)
 }
 
 // ExecuteTaskFunc executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTaskFunc(task TaskFunc, options ...TaskOption) {
-	s.ExecuteTask(task, options...)
+func (s *SvcInit) ExecuteTaskFunc(fn TaskFunc) {
+	s.ExecuteTask(fn)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTask(start Task, options ...TaskOption) StartTaskCmd {
+func (s *SvcInit) StartTask(start Task) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
 		start:    start,
-		options:  options,
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -35,19 +34,18 @@ func (s *SvcInit) StartTask(start Task, options ...TaskOption) StartTaskCmd {
 // StartTaskFunc executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTaskFunc(start TaskFunc, options ...TaskOption) StartTaskCmd {
-	return s.StartTask(start, options...)
+func (s *SvcInit) StartTaskFunc(start TaskFunc) StartTaskCmd {
+	return s.StartTask(start)
 }
 
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with Start and ManualStop methods.
 // At least one method of StartServiceCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceCmd {
+func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	cmd := StartServiceCmd{
 		s:        s,
 		svc:      svc,
-		options:  options,
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -55,16 +53,16 @@ func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceC
 }
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTask(task Task, options ...TaskOption) {
-	if ps, ok := task.(pendingStopTask); ok {
+func (s *SvcInit) StopTask(fn Task) {
+	if ps, ok := fn.(pendingStopTask); ok {
 		ps.setResolved()
 	}
-	s.cleanup = append(s.cleanup, newTaskWrapper(task, withTaskWrapperTaskOptions(options...)))
+	s.cleanup = append(s.cleanup, newTaskWrapper(fn))
 }
 
 // StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTaskFunc(fn TaskFunc, options ...TaskOption) {
-	s.StopTask(fn, options...)
+func (s *SvcInit) StopTaskFunc(fn TaskFunc) {
+	s.StopTask(fn)
 }
 
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
@@ -87,7 +85,6 @@ func (s *SvcInit) AutoStopTaskFunc(fn TaskFunc) {
 type StartTaskCmd struct {
 	s        *SvcInit
 	start    Task
-	options  []TaskOption
 	resolved resolved
 }
 
@@ -155,7 +152,6 @@ func (s StartTaskCmd) isResolved() bool {
 type StartServiceCmd struct {
 	s        *SvcInit
 	svc      Service
-	options  []TaskOption
 	resolved resolved
 }
 
@@ -198,10 +194,9 @@ func (s StartServiceCmd) isResolved() bool {
 // addTask adds a task to be started.
 // If checkFinished is true, a context will be returned that will be done when the task finishes executing.
 // This is used to make the stop task wait the start task finish.
-func (s *SvcInit) addTask(ctx context.Context, task Task, options ...TaskOption) {
-	s.tasks = append(s.tasks, newTaskWrapper(task,
-		withTaskWrapperContext(ctx),
-		withTaskWrapperTaskOptions(options...)))
+func (s *SvcInit) addTask(ctx context.Context, fn Task) {
+	s.tasks = append(s.tasks, newTaskWrapper(fn,
+		withTaskWrapperContext(ctx)))
 }
 
 type pendingItem interface {

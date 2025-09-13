@@ -175,13 +175,3 @@ func withTaskWrapperCallback(callback TaskCallback) taskWrapperOption {
 		w.callback = callback
 	}
 }
-
-func withTaskWrapperTaskOptions(options ...TaskOption) taskWrapperOption {
-	return func(w *taskWrapper) {
-		var optns taskOptions
-		for _, opt := range options {
-			opt(&optns)
-		}
-		w.callback = optns.callback
-	}
-}
