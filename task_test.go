@@ -55,9 +55,9 @@ func TestServiceCallbackRecursive(t *testing.T) {
 			data.add(5)
 		})))
 
-	startTask, stopTask := ServiceAsTasks(svc1cb2)
-
 	ctx := context.Background()
+
+	startTask, stopTask := ServiceAsTasks(svc1cb2)
 
 	err := startTask.Run(ctx)
 	assert.NilError(t, err)
