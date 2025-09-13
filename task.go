@@ -15,6 +15,11 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
+type TaskRunCallback interface {
+	Task
+	RunCallback(ctx context.Context, callback TaskCallback) error
+}
+
 // WrappedTask is a task which was wrapped from one Task.
 type WrappedTask interface {
 	Task
@@ -89,6 +94,7 @@ type MultipleTask struct {
 
 var _ pendingStopTask = (*MultipleTask)(nil)
 var _ WrappedTasks = (*MultipleTask)(nil)
+var _ TaskRunCallback = (*MultipleTask)(nil)
 
 func NewMultipleTask(tasks ...Task) Task {
 	return &MultipleTask{
@@ -102,6 +108,10 @@ func (t *MultipleTask) WrappedTasks() []Task {
 }
 
 func (t *MultipleTask) Run(ctx context.Context) error {
+	return t.RunCallback(ctx, nil)
+}
+
+func (t *MultipleTask) RunCallback(ctx context.Context, callback TaskCallback) error {
 	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
@@ -109,7 +119,13 @@ func (t *MultipleTask) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if callback != nil {
+				callback.BeforeRun(ctx, st)
+			}
 			err := st.Run(ctx)
+			if callback != nil {
+				callback.AfterRun(ctx, st, err)
+			}
 			if err != nil {
 				allErr.add(err)
 			}
