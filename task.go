@@ -15,6 +15,7 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
+// TaskRunCallback is a Task which knows how to handle a TaskCallback.
 type TaskRunCallback interface {
 	Task
 	RunCallback(ctx context.Context, callback TaskCallback) error
