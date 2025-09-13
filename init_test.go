@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
-	cmp2 "gotest.tools/v3/assert/cmp"
 )
 
 type testTaskNoError struct {
@@ -261,30 +260,36 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 }
 
 func TestSvcInitCallback(t *testing.T) {
-	sinit := New(context.Background(),
-		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
-			if _, ok := task.(*testTask); !ok {
-				assert.Check(t, false, "task is not of the expected type")
-			}
-		}, func(ctx context.Context, task Task, err error) {
-			if _, ok := task.(*testTask); !ok {
-				assert.Check(t, false, "task is not of the expected type")
-			}
-		})))
-
 	started := &testList[int]{}
 	stopped := &testList[int]{}
 
-	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
-		stdAdd := 0
-		if isStop {
-			stdAdd = 2
+	globalTaskCallback := func(ctx context.Context, task Task) {
+		if st, ok := task.(*ServiceTask); ok {
+			if _, ok := st.Service().(*testService); !ok {
+				assert.Check(t, false, "service is not of the expected type")
+			}
+		} else if _, ok := task.(*testTask); !ok {
+			assert.Check(t, false, "task is not of the expected type")
 		}
-		return TaskCallbackFunc(func(ctx context.Context, task Task) {
-			if tn, ok := task.(*testTask); ok {
-				assert.Check(t, cmp2.Equal(tn.taskNo, taskNo))
-			} else {
+	}
+
+	individualTaskCallback := func(taskNo int, isStop bool, isBefore bool) func(ctx context.Context, task Task) {
+		return func(ctx context.Context, task Task) {
+			stdAdd := 0
+			if st, ok := task.(*ServiceTask); ok {
+				if _, ok := st.Service().(*testService); !ok {
+					assert.Check(t, false, "service is not of the expected type")
+				}
+				isStop = !st.IsStart()
+				stdAdd = 4
+			} else if _, ok := task.(*testTask); !ok {
 				assert.Check(t, false, "task is not of the expected type")
+			}
+			if !isBefore {
+				stdAdd++
+			}
+			if isStop {
+				stdAdd += 2
 			}
 
 			if !isStop {
@@ -292,12 +297,21 @@ func TestSvcInitCallback(t *testing.T) {
 			} else {
 				stopped.add((taskNo * 10) + stdAdd)
 			}
+		}
+	}
+
+	sinit := New(context.Background(),
+		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
+			globalTaskCallback(ctx, task)
 		}, func(ctx context.Context, task Task, err error) {
-			if !isStop {
-				started.add((taskNo * 10) + stdAdd + 1)
-			} else {
-				stopped.add((taskNo * 10) + stdAdd + 1)
-			}
+			globalTaskCallback(ctx, task)
+		})))
+
+	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
+		return TaskCallbackFunc(func(ctx context.Context, task Task) {
+			individualTaskCallback(taskNo, isStop, true)(ctx, task)
+		}, func(ctx context.Context, task Task, err error) {
+			individualTaskCallback(taskNo, isStop, false)(ctx, task)
 		})
 	}
 
@@ -321,15 +335,28 @@ func TestSvcInitCallback(t *testing.T) {
 			return nil
 		}), getTaskCallback(2, true)))
 
+	svc := newTestService(3, func(ctx context.Context) error {
+		started.add(3)
+		return nil
+	}, func(ctx context.Context) error {
+		stopped.add(3)
+		return nil
+	})
+
+	stopService := sinit.
+		StartService(ServiceWithCallback(svc, getTaskCallback(3, false))).
+		ManualStop()
+
 	sinit.StopTask(stopTask1)
 	sinit.StopTask(stopTask2)
+	sinit.StopTask(stopService)
 
 	err := sinit.Run()
 
 	assert.NilError(t, err)
 
-	assert.DeepEqual(t, []int{1, 2, 10, 11, 20, 21}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2, 12, 13, 22, 23}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestSvcInitPendingStart(t *testing.T) {
@@ -400,6 +427,28 @@ func newTestTask(taskNo int, task TaskFunc) *testTask {
 
 func (t *testTask) Run(ctx context.Context) error {
 	return t.task(ctx)
+}
+
+type testService struct {
+	taskNo int
+	start  func(ctx context.Context) error
+	stop   func(ctx context.Context) error
+}
+
+func newTestService(taskNo int, start func(ctx context.Context) error, stop func(ctx context.Context) error) *testService {
+	return &testService{
+		taskNo: taskNo,
+		start:  start,
+		stop:   stop,
+	}
+}
+
+func (t *testService) Start(ctx context.Context) error {
+	return t.start(ctx)
+}
+
+func (t *testService) Stop(ctx context.Context) error {
+	return t.stop(ctx)
 }
 
 type testList[T any] struct {

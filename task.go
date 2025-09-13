@@ -39,8 +39,15 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 }
 
 // ServiceAsTask creates and adapter from a service method to a task.
-func ServiceAsTask(svc Service, isStart bool) *ServiceTask {
-	return &ServiceTask{svc: svc, isStart: isStart}
+func ServiceAsTask(svc Service, isStart bool) (st Task) {
+	stask := &ServiceTask{svc: svc, isStart: isStart}
+	if scb, ok := svc.(*serviceWithCallback); ok {
+		stask.svc = scb.svc
+		st = TaskWithCallback(stask, scb.callback)
+	} else {
+		st = stask
+	}
+	return st
 }
 
 // ServiceTask is a Task implemented from a Service.
@@ -121,7 +128,7 @@ func (t *MultipleTask) setResolved() {
 	t.resolved.setResolved()
 }
 
-// TaskWithCallback wraps a task with a callback to be called before and after it runs.
+// TaskWithCallback wraps a service with a callback to be called before and after it runs.
 func TaskWithCallback(task Task, callback TaskCallback) Task {
 	if task == nil || callback == nil {
 		return task
@@ -135,6 +142,14 @@ func TaskWithCallback(task Task, callback TaskCallback) Task {
 // TaskFuncWithCallback wraps a task with a callback to be called before and after it runs.
 func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
 	return TaskWithCallback(task, callback)
+}
+
+// ServiceWithCallback wraps a Service with a callback to be called before and after it runs.
+func ServiceWithCallback(service Service, callback TaskCallback) Service {
+	return &serviceWithCallback{
+		svc:      service,
+		callback: callback,
+	}
 }
 
 type taskWithCallback struct {
@@ -158,6 +173,21 @@ func (t *taskWithCallback) Run(ctx context.Context) error {
 		t.callback.AfterRun(ctx, t.task, err)
 	}
 	return err
+}
+
+type serviceWithCallback struct {
+	svc      Service
+	callback TaskCallback
+}
+
+var _ Service = (*serviceWithCallback)(nil)
+
+func (s *serviceWithCallback) Start(ctx context.Context) error {
+	return s.svc.Start(ctx)
+}
+
+func (s *serviceWithCallback) Stop(ctx context.Context) error {
+	return s.svc.Stop(ctx)
 }
 
 // taskFromCallback unwraps taskWithCallback from tasks.
