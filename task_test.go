@@ -41,21 +41,23 @@ func TestServiceCallbackRecursive(t *testing.T) {
 		return nil
 	})
 	svc1cb1 := ServiceWithCallback(svc1, TaskCallbackFunc(func(ctx context.Context, task Task) {
-		data.add(1)
-	}, func(ctx context.Context, task Task, err error) {
 		data.add(2)
+	}, func(ctx context.Context, task Task, err error) {
+		data.add(3)
 	}))
 	svc1cb2 := ServiceWithCallback(svc1cb1, TaskCallbackFunc(func(ctx context.Context, task Task) {
-		data.add(3)
-	}, func(ctx context.Context, task Task, err error) {
 		data.add(4)
+	}, func(ctx context.Context, task Task, err error) {
+		data.add(5)
 	}))
 
 	startTask, stopTask := ServiceAsTasks(svc1cb2)
 
-	err := startTask.Run(context.Background())
+	ctx := context.Background()
+
+	err := startTask.Run(ctx)
 	assert.NilError(t, err)
-	err = stopTask.Run(context.Background())
+	err = stopTask.Run(ctx)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, []int{3, 1, 2, 4}, data.get())
 }

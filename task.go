@@ -38,16 +38,17 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 	return ServiceFunc(start, stop)
 }
 
+type ServiceToTask interface {
+	Service
+	ToTask(isStart bool) Task
+}
+
 // ServiceAsTask creates and adapter from a service method to a task.
-func ServiceAsTask(svc Service, isStart bool) (st Task) {
-	stask := &ServiceTask{svc: svc, isStart: isStart}
-	if scb, ok := svc.(*serviceWithCallback); ok {
-		stask.svc = scb.svc
-		st = TaskWithCallback(stask, scb.callback)
-	} else {
-		st = stask
+func ServiceAsTask(svc Service, isStart bool) Task {
+	if stt, ok := svc.(ServiceToTask); ok {
+		return stt.ToTask(isStart)
 	}
-	return st
+	return &ServiceTask{svc: svc, isStart: isStart}
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
@@ -188,13 +189,22 @@ type serviceWithCallback struct {
 var _ Service = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
-	return errors.New("serviceWithCallback should never run directly")
-	// return s.svc.Start(ctx)
+	return s.svc.Start(ctx)
 }
 
 func (s *serviceWithCallback) Stop(ctx context.Context) error {
-	return errors.New("serviceWithCallback should never run directly")
-	// return s.svc.Stop(ctx)
+	return s.svc.Stop(ctx)
+}
+
+func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
+	tt = &ServiceTask{
+		svc:     s.svc,
+		isStart: isStart,
+	}
+	if s.callback != nil {
+		tt = TaskWithCallback(tt, s.callback)
+	}
+	return
 }
 
 // taskFromCallback unwraps taskWithCallback from tasks.
