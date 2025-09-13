@@ -50,6 +50,11 @@ func ServiceAsTask(svc Service, isStart bool) (st Task) {
 	return st
 }
 
+// ServiceAsTasks creates and adapter from a service method to stop and start tasks.
+func ServiceAsTasks(svc Service) (start, stop Task) {
+	return ServiceAsTask(svc, true), ServiceAsTask(svc, false)
+}
+
 // ServiceTask is a Task implemented from a Service.
 // Use Service to get the source service instance.
 type ServiceTask struct {
@@ -183,11 +188,13 @@ type serviceWithCallback struct {
 var _ Service = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
-	return s.svc.Start(ctx)
+	return errors.New("serviceWithCallback should never run directly")
+	// return s.svc.Start(ctx)
 }
 
 func (s *serviceWithCallback) Stop(ctx context.Context) error {
-	return s.svc.Stop(ctx)
+	return errors.New("serviceWithCallback should never run directly")
+	// return s.svc.Stop(ctx)
 }
 
 // taskFromCallback unwraps taskWithCallback from tasks.
