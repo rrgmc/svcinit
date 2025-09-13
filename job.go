@@ -7,24 +7,24 @@ import (
 // ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTask(task Task, options ...TaskOption) {
-	s.addTask(s.unorderedCancelCtx, parseTaskOptions(task, options...))
+func (s *SvcInit) ExecuteTask(task Task) {
+	s.addTask(s.unorderedCancelCtx, task)
 }
 
 // ExecuteTaskFunc executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTaskFunc(task TaskFunc, options ...TaskOption) {
-	s.ExecuteTask(task, options...)
+func (s *SvcInit) ExecuteTaskFunc(task TaskFunc) {
+	s.ExecuteTask(task)
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTask(task Task, options ...TaskOption) StartTaskCmd {
+func (s *SvcInit) StartTask(task Task) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
-		start:    parseTaskOptions(task, options...),
+		start:    task,
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -34,18 +34,18 @@ func (s *SvcInit) StartTask(task Task, options ...TaskOption) StartTaskCmd {
 // StartTaskFunc executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTaskFunc(task TaskFunc, options ...TaskOption) StartTaskCmd {
-	return s.StartTask(task, options...)
+func (s *SvcInit) StartTaskFunc(task TaskFunc) StartTaskCmd {
+	return s.StartTask(task)
 }
 
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with Start and ManualStop methods.
 // At least one method of StartServiceCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceCmd {
+func (s *SvcInit) StartService(svc Service) StartServiceCmd {
 	cmd := StartServiceCmd{
 		s:        s,
-		svc:      parseServiceTaskOptions(svc, options...),
+		svc:      svc,
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -105,37 +105,34 @@ func (s StartTaskCmd) ManualStopCancel() Task {
 // ManualStopCancelTask returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTask(stop Task, options ...TaskOption) Task {
-	return s.stopCancel(stop, options...)
+func (s StartTaskCmd) ManualStopCancelTask(stop Task) Task {
+	return s.stopCancel(stop)
 }
 
 // ManualStopCancelTaskFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, options ...TaskOption) Task {
-	return s.ManualStopCancelTask(stop, options...)
+func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc) Task {
+	return s.ManualStopCancelTask(stop)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) Task {
+func (s StartTaskCmd) ManualStop(stop Task) Task {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
-	return s.s.addPendingStopTask(parseTaskOptions(stop))
+	return s.s.addPendingStopTask(stop)
 }
 
 // ManualStopFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopFunc(stop TaskFunc, options ...TaskOption) Task {
-	return s.ManualStop(stop, options...)
+func (s StartTaskCmd) ManualStopFunc(stop TaskFunc) Task {
+	return s.ManualStop(stop)
 }
 
-func (s StartTaskCmd) stopCancel(stop Task, options ...TaskOption) Task {
-	if stop != nil {
-		stop = parseTaskOptions(stop, options...)
-	}
+func (s StartTaskCmd) stopCancel(stop Task) Task {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, s.start)
