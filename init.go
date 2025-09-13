@@ -121,8 +121,3 @@ func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
 		t.afterRun(ctx, task, err)
 	}
 }
-
-type taskWrapper struct {
-	ctx  context.Context
-	task Task
-}
