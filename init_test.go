@@ -356,7 +356,7 @@ func TestSvcInitCallback(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestSvcInitPendingStart(t *testing.T) {
