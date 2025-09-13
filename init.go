@@ -49,7 +49,7 @@ type SvcInit struct {
 
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,
 // and a list of stop errors, if any.
-func (s *SvcInit) RunWithErrors() (error, []error) {
+func (s *SvcInit) RunWithErrors() (cause error, cleanupErr error) {
 	if err := s.checkPending(); err != nil {
 		return err, nil
 	}
@@ -59,9 +59,9 @@ func (s *SvcInit) RunWithErrors() (error, []error) {
 	s.start()
 	<-s.cancelCtx.Done()
 	s.unorderedCancel(context.Cause(s.cancelCtx))
-	cleanupErr := s.shutdown()
+	cleanupErr = s.shutdown()
 	s.wg.Wait()
-	cause := context.Cause(s.cancelCtx)
+	cause = context.Cause(s.cancelCtx)
 	if errors.Is(cause, ErrExit) || errors.Is(cause, context.Canceled) {
 		cause = nil
 	}

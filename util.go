@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
@@ -24,9 +25,9 @@ func (r resolved) setResolved() {
 	*r.value = true
 }
 
-// WaitGroupWaitWithContext waits for the waitgroup or the context to be done.
+// waitGroupWaitWithContext waits for the waitgroup or the context to be done.
 // Returns false if waiting timed out.
-func WaitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
+func waitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
@@ -37,5 +38,34 @@ func WaitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
 		return true // completed normally
 	case <-ctx.Done():
 		return false // timed out
+	}
+}
+
+type multiErrorBuilder struct {
+	m    sync.Mutex
+	errs []error
+}
+
+func newMultiErrorBuilder() *multiErrorBuilder {
+	return &multiErrorBuilder{}
+}
+
+func (b *multiErrorBuilder) add(err error) {
+	if err == nil {
+		return
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.errs = append(b.errs, err)
+}
+
+func (b *multiErrorBuilder) build() *MultiError {
+	b.m.Lock()
+	defer b.m.Unlock()
+	if len(b.errs) == 0 {
+		return nil
+	}
+	return &MultiError{
+		Errors: slices.Clone(b.errs),
 	}
 }

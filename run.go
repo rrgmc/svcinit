@@ -2,7 +2,6 @@ package svcinit
 
 import (
 	"context"
-	"slices"
 	"sync"
 )
 
@@ -32,12 +31,12 @@ func (s *SvcInit) start() {
 	}
 }
 
-func (s *SvcInit) shutdown() []error {
+func (s *SvcInit) shutdown() error {
 	var (
-		wg   sync.WaitGroup
-		lock sync.Mutex
-		errs []error
+		wg sync.WaitGroup
 	)
+
+	errorBuilder := newMultiErrorBuilder()
 
 	ctx := s.shutdownCtx
 	if s.shutdownTimeout > 0 {
@@ -53,11 +52,7 @@ func (s *SvcInit) shutdown() []error {
 			go func(task Task) {
 				defer wg.Done()
 				err := s.runTask(ctx, task, s.stopTaskCallback)
-				if err != nil {
-					lock.Lock()
-					errs = append(errs, err)
-					lock.Unlock()
-				}
+				errorBuilder.add(err)
 			}(taskInfo)
 		}
 	}
@@ -69,21 +64,15 @@ func (s *SvcInit) shutdown() []error {
 			defer wg.Done()
 			for _, task := range s.cleanup {
 				err := s.runTask(ctx, task, s.stopTaskCallback)
-				if err != nil {
-					lock.Lock()
-					errs = append(errs, err)
-					lock.Unlock()
-				}
+				errorBuilder.add(err)
 			}
 		}()
 	}
 
 	// wait for auto cleanups, if any
 	if s.enforceShutdownTimeout {
-		if !WaitGroupWaitWithContext(ctx, &wg) {
-			lock.Lock()
-			errs = append(errs, ErrShutdownTimeout)
-			lock.Unlock()
+		if !waitGroupWaitWithContext(ctx, &wg) {
+			errorBuilder.add(ErrShutdownTimeout)
 		}
 	} else {
 		wg.Wait()
@@ -91,18 +80,11 @@ func (s *SvcInit) shutdown() []error {
 
 	if s.stoppedCallback != nil {
 		if serr := s.stoppedCallback.Run(s.shutdownCtx); serr != nil {
-			lock.Lock()
-			errs = append(errs, serr)
-			lock.Unlock()
+			errorBuilder.add(serr)
 		}
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
-	if s.enforceShutdownTimeout {
-		return slices.Clone(errs)
-	}
-	return errs
+	return errorBuilder.build()
 }
 
 func (s *SvcInit) checkPending() error {
