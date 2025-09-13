@@ -223,21 +223,26 @@ func TestSvcInit(t *testing.T) {
 }
 
 func TestSvcInitStopMultipleTasks(t *testing.T) {
-	sinit := New(context.Background())
-
 	started := &testList[int]{}
 	stopped := &testList[int]{}
 	stopcb := &testList[int]{}
+
+	sinit := New(context.Background(),
+		WithStopTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
+			if _, ok := UnwrapTask(task).(*testTask); !ok {
+				assert.Check(t, false, "task is not of the expected type, but %T", UnwrapTask(task))
+			}
+		}, nil)))
 
 	stopTask1 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
 			started.add(1)
 			return nil
 		}).
-		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
+		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		}, TaskCallbackFunc(func(ctx context.Context, task Task) {
+		}), TaskCallbackFunc(func(ctx context.Context, task Task) {
 			stopcb.add(5)
 		}, nil)))
 
@@ -246,10 +251,10 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 			started.add(2)
 			return nil
 		}).
-		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
+		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		}, TaskCallbackFunc(func(ctx context.Context, task Task) {
+		}), TaskCallbackFunc(func(ctx context.Context, task Task) {
 			stopcb.add(10)
 		}, nil)))
 
