@@ -96,9 +96,10 @@ func TestSvcInit(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			var m sync.Mutex
-			var orderedFinish, orderedStop []int
-			var unorderedFinish, unorderedStop []int
+			orderedFinish := &testList[int]{}
+			orderedStop := &testList[int]{}
+			unorderedFinish := &testList[int]{}
+			unorderedStop := &testList[int]{}
 
 			type testService struct {
 				svc    Service
@@ -124,13 +125,11 @@ func TestSvcInit(t *testing.T) {
 							}
 
 							defer func() {
-								m.Lock()
 								if ordered {
-									orderedFinish = append(orderedFinish, taskNo)
+									orderedFinish.add(taskNo)
 								} else {
-									unorderedFinish = append(unorderedFinish, taskNo)
+									unorderedFinish.add(taskNo)
 								}
-								m.Unlock()
 							}()
 
 							select {
@@ -150,13 +149,11 @@ func TestSvcInit(t *testing.T) {
 								fmt.Printf("Stopping task %d\n", taskNo)
 							}
 							defer func() {
-								m.Lock()
 								if ordered {
-									orderedStop = append(orderedStop, taskNo)
+									orderedStop.add(taskNo)
 								} else {
-									unorderedStop = append(unorderedStop, taskNo)
+									unorderedStop.add(taskNo)
 								}
-								m.Unlock()
 							}()
 							dtCancel(ErrExit)
 							select {
@@ -217,10 +214,10 @@ func TestSvcInit(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish)
-			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop)
-			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish, cmpopts.SortSlices(cmp.Less[int]))
-			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop, cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish.get())
+			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop.get())
+			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish.get(), cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop.get(), cmpopts.SortSlices(cmp.Less[int]))
 		})
 	}
 }
@@ -228,35 +225,26 @@ func TestSvcInit(t *testing.T) {
 func TestSvcInitStopMultipleTasks(t *testing.T) {
 	sinit := New(context.Background())
 
-	var m sync.Mutex
-	var started []int
-	var stopped []int
+	started := &testList[int]{}
+	stopped := &testList[int]{}
 
 	stopTask1 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
-			m.Lock()
-			defer m.Unlock()
-			started = append(started, 1)
+			started.add(1)
 			return nil
 		}).
 		ManualStopFunc(func(ctx context.Context) error {
-			m.Lock()
-			defer m.Unlock()
-			stopped = append(stopped, 1)
+			stopped.add(1)
 			return nil
 		})
 
 	stopTask2 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
-			m.Lock()
-			defer m.Unlock()
-			started = append(started, 2)
+			started.add(2)
 			return nil
 		}).
 		ManualStopFunc(func(ctx context.Context) error {
-			m.Lock()
-			defer m.Unlock()
-			stopped = append(stopped, 2)
+			stopped.add(2)
 			return nil
 		})
 
@@ -267,8 +255,108 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 
 	assert.NilError(t, err)
 
-	assert.DeepEqual(t, []int{1, 2}, started, cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2}, stopped, cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+}
+
+func TestSvcInitCallback(t *testing.T) {
+	started := &testList[int]{}
+	stopped := &testList[int]{}
+
+	globalTaskCallback := func(ctx context.Context, task Task) {
+		if st, ok := task.(*ServiceTask); ok {
+			if _, ok := st.Service().(*testService); !ok {
+				assert.Check(t, false, "service is not of the expected type")
+			}
+		} else if _, ok := task.(*testTask); !ok {
+			assert.Check(t, false, "task is not of the expected type")
+		}
+	}
+
+	individualTaskCallback := func(taskNo int, isStop bool, isBefore bool) func(ctx context.Context, task Task) {
+		return func(ctx context.Context, task Task) {
+			stdAdd := 0
+			if st, ok := task.(*ServiceTask); ok {
+				if _, ok := st.Service().(*testService); !ok {
+					assert.Check(t, false, "service is not of the expected type")
+				}
+				isStop = !st.IsStart()
+				stdAdd = 4
+			} else if _, ok := task.(*testTask); !ok {
+				assert.Check(t, false, "task is not of the expected type")
+			}
+			if !isBefore {
+				stdAdd++
+			}
+			if isStop {
+				stdAdd += 2
+			}
+
+			if !isStop {
+				started.add((taskNo * 10) + stdAdd)
+			} else {
+				stopped.add((taskNo * 10) + stdAdd)
+			}
+		}
+	}
+
+	sinit := New(context.Background(),
+		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
+			globalTaskCallback(ctx, task)
+		}, func(ctx context.Context, task Task, err error) {
+			globalTaskCallback(ctx, task)
+		})))
+
+	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
+		return TaskCallbackFunc(func(ctx context.Context, task Task) {
+			individualTaskCallback(taskNo, isStop, true)(ctx, task)
+		}, func(ctx context.Context, task Task, err error) {
+			individualTaskCallback(taskNo, isStop, false)(ctx, task)
+		})
+	}
+
+	stopTask1 := sinit.
+		StartTask(newTestTask(1, func(ctx context.Context) error {
+			started.add(1)
+			return nil
+		}), WithTaskCallback(getTaskCallback(1, false))).
+		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
+			stopped.add(1)
+			return nil
+		}), getTaskCallback(1, true)))
+
+	stopTask2 := sinit.
+		StartTask(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
+			started.add(2)
+			return nil
+		}), getTaskCallback(2, false))).
+		ManualStop(newTestTask(2, func(ctx context.Context) error {
+			stopped.add(2)
+			return nil
+		}), WithTaskCallback(getTaskCallback(2, true)))
+
+	svc := newTestService(3, func(ctx context.Context) error {
+		started.add(3)
+		return nil
+	}, func(ctx context.Context) error {
+		stopped.add(3)
+		return nil
+	})
+
+	stopService := sinit.
+		StartService(svc, WithTaskCallback(getTaskCallback(3, false))).
+		ManualStop()
+
+	sinit.StopTask(stopTask1)
+	sinit.StopTask(stopTask2)
+	sinit.StopTask(stopService)
+
+	err := sinit.Run()
+
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestSvcInitPendingStart(t *testing.T) {
@@ -323,4 +411,59 @@ func TestSvcInitPendingStopService(t *testing.T) {
 
 	err := sinit.Run()
 	assert.ErrorIs(t, err, ErrPending)
+}
+
+type testTask struct {
+	taskNo int
+	task   TaskFunc
+}
+
+func newTestTask(taskNo int, task TaskFunc) *testTask {
+	return &testTask{
+		taskNo: taskNo,
+		task:   task,
+	}
+}
+
+func (t *testTask) Run(ctx context.Context) error {
+	return t.task(ctx)
+}
+
+type testService struct {
+	taskNo int
+	start  func(ctx context.Context) error
+	stop   func(ctx context.Context) error
+}
+
+func newTestService(taskNo int, start func(ctx context.Context) error, stop func(ctx context.Context) error) *testService {
+	return &testService{
+		taskNo: taskNo,
+		start:  start,
+		stop:   stop,
+	}
+}
+
+func (t *testService) Start(ctx context.Context) error {
+	return t.start(ctx)
+}
+
+func (t *testService) Stop(ctx context.Context) error {
+	return t.stop(ctx)
+}
+
+type testList[T any] struct {
+	m    sync.Mutex
+	list []T
+}
+
+func (l *testList[T]) add(item T) {
+	l.m.Lock()
+	l.list = append(l.list, item)
+	l.m.Unlock()
+}
+
+func (l *testList[T]) get() []T {
+	l.m.Lock()
+	defer l.m.Unlock()
+	return l.list
 }
