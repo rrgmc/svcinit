@@ -59,13 +59,13 @@ func (b *multiErrorBuilder) add(err error) {
 	b.errs = append(b.errs, err)
 }
 
-func (b *multiErrorBuilder) build() *MultiError {
+func (b *multiErrorBuilder) build() *multiError {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if len(b.errs) == 0 {
 		return nil
 	}
-	return &MultiError{
+	return &multiError{
 		Errors: slices.Clone(b.errs),
 	}
 }
