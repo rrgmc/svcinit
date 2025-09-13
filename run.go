@@ -9,19 +9,19 @@ func (s *SvcInit) start() {
 	var runWg sync.WaitGroup
 
 	// start all tasks in separate goroutines.
-	for _, taskInfo := range s.tasks {
+	for _, task := range s.tasks {
 		s.wg.Add(1)
 		runWg.Add(1)
-		go func(ctx context.Context, task Task) {
+		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := s.runTask(ctx, task, s.startTaskCallback)
+			err := task.runTask(task.ctx, s.startTaskCallback)
 			if err != nil {
 				s.cancel(err)
 			} else {
 				s.cancel(ErrExit)
 			}
-		}(taskInfo.ctx, taskInfo.task)
+		}()
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
@@ -48,12 +48,12 @@ func (s *SvcInit) shutdown() error {
 	if len(s.autoCleanup) > 0 {
 		// cleanups where order don't matter are done in parallel
 		wg.Add(len(s.autoCleanup))
-		for _, taskInfo := range s.autoCleanup {
-			go func(task Task) {
+		for _, task := range s.autoCleanup {
+			go func() {
 				defer wg.Done()
-				err := s.runTask(ctx, task, s.stopTaskCallback)
+				err := task.runTask(ctx, s.stopTaskCallback)
 				errorBuilder.add(err)
-			}(taskInfo)
+			}()
 		}
 	}
 
@@ -63,7 +63,7 @@ func (s *SvcInit) shutdown() error {
 		go func() {
 			defer wg.Done()
 			for _, task := range s.cleanup {
-				err := s.runTask(ctx, task, s.stopTaskCallback)
+				err := task.runTask(ctx, s.stopTaskCallback)
 				errorBuilder.add(err)
 			}
 		}()
@@ -115,13 +115,63 @@ func (s *SvcInit) addPendingStopTask(task Task) Task {
 	return st
 }
 
-func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback) error {
-	if callback != nil {
-		callback.BeforeRun(ctx, task)
+// func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback) error {
+// 	if callback != nil {
+// 		callback.BeforeRun(ctx, task)
+// 	}
+// 	err := task.Run(ctx)
+// 	if callback != nil {
+// 		callback.AfterRun(ctx, task, err)
+// 	}
+// 	return err
+// }
+
+type taskWrapper struct {
+	ctx      context.Context
+	task     Task
+	callback TaskCallback
+}
+
+func newTaskWrapper(task Task, options ...taskWrapperOption) taskWrapper {
+	ret := taskWrapper{
+		task: task,
 	}
-	err := task.Run(ctx)
+	for _, opt := range options {
+		opt(&ret)
+	}
+	return ret
+}
+
+func (s *taskWrapper) runTask(ctx context.Context, callback TaskCallback) error {
+	if s.ctx != nil {
+		ctx = s.ctx
+	}
+	if s.callback != nil {
+		s.callback.BeforeRun(ctx, s.task)
+	}
 	if callback != nil {
-		callback.AfterRun(ctx, task, err)
+		callback.BeforeRun(ctx, s.task)
+	}
+	err := s.task.Run(ctx)
+	if callback != nil {
+		callback.AfterRun(ctx, s.task, err)
+	}
+	if s.callback != nil {
+		s.callback.AfterRun(ctx, s.task, err)
 	}
 	return err
+}
+
+type taskWrapperOption func(*taskWrapper)
+
+func withTaskWrapperContext(ctx context.Context) taskWrapperOption {
+	return func(w *taskWrapper) {
+		w.ctx = ctx
+	}
+}
+
+func withTaskWrapperCallback(callback TaskCallback) taskWrapperOption {
+	return func(w *taskWrapper) {
+		w.callback = callback
+	}
 }
