@@ -96,10 +96,9 @@ func TestSvcInit(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 
-			orderedFinish := &testList[int]{}
-			orderedStop := &testList[int]{}
-			unorderedFinish := &testList[int]{}
-			unorderedStop := &testList[int]{}
+			var m sync.Mutex
+			var orderedFinish, orderedStop []int
+			var unorderedFinish, unorderedStop []int
 
 			type testService struct {
 				svc    Service
@@ -125,11 +124,13 @@ func TestSvcInit(t *testing.T) {
 							}
 
 							defer func() {
+								m.Lock()
 								if ordered {
-									orderedFinish.add(taskNo)
+									orderedFinish = append(orderedFinish, taskNo)
 								} else {
-									unorderedFinish.add(taskNo)
+									unorderedFinish = append(unorderedFinish, taskNo)
 								}
+								m.Unlock()
 							}()
 
 							select {
@@ -149,11 +150,13 @@ func TestSvcInit(t *testing.T) {
 								fmt.Printf("Stopping task %d\n", taskNo)
 							}
 							defer func() {
+								m.Lock()
 								if ordered {
-									orderedStop.add(taskNo)
+									orderedStop = append(orderedStop, taskNo)
 								} else {
-									unorderedStop.add(taskNo)
+									unorderedStop = append(unorderedStop, taskNo)
 								}
+								m.Unlock()
 							}()
 							dtCancel(ErrExit)
 							select {
@@ -214,10 +217,10 @@ func TestSvcInit(t *testing.T) {
 				assert.NilError(t, err)
 			}
 
-			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish.get())
-			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop.get())
-			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish.get(), cmpopts.SortSlices(cmp.Less[int]))
-			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop.get(), cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish)
+			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop)
+			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish, cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop, cmpopts.SortSlices(cmp.Less[int]))
 		})
 	}
 }
@@ -225,26 +228,35 @@ func TestSvcInit(t *testing.T) {
 func TestSvcInitStopMultipleTasks(t *testing.T) {
 	sinit := New(context.Background())
 
-	started := &testList[int]{}
-	stopped := &testList[int]{}
+	var m sync.Mutex
+	var started []int
+	var stopped []int
 
 	stopTask1 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
-			started.add(1)
+			m.Lock()
+			defer m.Unlock()
+			started = append(started, 1)
 			return nil
 		}).
 		ManualStopFunc(func(ctx context.Context) error {
-			stopped.add(1)
+			m.Lock()
+			defer m.Unlock()
+			stopped = append(stopped, 1)
 			return nil
 		})
 
 	stopTask2 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
-			started.add(2)
+			m.Lock()
+			defer m.Unlock()
+			started = append(started, 2)
 			return nil
 		}).
 		ManualStopFunc(func(ctx context.Context) error {
-			stopped.add(2)
+			m.Lock()
+			defer m.Unlock()
+			stopped = append(stopped, 2)
 			return nil
 		})
 
@@ -255,8 +267,8 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 
 	assert.NilError(t, err)
 
-	assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2}, started, cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2}, stopped, cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestSvcInitCallback(t *testing.T) {
