@@ -91,7 +91,36 @@ func (s *SvcInit) SetStoppedCallback(stoppedCallback func(ctx context.Context) e
 	s.stoppedCallback = stoppedCallback
 }
 
-type TaskCallback func(ctx context.Context, task Task, beforeRun bool, err error)
+// TaskCallback is called before and after the task is run.
+type TaskCallback interface {
+	BeforeRun(ctx context.Context, task Task)
+	AfterRun(ctx context.Context, task Task, err error)
+}
+
+func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
+	afterRun func(ctx context.Context, task Task, err error)) TaskCallback {
+	return taskCallbackFunc{
+		beforeRun: beforeRun,
+		afterRun:  afterRun,
+	}
+}
+
+type taskCallbackFunc struct {
+	beforeRun func(ctx context.Context, task Task)
+	afterRun  func(ctx context.Context, task Task, err error)
+}
+
+func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task) {
+	if t.beforeRun != nil {
+		t.beforeRun(ctx, task)
+	}
+}
+
+func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
+	if t.afterRun != nil {
+		t.afterRun(ctx, task, err)
+	}
+}
 
 type taskWrapper struct {
 	ctx  context.Context

@@ -117,11 +117,11 @@ func (s *SvcInit) addPendingStopTask(task Task) Task {
 
 func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback) error {
 	if callback != nil {
-		callback(ctx, task, true, nil)
+		callback.BeforeRun(ctx, task)
 	}
 	err := task.Run(ctx)
 	if callback != nil {
-		callback(ctx, task, false, err)
+		callback.AfterRun(ctx, task, err)
 	}
 	return err
 }
