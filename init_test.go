@@ -320,16 +320,16 @@ func TestSvcInitCallback(t *testing.T) {
 			started.add(1)
 			return nil
 		}), WithTaskCallback(getTaskCallback(1, false))).
-		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
+		ManualStop(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		}), getTaskCallback(1, true)))
+		}), WithTaskCallback(getTaskCallback(1, true)))
 
 	stopTask2 := sinit.
-		StartTask(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
+		StartTask(newTestTask(2, func(ctx context.Context) error {
 			started.add(2)
 			return nil
-		}), getTaskCallback(2, false))).
+		}), WithTaskCallback(getTaskCallback(2, false))).
 		ManualStop(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil

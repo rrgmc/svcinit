@@ -108,21 +108,21 @@ func (s StartTaskCmd) ManualStopCancel() Task {
 // ManualStopCancelTask returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTask(stop Task) Task {
-	return s.stopCancel(stop)
+func (s StartTaskCmd) ManualStopCancelTask(stop Task, options ...TaskOption) Task {
+	return s.stopCancel(stop, options...)
 }
 
 // ManualStopCancelTaskFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc) Task {
-	return s.ManualStopCancelTask(stop)
+func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, options ...TaskOption) Task {
+	return s.ManualStopCancelTask(stop, options...)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStop(stop Task) Task {
+func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) Task {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
 	return s.s.addPendingStopTask(stop)
@@ -131,11 +131,11 @@ func (s StartTaskCmd) ManualStop(stop Task) Task {
 // ManualStopFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopFunc(stop TaskFunc) Task {
-	return s.ManualStop(stop)
+func (s StartTaskCmd) ManualStopFunc(stop TaskFunc, options ...TaskOption) Task {
+	return s.ManualStop(stop, options...)
 }
 
-func (s StartTaskCmd) stopCancel(stop Task) Task {
+func (s StartTaskCmd) stopCancel(stop Task, options ...TaskOption) Task {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	s.s.addTask(ctx, s.start)

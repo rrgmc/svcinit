@@ -109,8 +109,8 @@ func (s *SvcInit) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
-func (s *SvcInit) addPendingStopTask(task Task) Task {
-	st := newPendingStopTask(task)
+func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) Task {
+	st := newPendingStopTask(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
 }
