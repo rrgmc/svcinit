@@ -157,6 +157,16 @@ func (t *taskWithCallback) Run(ctx context.Context) error {
 	return err
 }
 
+func taskFromCallback(task Task) Task {
+	for {
+		if tc, ok := task.(*taskWithCallback); ok {
+			task = tc.task
+		} else {
+			return task
+		}
+	}
+}
+
 type serviceFunc struct {
 	start Task
 	stop  Task
