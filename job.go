@@ -65,11 +65,11 @@ func (s *SvcInit) StopTaskFunc(fn TaskFunc) {
 	s.StopTask(fn)
 }
 
-// StopTasksParallel adds a shutdown task. The shutdown will be done in the order they are added.
+// StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
-func (s *SvcInit) StopTasksParallel(fn ...Task) {
-	s.StopTask(NewParallelStopTask(fn...))
+func (s *SvcInit) StopMultipleTasks(fn ...Task) {
+	s.StopTask(NewMultipleTask(fn...))
 }
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
@@ -229,8 +229,8 @@ func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
 	}
 }
 
-func (p pendingStopTaskImpl) WrappedTask() Task {
-	return p.stopTask
+func (p pendingStopTaskImpl) WrappedTasks() []Task {
+	return []Task{p.stopTask}
 }
 
 func (p pendingStopTaskImpl) Stop(ctx context.Context) error {

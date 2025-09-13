@@ -16,14 +16,8 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
-// WrappedTask is a task which was wrapped from a source Task.
+// WrappedTask is a task which was wrapped from one or more [Task]s.
 type WrappedTask interface {
-	Task
-	WrappedTask() Task
-}
-
-// WrappedTasks is a task which was wrapped from a list of [Task]s.
-type WrappedTasks interface {
 	Task
 	WrappedTasks() []Task
 }
@@ -71,26 +65,27 @@ func (s *ServiceTask) Run(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
-type ParallelStopTask struct {
+// MultipleTask runs multiple tasks in parallel, wrapped in a single Task.
+type MultipleTask struct {
 	tasks    []Task
 	resolved resolved
 }
 
-var _ pendingStopTask = (*ParallelStopTask)(nil)
-var _ WrappedTasks = (*ParallelStopTask)(nil)
+var _ pendingStopTask = (*MultipleTask)(nil)
+var _ WrappedTask = (*MultipleTask)(nil)
 
-func NewParallelStopTask(tasks ...Task) Task {
-	return &ParallelStopTask{
+func NewMultipleTask(tasks ...Task) Task {
+	return &MultipleTask{
 		tasks:    tasks,
 		resolved: newResolved(),
 	}
 }
 
-func (t *ParallelStopTask) WrappedTasks() []Task {
+func (t *MultipleTask) WrappedTasks() []Task {
 	return t.tasks
 }
 
-func (t *ParallelStopTask) Run(ctx context.Context) error {
+func (t *MultipleTask) Run(ctx context.Context) error {
 	var m sync.Mutex
 	var allErr []error
 
@@ -113,11 +108,11 @@ func (t *ParallelStopTask) Run(ctx context.Context) error {
 	return errors.Join(allErr...)
 }
 
-func (t *ParallelStopTask) isResolved() bool {
+func (t *MultipleTask) isResolved() bool {
 	return t.resolved.isResolved()
 }
 
-func (t *ParallelStopTask) setResolved() {
+func (t *MultipleTask) setResolved() {
 	for _, st := range t.tasks {
 		if ps, ok := st.(pendingStopTask); ok {
 			ps.setResolved()

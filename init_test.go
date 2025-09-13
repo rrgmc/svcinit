@@ -225,7 +225,7 @@ func TestSvcInit(t *testing.T) {
 	}
 }
 
-func TestSvcInitParallelStop(t *testing.T) {
+func TestSvcInitStopMultipleTasks(t *testing.T) {
 	sinit := New(context.Background())
 
 	var m sync.Mutex
@@ -260,7 +260,8 @@ func TestSvcInitParallelStop(t *testing.T) {
 			return nil
 		})
 
-	sinit.StopTasksParallel(stopTask1, stopTask2)
+	sinit.
+		StopMultipleTasks(stopTask1, stopTask2)
 
 	err := sinit.Run()
 
