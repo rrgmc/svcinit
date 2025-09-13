@@ -31,7 +31,7 @@ type WrappedTasks interface {
 // WrappedService is a Service which was wrapped from one or more [Service]s.
 type WrappedService interface {
 	Service
-	WrappedServices() []Service
+	WrappedService() Service
 }
 
 // Service is task with start and stop methods.
@@ -196,6 +196,10 @@ type serviceWithCallback struct {
 var _ Service = (*serviceWithCallback)(nil)
 var _ WrappedService = (*serviceWithCallback)(nil)
 
+func (s *serviceWithCallback) WrappedService() Service {
+	return s.svc
+}
+
 func (s *serviceWithCallback) Start(ctx context.Context) error {
 	if s.callback != nil {
 		s.callback.StartBeforeRun(ctx, s.svc)
@@ -218,28 +222,30 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 	return err
 }
 
-func (s *serviceWithCallback) WrappedServices() []Service {
-	return []Service{s.svc}
-}
-
-// taskFromCallback unwraps taskWithCallback from tasks.
-func taskFromCallback(task Task) Task {
+// UnwrapTask unwraps WrappedTask from tasks.
+func UnwrapTask(task Task) Task {
 	for {
-		if tc, ok := task.(*taskWithCallback); ok {
-			task = tc.task
+		if task == nil {
+			return nil
+		}
+		if tc, ok := task.(WrappedTask); ok {
+			task = tc.WrappedTask()
 		} else {
 			return task
 		}
 	}
 }
 
-// serviceFromCallback unwraps serviceWithCallback from services.
-func serviceFromCallback(task Service) Service {
+// UnwrapService unwraps WrappedService from services.
+func UnwrapService(svc Service) Service {
 	for {
-		if tc, ok := task.(*serviceWithCallback); ok {
-			task = tc.svc
+		if svc == nil {
+			return nil
+		}
+		if tc, ok := svc.(WrappedService); ok {
+			svc = tc.WrappedService()
 		} else {
-			return task
+			return svc
 		}
 	}
 }
