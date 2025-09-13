@@ -197,9 +197,13 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 }
 
 func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
-	tt = &ServiceTask{
-		svc:     s.svc,
-		isStart: isStart,
+	if stt, ok := s.svc.(ServiceToTask); ok {
+		tt = stt.ToTask(isStart)
+	} else {
+		tt = &ServiceTask{
+			svc:     s.svc,
+			isStart: isStart,
+		}
 	}
 	if s.callback != nil {
 		tt = TaskWithCallback(tt, s.callback)

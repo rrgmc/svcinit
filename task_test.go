@@ -59,5 +59,5 @@ func TestServiceCallbackRecursive(t *testing.T) {
 	assert.NilError(t, err)
 	err = stopTask.Run(ctx)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, []int{3, 1, 2, 4}, data.get())
+	assert.DeepEqual(t, []int{4, 2, 0, 3, 5, 4, 2, 1, 3, 5}, data.get())
 }
