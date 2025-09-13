@@ -97,6 +97,7 @@ type TaskCallback interface {
 	AfterRun(ctx context.Context, task Task, err error)
 }
 
+// TaskCallbackFunc is called before and after the task is run.
 func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
 	afterRun func(ctx context.Context, task Task, err error)) TaskCallback {
 	return taskCallbackFunc{

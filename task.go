@@ -123,7 +123,7 @@ func (t *MultipleTask) setResolved() {
 
 // TaskWithCallback wraps a task with a callback to be called before and after it runs.
 func TaskWithCallback(task Task, callback TaskCallback) Task {
-	if callback == nil {
+	if task == nil || callback == nil {
 		return task
 	}
 	return &taskWithCallback{
@@ -142,6 +142,9 @@ type taskWithCallback struct {
 	callback TaskCallback
 }
 
+var _ Task = (*taskWithCallback)(nil)
+var _ WrappedTask = (*taskWithCallback)(nil)
+
 func (t *taskWithCallback) WrappedTasks() []Task {
 	return []Task{t.task}
 }
@@ -157,6 +160,7 @@ func (t *taskWithCallback) Run(ctx context.Context) error {
 	return err
 }
 
+// taskFromCallback unwraps taskWithCallback from tasks.
 func taskFromCallback(task Task) Task {
 	for {
 		if tc, ok := task.(*taskWithCallback); ok {
