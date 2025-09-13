@@ -227,26 +227,31 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 
 	started := &testList[int]{}
 	stopped := &testList[int]{}
+	stopcb := &testList[int]{}
 
 	stopTask1 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
 			started.add(1)
 			return nil
 		}).
-		ManualStopFunc(func(ctx context.Context) error {
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		})
+		}, TaskCallbackFunc(func(ctx context.Context, task Task) {
+			stopcb.add(5)
+		}, nil)))
 
 	stopTask2 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
 			started.add(2)
 			return nil
 		}).
-		ManualStopFunc(func(ctx context.Context) error {
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		})
+		}, TaskCallbackFunc(func(ctx context.Context, task Task) {
+			stopcb.add(10)
+		}, nil)))
 
 	sinit.
 		StopMultipleTasks(stopTask1, stopTask2)
@@ -257,6 +262,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 
 	assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 	assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{5, 10}, stopcb.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestSvcInitCallback(t *testing.T) {
