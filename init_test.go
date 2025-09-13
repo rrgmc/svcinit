@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
-	cmp2 "gotest.tools/v3/assert/cmp"
 )
 
 type testTaskNoError struct {
@@ -272,12 +271,6 @@ func TestSvcInitCallback(t *testing.T) {
 			stdAdd = 2
 		}
 		return TaskCallbackFunc(func(ctx context.Context, task Task) {
-			if tn, ok := task.(*testTask); ok {
-				assert.Check(t, cmp2.Equal(tn.taskNo, taskNo))
-			} else {
-				assert.Check(t, false, "task is not of the expected type")
-			}
-
 			if !isStop {
 				started.add((taskNo * 10) + stdAdd)
 			} else {
@@ -293,24 +286,24 @@ func TestSvcInitCallback(t *testing.T) {
 	}
 
 	stopTask1 := sinit.
-		StartTask(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
+		StartTask(TaskFuncWithCallback(func(ctx context.Context) error {
 			started.add(1)
 			return nil
-		}), getTaskCallback(1, false))).
-		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
+		}, getTaskCallback(1, false))).
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		}), getTaskCallback(1, true)))
+		}, getTaskCallback(1, true)))
 
 	stopTask2 := sinit.
 		StartTaskFunc(func(ctx context.Context) error {
 			started.add(2)
 			return nil
 		}).
-		ManualStop(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
+		ManualStop(TaskFuncWithCallback(func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		}), getTaskCallback(2, true)))
+		}, getTaskCallback(2, true)))
 
 	sinit.StopTask(stopTask1)
 	sinit.StopTask(stopTask2)
@@ -375,22 +368,6 @@ func TestSvcInitPendingStopService(t *testing.T) {
 
 	err := sinit.Run()
 	assert.ErrorIs(t, err, ErrPending)
-}
-
-type testTask struct {
-	taskNo int
-	task   TaskFunc
-}
-
-func newTestTask(taskNo int, task TaskFunc) *testTask {
-	return &testTask{
-		taskNo: taskNo,
-		task:   task,
-	}
-}
-
-func (t *testTask) Run(ctx context.Context) error {
-	return t.task(ctx)
 }
 
 type testList[T any] struct {
