@@ -261,7 +261,16 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 }
 
 func TestSvcInitCallback(t *testing.T) {
-	sinit := New(context.Background())
+	sinit := New(context.Background(),
+		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
+			if _, ok := task.(*testTask); !ok {
+				assert.Check(t, false, "task is not of the expected type")
+			}
+		}, func(ctx context.Context, task Task, err error) {
+			if _, ok := task.(*testTask); !ok {
+				assert.Check(t, false, "task is not of the expected type")
+			}
+		})))
 
 	started := &testList[int]{}
 	stopped := &testList[int]{}
@@ -303,10 +312,10 @@ func TestSvcInitCallback(t *testing.T) {
 		}), getTaskCallback(1, true)))
 
 	stopTask2 := sinit.
-		StartTaskFunc(func(ctx context.Context) error {
+		StartTask(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
 			started.add(2)
 			return nil
-		}).
+		}), getTaskCallback(2, false))).
 		ManualStop(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
@@ -319,7 +328,7 @@ func TestSvcInitCallback(t *testing.T) {
 
 	assert.NilError(t, err)
 
-	assert.DeepEqual(t, []int{1, 2, 10, 11}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+	assert.DeepEqual(t, []int{1, 2, 10, 11, 20, 21}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 	assert.DeepEqual(t, []int{1, 2, 12, 13, 22, 23}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
