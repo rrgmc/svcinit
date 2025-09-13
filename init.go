@@ -40,8 +40,8 @@ type SvcInit struct {
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options
-	startedCallback                     Task
-	stoppedCallback                     Task
+	startedCallback                     func(ctx context.Context) error
+	stoppedCallback                     func(ctx context.Context) error
 	startTaskCallback, stopTaskCallback TaskCallback
 	shutdownTimeout                     time.Duration
 	enforceShutdownTimeout              bool
@@ -81,13 +81,13 @@ func (s *SvcInit) Shutdown() {
 
 // SetStartedCallback sets a callback to be called after all tasks were initialized.
 // It overrides the WithStartedCallback option.
-func (s *SvcInit) SetStartedCallback(startedCallback Task) {
+func (s *SvcInit) SetStartedCallback(startedCallback func(ctx context.Context) error) {
 	s.startedCallback = startedCallback
 }
 
 // SetStoppedCallback sets a callback to be called after all tasks were stopped.
 // It overrides the WithStoppedCallback option.
-func (s *SvcInit) SetStoppedCallback(stoppedCallback Task) {
+func (s *SvcInit) SetStoppedCallback(stoppedCallback func(ctx context.Context) error) {
 	s.stoppedCallback = stoppedCallback
 }
 

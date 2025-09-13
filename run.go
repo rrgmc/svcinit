@@ -25,7 +25,7 @@ func (s *SvcInit) start() {
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
-		if serr := s.startedCallback.Run(s.ctx); serr != nil {
+		if serr := s.startedCallback(s.ctx); serr != nil {
 			s.cancel(serr)
 		}
 	}
@@ -79,7 +79,7 @@ func (s *SvcInit) shutdown() error {
 	}
 
 	if s.stoppedCallback != nil {
-		if serr := s.stoppedCallback.Run(s.shutdownCtx); serr != nil {
+		if serr := s.stoppedCallback(s.shutdownCtx); serr != nil {
 			errorBuilder.add(serr)
 		}
 	}

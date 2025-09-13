@@ -53,14 +53,14 @@ func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 }
 
 // WithStartedCallback sets a callback to be called after all tasks were initialized.
-func WithStartedCallback(startedCallback Task) Option {
+func WithStartedCallback(startedCallback func(ctx context.Context) error) Option {
 	return func(s *SvcInit) {
 		s.startedCallback = startedCallback
 	}
 }
 
 // WithStoppedCallback sets a callback to be called after all tasks were stopped.
-func WithStoppedCallback(stoppedCallback Task) Option {
+func WithStoppedCallback(stoppedCallback func(ctx context.Context) error) Option {
 	return func(s *SvcInit) {
 		s.stoppedCallback = stoppedCallback
 	}
