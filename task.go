@@ -205,7 +205,7 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 	if s.callback != nil {
 		s.callback.StopBeforeRun(ctx, s.svc)
 	}
-	err := s.svc.Start(ctx)
+	err := s.svc.Stop(ctx)
 	if s.callback != nil {
 		s.callback.StopAfterRun(ctx, s.svc, err)
 	}
