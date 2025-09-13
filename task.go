@@ -121,6 +121,18 @@ func (t *MultipleTask) setResolved() {
 	t.resolved.setResolved()
 }
 
+type TaskOption func(options *taskOptions)
+
+func WithTaskCallback(callback TaskCallback) TaskOption {
+	return func(options *taskOptions) {
+		options.callback = callback
+	}
+}
+
+type taskOptions struct {
+	callback TaskCallback
+}
+
 type serviceFunc struct {
 	start Task
 	stop  Task
