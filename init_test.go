@@ -299,6 +299,26 @@ func TestSvcInitCallback(t *testing.T) {
 			}
 		}
 	}
+	individualServiceCallback := func(taskNo int, isStop bool, isBefore bool) func(ctx context.Context, svc Service) {
+		return func(ctx context.Context, svc Service) {
+			stdAdd := 4
+			if _, ok := svc.(*testService); !ok {
+				assert.Check(t, false, "service is not of the expected type")
+			}
+			if !isBefore {
+				stdAdd++
+			}
+			if isStop {
+				stdAdd += 2
+			}
+
+			if !isStop {
+				started.add((taskNo * 10) + stdAdd)
+			} else {
+				stopped.add((taskNo * 10) + stdAdd)
+			}
+		}
+	}
 
 	sinit := New(context.Background(),
 		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
@@ -314,12 +334,28 @@ func TestSvcInitCallback(t *testing.T) {
 			individualTaskCallback(taskNo, isStop, false)(ctx, task)
 		})
 	}
+	getServiceCallback := func(taskNo int) ServiceCallback {
+		return ServiceCallbackFunc(
+			func(ctx context.Context, svc Service) {
+				individualServiceCallback(taskNo, false, true)
+			},
+			func(ctx context.Context, svc Service, err error) {
+				individualServiceCallback(taskNo, false, false)
+			},
+			func(ctx context.Context, svc Service) {
+				individualServiceCallback(taskNo, true, true)
+			},
+			func(ctx context.Context, svc Service, err error) {
+				individualServiceCallback(taskNo, true, false)
+			},
+		)
+	}
 
 	stopTask1 := sinit.
-		StartTask(newTestTask(1, func(ctx context.Context) error {
+		StartTask(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
 			started.add(1)
 			return nil
-		}), WithTaskCallback(getTaskCallback(1, false))).
+		}), getTaskCallback(1, false))).
 		ManualStop(TaskWithCallback(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
@@ -330,10 +366,10 @@ func TestSvcInitCallback(t *testing.T) {
 			started.add(2)
 			return nil
 		}), getTaskCallback(2, false))).
-		ManualStop(newTestTask(2, func(ctx context.Context) error {
+		ManualStop(TaskWithCallback(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		}), WithTaskCallback(getTaskCallback(2, true)))
+		}), getTaskCallback(2, true)))
 
 	svc := newTestService(3, func(ctx context.Context) error {
 		started.add(3)
@@ -344,7 +380,7 @@ func TestSvcInitCallback(t *testing.T) {
 	})
 
 	stopService := sinit.
-		StartService(svc, WithTaskCallback(getTaskCallback(3, false))).
+		StartService(ServiceWithCallback(svc, getServiceCallback(3))).
 		ManualStop()
 
 	sinit.StopTask(stopTask1)

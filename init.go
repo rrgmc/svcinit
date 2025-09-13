@@ -222,3 +222,17 @@ func WithServiceCallbackStopAfterRun(f func(ctx context.Context, svc Service, er
 		c.stopAfterRun = f
 	}
 }
+
+func WithServiceCallbackBeforeRun(f func(ctx context.Context, svc Service)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.startBeforeRun = f
+		c.stopBeforeRun = f
+	}
+}
+
+func WithServiceCallbackAfterRun(f func(ctx context.Context, svc Service, err error)) ServiceCallbackFuncOption {
+	return func(c *serviceCallbackFunc) {
+		c.startAfterRun = f
+		c.stopAfterRun = f
+	}
+}

@@ -40,16 +40,20 @@ func TestServiceCallbackRecursive(t *testing.T) {
 		data.add(1)
 		return nil
 	})
-	svc1cb1 := ServiceWithCallback(svc1, TaskCallbackFunc(func(ctx context.Context, task Task) {
-		data.add(2)
-	}, func(ctx context.Context, task Task, err error) {
-		data.add(3)
-	}))
-	svc1cb2 := ServiceWithCallback(svc1cb1, TaskCallbackFunc(func(ctx context.Context, task Task) {
-		data.add(4)
-	}, func(ctx context.Context, task Task, err error) {
-		data.add(5)
-	}))
+	svc1cb1 := ServiceWithCallback(svc1, NewServiceCallback(
+		WithServiceCallbackBeforeRun(func(ctx context.Context, svc Service) {
+			data.add(2)
+		}),
+		WithServiceCallbackAfterRun(func(ctx context.Context, svc Service, err error) {
+			data.add(3)
+		})))
+	svc1cb2 := ServiceWithCallback(svc1cb1, NewServiceCallback(
+		WithServiceCallbackBeforeRun(func(ctx context.Context, svc Service) {
+			data.add(4)
+		}),
+		WithServiceCallbackAfterRun(func(ctx context.Context, svc Service, err error) {
+			data.add(5)
+		})))
 
 	startTask, stopTask := ServiceAsTasks(svc1cb2)
 

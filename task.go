@@ -22,6 +22,12 @@ type WrappedTask interface {
 	WrappedTasks() []Task
 }
 
+// WrappedService is a Service which was wrapped from one or more [Service]s.
+type WrappedService interface {
+	Service
+	WrappedServices() []Service
+}
+
 // Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
@@ -38,16 +44,8 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 	return ServiceFunc(start, stop)
 }
 
-type ServiceToTask interface {
-	Service
-	ToTask(isStart bool) Task
-}
-
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) Task {
-	if stt, ok := svc.(ServiceToTask); ok {
-		return stt.ToTask(isStart)
-	}
 	return &ServiceTask{svc: svc, isStart: isStart}
 }
 
@@ -152,6 +150,9 @@ func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
 
 // ServiceWithCallback wraps a Service with a callback to be called before and after it runs.
 func ServiceWithCallback(service Service, callback ServiceCallback) Service {
+	if service == nil || callback == nil {
+		return service
+	}
 	return &serviceWithCallback{
 		svc:      service,
 		callback: callback,
@@ -187,6 +188,7 @@ type serviceWithCallback struct {
 }
 
 var _ Service = (*serviceWithCallback)(nil)
+var _ WrappedService = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
 	if s.callback != nil {
@@ -208,6 +210,10 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 		s.callback.StopAfterRun(ctx, s.svc, err)
 	}
 	return err
+}
+
+func (s *serviceWithCallback) WrappedServices() []Service {
+	return []Service{s.svc}
 }
 
 // taskFromCallback unwraps taskWithCallback from tasks.
