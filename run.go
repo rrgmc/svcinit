@@ -125,8 +125,3 @@ func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback)
 	}
 	return err
 }
-
-type taskWrapper struct {
-	ctx  context.Context
-	task Task
-}
