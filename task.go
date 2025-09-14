@@ -24,12 +24,6 @@ type WrappedTask interface {
 	WrappedTask() Task
 }
 
-// WrappedTasks is a task which was wrapped from one or more [Task]s.
-type WrappedTasks interface {
-	Task
-	WrappedTasks() []Task
-}
-
 // Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
@@ -73,7 +67,6 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
 func ServiceAsTask(svc Service, isStart bool) (st Task) {
 	st = &serviceTask{svc: svc, isStart: isStart}
 	if sc, ok := svc.(*serviceWithCallback); ok {
-		// st = &serviceTaskWithCallback{svc: st, callback: sc.callback}
 		st = TaskWithCallback(st, sc.callback)
 	}
 	return st

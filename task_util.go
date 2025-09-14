@@ -70,7 +70,6 @@ type multipleTask struct {
 	resolved resolved
 }
 
-// var _ WrappedTasks = (*multipleTask)(nil)
 var _ taskRunCallback = (*multipleTask)(nil)
 
 func newMultipleTask(tasks ...taskWrapper) Task {
@@ -79,10 +78,6 @@ func newMultipleTask(tasks ...taskWrapper) Task {
 		resolved: newResolved(),
 	}
 }
-
-// func (t *multipleTask) WrappedTasks() []Task {
-// 	return t.tasks
-// }
 
 func (t *multipleTask) Run(ctx context.Context) error {
 	return t.runWithCallbacks(ctx)
