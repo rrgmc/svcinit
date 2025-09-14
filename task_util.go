@@ -34,6 +34,12 @@ func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
 	return ret
 }
 
+// taskRunCallback signals that the task can handle callback execution itself.
+type taskRunCallback interface {
+	Task
+	runWithCallbacks(ctx context.Context, callbacks ...TaskCallback) error
+}
+
 // serviceTask is a Task implemented from a Service.
 // Use Service to get the source service instance.
 type serviceTask struct {
@@ -63,6 +69,7 @@ type multipleTask struct {
 }
 
 // var _ WrappedTasks = (*multipleTask)(nil)
+var _ taskRunCallback = (*multipleTask)(nil)
 
 func newMultipleTask(tasks ...taskWrapper) Task {
 	return &multipleTask{
@@ -76,6 +83,10 @@ func newMultipleTask(tasks ...taskWrapper) Task {
 // }
 
 func (t *multipleTask) Run(ctx context.Context) error {
+	return t.runWithCallbacks(ctx)
+}
+
+func (t *multipleTask) runWithCallbacks(ctx context.Context, callbacks ...TaskCallback) error {
 	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
@@ -83,7 +94,7 @@ func (t *multipleTask) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := st.run(ctx)
+			err := st.run(ctx, callbacks...)
 			if err != nil {
 				allErr.add(err)
 			}

@@ -278,12 +278,13 @@ func TestSvcInitCallback(t *testing.T) {
 			stdAdd := 0
 			if st, ok := task.(ServiceTask); ok {
 				if _, ok := st.Service().(*testService); !ok {
-					assert.Check(t, false, "service is not of the expected type")
+					assert.Check(t, false, "service is not of the expected type but %T", task)
 				}
 				isStop = !st.IsStart()
 				stdAdd = 4
 			} else if _, ok := task.(*testTask); !ok {
-				assert.Check(t, false, "task is not of the expected type")
+				assert.Check(t, false, "task %d (isStop:%t)(isBefore:%t) is not of the expected type but %T",
+					taskNo, isStop, isBefore, task)
 			}
 			if !isBefore {
 				stdAdd++
