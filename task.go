@@ -17,7 +17,7 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 }
 
 type StopTask interface {
-	StopTask() Task
+	stopTask() Task
 }
 
 // WrappedTask is a task which was wrapped from one [Task]s.
@@ -144,19 +144,6 @@ func (t *multipleTask) Run(ctx context.Context) error {
 
 	return allErr.build()
 }
-
-// func (t *multipleTask) isResolved() bool {
-// 	return t.resolved.isResolved()
-// }
-//
-// func (t *multipleTask) setResolved() {
-// 	for _, st := range t.tasks {
-// 		if ps, ok := st.(*pendingStopTask); ok {
-// 			ps.setResolved()
-// 		}
-// 	}
-// 	t.resolved.setResolved()
-// }
 
 // TaskWithCallback wraps a service with a callback to be called before and after it runs.
 func TaskWithCallback(task Task, callback TaskCallback) Task {

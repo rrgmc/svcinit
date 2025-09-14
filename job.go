@@ -111,7 +111,7 @@ func (s *SvcInit) taskFromStopTask(task StopTask) Task {
 	if ps, ok := task.(*pendingStopTask); ok {
 		ps.setResolved()
 	}
-	return task.StopTask()
+	return task.stopTask()
 }
 
 type StartTaskCmd struct {
@@ -244,7 +244,7 @@ type pendingItem interface {
 }
 
 type pendingStopTask struct {
-	stopTask Task
+	task     Task
 	resolved resolved
 }
 
@@ -252,13 +252,13 @@ var _ StopTask = (*pendingStopTask)(nil)
 
 func newPendingStopTask(stopTask Task) *pendingStopTask {
 	return &pendingStopTask{
-		stopTask: stopTask,
+		task:     stopTask,
 		resolved: newResolved(),
 	}
 }
 
-func (p *pendingStopTask) StopTask() Task {
-	return p.stopTask
+func (p *pendingStopTask) stopTask() Task {
+	return p.task
 }
 
 func (p *pendingStopTask) isResolved() bool {
