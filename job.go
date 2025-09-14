@@ -235,8 +235,8 @@ func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
 	}
 }
 
-func (p pendingStopTaskImpl) WrappedTasks() []Task {
-	return []Task{p.stopTask}
+func (p pendingStopTaskImpl) WrappedTask() Task {
+	return p.stopTask
 }
 
 func (p pendingStopTaskImpl) Stop(ctx context.Context) error {
