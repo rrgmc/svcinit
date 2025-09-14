@@ -109,14 +109,7 @@ func (t *taskWithCallback) WrappedTask() Task {
 }
 
 func (t *taskWithCallback) Run(ctx context.Context) error {
-	if t.callback != nil {
-		t.callback.BeforeRun(ctx, t.task)
-	}
-	err := t.task.Run(ctx)
-	if t.callback != nil {
-		t.callback.AfterRun(ctx, t.task, err)
-	}
-	return err
+	return runTask(ctx, t.task, t.callback)
 }
 
 type serviceWithCallback struct {
@@ -150,17 +143,6 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 // 	}
 // 	return
 // }
-
-// taskFromCallback unwraps taskWithCallback from tasks.
-func taskFromCallback(task Task) Task {
-	for {
-		if tc, ok := task.(*taskWithCallback); ok {
-			task = tc.task
-		} else {
-			return task
-		}
-	}
-}
 
 type serviceFunc struct {
 	start Task

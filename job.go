@@ -120,7 +120,7 @@ type StartTaskCmd struct {
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop() {
 	s.resolved.setResolved()
-	s.s.addTask(s.s.unorderedCancelCtx, s.start)
+	s.s.addTask(s.s.unorderedCancelCtx, s.start, s.options...)
 }
 
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
@@ -190,7 +190,7 @@ func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(s.s.unorderedCancelCtx, startTask, s.options...)
-	s.s.AutoStopTask(stopTask) // TODO
+	s.s.autoCleanup = append(s.s.autoCleanup, newStopTaskWrapper(stopTask, s.options...))
 }
 
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
@@ -224,8 +224,6 @@ func (s StartServiceCmd) isResolved() bool {
 }
 
 // addTask adds a task to be started.
-// If checkFinished is true, a context will be returned that will be done when the task finishes executing.
-// This is used to make the stop task wait the start task finish.
-func (s *SvcInit) addTask(ctx context.Context, fn Task, options ...TaskOption) {
-	s.tasks = append(s.tasks, newTaskWrapper(ctx, fn, options...))
+func (s *SvcInit) addTask(ctx context.Context, task Task, options ...TaskOption) {
+	s.tasks = append(s.tasks, newTaskWrapper(ctx, task, options...))
 }
