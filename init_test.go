@@ -248,10 +248,8 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 			return nil
 		})
 
-	// sinit.
-	// 	StopMultipleTasks(stopTask1, stopTask2)
-	sinit.StopManualTask(stopTask1)
-	sinit.StopManualTask(stopTask2)
+	sinit.
+		StopMultipleManualTasks(stopTask1, stopTask2)
 
 	err := sinit.Run()
 

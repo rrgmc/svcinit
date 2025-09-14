@@ -70,14 +70,38 @@ func (s *SvcInit) StopManualTask(task StopTask) {
 	}
 }
 
-/*
+// StopMultipleManualTasks adds a shutdown task. The shutdown will be done in the order they are added.
+// This method groups a list of stop tasks into a single one and run all of them in parallel.
+// In this case, order between these tasks are undefined.
+func (s *SvcInit) StopMultipleManualTasks(tasks ...StopTask) {
+	s.StopMultipleTasks(func(builder MultipleTaskBuilder) {
+		for _, task := range tasks {
+			builder.StopManualTask(task)
+		}
+	})
+}
+
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
-func (s *SvcInit) StopMultipleTasks(tasks ...Task) {
-	s.StopTask(NewMultipleTask(tasks...))
+func (s *SvcInit) StopMultipleTasks(f func(MultipleTaskBuilder)) {
+	var multiTasks []Task
+	mtb := &multipleTaskBuilder{
+		stopManualTask: func(task StopTask) {
+			if ps, ok := task.(*pendingStopTask); ok {
+				ps.setResolved()
+				multiTasks = append(multiTasks, ps.stopTask)
+			}
+		},
+		stopTask: func(task Task) {
+			multiTasks = append(multiTasks, task)
+		},
+	}
+	f(mtb)
+	if len(multiTasks) > 0 {
+		s.StopTask(NewMultipleTask(multiTasks...))
+	}
 }
-*/
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTask(task Task) {

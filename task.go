@@ -3,6 +3,7 @@ package svcinit
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
 type Task interface {
@@ -95,30 +96,37 @@ func (s *serviceTask) Run(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
-/*
-// MultipleTask runs multiple tasks in parallel, wrapped in a single Task.
-type MultipleTask struct {
+type MultipleTaskBuilder interface {
+	StopManualTask(task StopTask)
+	StopTask(task Task)
+	StopTaskFunc(task TaskFunc)
+}
+
+// multipleTask runs multiple tasks in parallel, wrapped in a single Task.
+type multipleTask struct {
 	tasks    []Task
 	resolved resolved
 }
 
-// var _ pendingStopTask = (*MultipleTask)(nil)
-var _ WrappedTasks = (*MultipleTask)(nil)
+var _ WrappedTasks = (*multipleTask)(nil)
 
 func NewMultipleTask(tasks ...Task) Task {
-	return &MultipleTask{
+	return newMultipleTask(tasks...)
+}
+
+func newMultipleTask(tasks ...Task) Task {
+	return &multipleTask{
 		tasks:    tasks,
 		resolved: newResolved(),
 	}
 }
 
-func (t *MultipleTask) WrappedTasks() []Task {
+func (t *multipleTask) WrappedTasks() []Task {
 	return t.tasks
 }
 
-func (t *MultipleTask) Run(ctx context.Context) error {
-	var m sync.Mutex
-	var allErr []error
+func (t *multipleTask) Run(ctx context.Context) error {
+	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
 	for _, st := range t.tasks {
@@ -127,31 +135,28 @@ func (t *MultipleTask) Run(ctx context.Context) error {
 			defer wg.Done()
 			err := st.Run(ctx)
 			if err != nil {
-				m.Lock()
-				allErr = append(allErr, err)
-				m.Unlock()
+				allErr.add(err)
 			}
 		}()
 	}
 
 	wg.Wait()
 
-	return errors.Join(allErr...)
+	return allErr.build()
 }
 
-func (t *MultipleTask) isResolved() bool {
-	return t.resolved.isResolved()
-}
-
-func (t *MultipleTask) setResolved() {
-	for _, st := range t.tasks {
-		if ps, ok := st.(*pendingStopTask); ok {
-			ps.setResolved()
-		}
-	}
-	t.resolved.setResolved()
-}
-*/
+// func (t *multipleTask) isResolved() bool {
+// 	return t.resolved.isResolved()
+// }
+//
+// func (t *multipleTask) setResolved() {
+// 	for _, st := range t.tasks {
+// 		if ps, ok := st.(*pendingStopTask); ok {
+// 			ps.setResolved()
+// 		}
+// 	}
+// 	t.resolved.setResolved()
+// }
 
 // TaskWithCallback wraps a service with a callback to be called before and after it runs.
 func TaskWithCallback(task Task, callback TaskCallback) Task {
@@ -274,4 +279,21 @@ func (sf *serviceFunc) Stop(ctx context.Context) error {
 		return nil
 	}
 	return sf.stop.Run(ctx)
+}
+
+type multipleTaskBuilder struct {
+	stopManualTask func(task StopTask)
+	stopTask       func(task Task)
+}
+
+func (m *multipleTaskBuilder) StopManualTask(task StopTask) {
+	m.stopManualTask(task)
+}
+
+func (m *multipleTaskBuilder) StopTask(task Task) {
+	m.stopTask(task)
+}
+
+func (m *multipleTaskBuilder) StopTaskFunc(task TaskFunc) {
+	m.stopTask(task)
 }
