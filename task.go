@@ -26,7 +26,7 @@ type WrappedTask interface {
 
 // WrappedService is a service which was wrapped from one [Service]s.
 type WrappedService interface {
-	Task
+	Service
 	WrappedService() Service
 }
 
@@ -128,6 +128,36 @@ func UnwrapTask(task Task) Task {
 		} else {
 			return task
 		}
+	}
+}
+
+// WrapService wraps a service in a WrappedService, allowing the handler to be customized.
+func WrapService(service Service, options ...WrapServiceOption) Service {
+	if service == nil {
+		return service
+	}
+	ret := &wrappedService{
+		svc: service,
+	}
+	for _, option := range options {
+		option(ret)
+	}
+	return ret
+}
+
+type WrapServiceOption func(service *wrappedService)
+
+// WithWrapServiceStartHandler sets an optional start handler for the service.
+func WithWrapServiceStartHandler(handler func(ctx context.Context, service Service) error) WrapServiceOption {
+	return func(service *wrappedService) {
+		service.startHandler = handler
+	}
+}
+
+// WithWrapServiceStopHandler sets an optional start handler for the service.
+func WithWrapServiceStopHandler(handler func(ctx context.Context, service Service) error) WrapServiceOption {
+	return func(service *wrappedService) {
+		service.stopHandler = handler
 	}
 }
 
