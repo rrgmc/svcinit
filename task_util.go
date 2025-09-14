@@ -132,23 +132,12 @@ type serviceWithCallback struct {
 var _ Service = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
-	// return errors.New("this should never run")
 	return s.svc.Start(ctx)
 }
 
 func (s *serviceWithCallback) Stop(ctx context.Context) error {
-	// return errors.New("this should never run")
 	return s.svc.Stop(ctx)
 }
-
-/*
-type serviceTaskWithCallback struct {
-	st serviceTask
-	taskWithCallback
-}
-
-var _ ServiceTask = (*serviceTaskWithCallback)(nil)
-*/
 
 type serviceTaskWithCallback struct {
 	svc      ServiceTask
