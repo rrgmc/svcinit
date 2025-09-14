@@ -55,6 +55,8 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 }
 
 // TaskCallback is called before and after the task is run.
+// Tasks derived from services will call using  a ServiceTask.
+// Callbacks ALWAYS receives unwrapped tasks (with UnwrapTask).
 type TaskCallback interface {
 	BeforeRun(ctx context.Context, task Task)
 	AfterRun(ctx context.Context, task Task, err error)
