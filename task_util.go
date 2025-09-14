@@ -104,8 +104,8 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, callbacks ...TaskCa
 }
 
 type serviceFunc struct {
-	start Task
-	stop  Task
+	start TaskFunc
+	stop  TaskFunc
 }
 
 func (sf *serviceFunc) Start(ctx context.Context) error {
@@ -132,10 +132,6 @@ func (m *multipleTaskBuilder) StopManualTask(task StopTask) {
 }
 
 func (m *multipleTaskBuilder) StopTask(task Task) {
-	m.stopTask(task)
-}
-
-func (m *multipleTaskBuilder) StopTaskFunc(task TaskFunc) {
 	m.stopTask(task)
 }
 

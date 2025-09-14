@@ -46,14 +46,8 @@ type ServiceTask interface {
 
 // ServiceFunc returns a Service from start and stop tasks.
 // The passed tasks will NOT be returned in task callbacks, it is an internal detail only.
-func ServiceFunc(start, stop Task) Service {
+func ServiceFunc(start, stop func(ctx context.Context) error) Service {
 	return &serviceFunc{start: start, stop: stop}
-}
-
-// ServiceTaskFunc returns a Service from start and stop tasks.
-// The passed tasks will NOT be returned in task callbacks, it is an internal detail only.
-func ServiceTaskFunc(start, stop TaskFunc) Service {
-	return ServiceFunc(start, stop)
 }
 
 // TaskCallback is called before and after the task is run.
@@ -86,7 +80,6 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 type MultipleTaskBuilder interface {
 	StopManualTask(task StopTask)
 	StopTask(task Task)
-	StopTaskFunc(task TaskFunc)
 }
 
 // NewMultipleTask creates a Task from multiple tasks. The tasks will be run in parallel.

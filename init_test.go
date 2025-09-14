@@ -114,7 +114,7 @@ func TestSvcInit(t *testing.T) {
 					cancel: func() {
 						dtCancel(testTaskNoError{taskNo: taskNo})
 					},
-					svc: ServiceTaskFunc(
+					svc: ServiceFunc(
 						func(ctx context.Context) error {
 							defer stCancel()
 
@@ -195,12 +195,12 @@ func TestSvcInit(t *testing.T) {
 
 			tasks := []testService{task1, task2, task3, task4, task5}
 
-			sinit.SetStartedCallback(TaskFunc(func(ctx context.Context) error {
+			sinit.SetStartedCallback(func(ctx context.Context) error {
 				for _, taskNo := range test.cancelFn() {
 					tasks[taskNo-1].cancel()
 				}
 				return nil
-			}))
+			})
 
 			sinit.StopManualTask(i2Stop)
 			sinit.StopManualTask(i3Stop)
@@ -230,24 +230,24 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 	stopped := &testList[int]{}
 
 	stopTask1 := sinit.
-		StartTaskFunc(func(ctx context.Context) error {
+		StartTask(TaskFunc(func(ctx context.Context) error {
 			started.add(1)
 			return nil
-		}).
-		ManualStopFunc(func(ctx context.Context) error {
+		})).
+		ManualStop(TaskFunc(func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		})
+		}))
 
 	stopTask2 := sinit.
-		StartTaskFunc(func(ctx context.Context) error {
+		StartTask(TaskFunc(func(ctx context.Context) error {
 			started.add(2)
 			return nil
-		}).
-		ManualStopFunc(func(ctx context.Context) error {
+		})).
+		ManualStop(TaskFunc(func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		})
+		}))
 
 	sinit.
 		StopMultipleManualTasks(stopTask1, stopTask2)
@@ -382,9 +382,9 @@ func TestSvcInitPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must call one StartTaskCmd method
-	_ = sinit.StartTaskFunc(func(ctx context.Context) error {
+	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
 		return nil
-	})
+	}))
 
 	err := sinit.Run()
 	assert.ErrorIs(t, err, ErrPending)
@@ -394,7 +394,7 @@ func TestSvcInitPendingStartService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must call one StartServiceCmd method
-	_ = sinit.StartService(ServiceTaskFunc(func(ctx context.Context) error {
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
 		return nil
 	}, func(ctx context.Context) error {
 		return nil
@@ -408,11 +408,11 @@ func TestSvcInitPendingStop(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must add stop function to StopTask
-	_ = sinit.StartTaskFunc(func(ctx context.Context) error {
+	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
 		return nil
-	}).ManualStopFunc(func(ctx context.Context) error {
+	})).ManualStop(TaskFunc(func(ctx context.Context) error {
 		return nil
-	})
+	}))
 
 	err := sinit.Run()
 	assert.ErrorIs(t, err, ErrPending)
@@ -422,7 +422,7 @@ func TestSvcInitPendingStopService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must add stop function to StopTask
-	_ = sinit.StartService(ServiceTaskFunc(func(ctx context.Context) error {
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
 		return nil
 	}, func(ctx context.Context) error {
 		return nil

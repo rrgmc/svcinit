@@ -11,13 +11,6 @@ func (s *SvcInit) ExecuteTask(task Task, options ...TaskOption) {
 	s.addTask(s.unorderedCancelCtx, task, options...)
 }
 
-// ExecuteTaskFunc executes the passed task when the shutdown order DOES NOT matter.
-// The context passed to the task will be canceled on stop.
-// The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTaskFunc(task TaskFunc, options ...TaskOption) {
-	s.ExecuteTask(task, options...)
-}
-
 // StartTask executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
@@ -30,13 +23,6 @@ func (s *SvcInit) StartTask(task Task, options ...TaskOption) StartTaskCmd {
 	}
 	s.addPendingStart(cmd)
 	return cmd
-}
-
-// StartTaskFunc executes a task and allows the shutdown method to be customized.
-// At least one method of StartTaskCmd must be called, or Run will fail.
-// The task is only executed at the Run call.
-func (s *SvcInit) StartTaskFunc(task TaskFunc, options ...TaskOption) StartTaskCmd {
-	return s.StartTask(task, options...)
 }
 
 // StartService executes a service task and allows the shutdown method to be customized.
@@ -57,11 +43,6 @@ func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceC
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTask(task Task, options ...TaskOption) {
 	s.cleanup = append(s.cleanup, newStopTaskWrapper(task, options...))
-}
-
-// StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTaskFunc(task TaskFunc, options ...TaskOption) {
-	s.StopTask(task, options...)
 }
 
 // StopManualTask adds a shutdown task. The shutdown will be done in the order they are added.
@@ -104,11 +85,6 @@ func (s *SvcInit) AutoStopTask(task Task, options ...TaskOption) {
 	s.autoCleanup = append(s.autoCleanup, newStopTaskWrapper(task, options...))
 }
 
-// AutoStopTaskFunc adds a shutdown task, when the shutdown order DOES NOT matter.
-func (s *SvcInit) AutoStopTaskFunc(task TaskFunc, options ...TaskOption) {
-	s.AutoStopTask(task, options...)
-}
-
 type StartTaskCmd struct {
 	s        *SvcInit
 	start    Task
@@ -137,13 +113,6 @@ func (s StartTaskCmd) ManualStopCancelTask(stop Task, stopOptions ...TaskOption)
 	return s.stopCancel(stop, stopOptions...)
 }
 
-// ManualStopCancelTaskFunc returns a StopTask to be stopped when the order matters.
-// The context passed to the task will be canceled BEFORE calling the stop task.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, stopOptions ...TaskOption) StopTask {
-	return s.ManualStopCancelTask(stop, stopOptions...)
-}
-
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
@@ -151,13 +120,6 @@ func (s StartTaskCmd) ManualStop(stop Task, stopOptions ...TaskOption) StopTask 
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start, s.options...)
 	return s.s.addPendingStopTask(stop, stopOptions...)
-}
-
-// ManualStopFunc returns a StopTask to be stopped when the order matters.
-// The context passed to the task will NOT be canceled.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopFunc(stop TaskFunc, stopOptions ...TaskOption) StopTask {
-	return s.ManualStop(stop, stopOptions...)
 }
 
 func (s StartTaskCmd) stopCancel(stop Task, stopOptions ...TaskOption) StopTask {
