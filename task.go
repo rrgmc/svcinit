@@ -84,7 +84,7 @@ func ServiceAsTask(svc Service, isStart bool) (st ServiceTask) {
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
-func ServiceAsTasks(svc Service) (start, stop Task) {
+func ServiceAsTasks(svc Service) (start, stop ServiceTask) {
 	return ServiceAsTask(svc, true), ServiceAsTask(svc, false)
 }
 

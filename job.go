@@ -201,10 +201,21 @@ func (s StartServiceCmd) ManualStopCancel() StopTask {
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(ctx, startTask, s.options...)
-	return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
-		cancel(ErrExit)
-		return stopTask.Run(ctx)
-	}), s.options...)
+	// return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
+	// 	cancel(ErrExit)
+	// 	return stopTask.Run(ctx)
+	// }), s.options...)
+	// return s.s.addPendingStopTask(stopTask, slices.Concat(s.options, []TaskOption{
+	// 	WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
+	// 		cancel(ErrExit)
+	// 	}, nil)),
+	// })...)
+	return s.s.addPendingStopTask(&serviceTaskWithCallback{
+		svc: stopTask,
+		callback: TaskCallbackFunc(func(ctx context.Context, task Task) {
+			cancel(ErrExit)
+		}, nil),
+	}, s.options...)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
@@ -214,9 +225,7 @@ func (s StartServiceCmd) ManualStop() StopTask {
 	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(s.s.ctx, startTask, s.options...)
-	return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
-		return stopTask.Run(ctx)
-	}), s.options...)
+	return s.s.addPendingStopTask(stopTask, s.options...)
 }
 
 func (s StartServiceCmd) isResolved() bool {
