@@ -94,6 +94,7 @@ type MultipleTaskBuilder interface {
 	StopTaskFunc(task TaskFunc)
 }
 
+// NewMultipleTask creates a Task from multiple tasks. The tasks will be run in parallel.
 func NewMultipleTask(tasks ...Task) Task {
 	var t []taskWrapper
 	for _, task := range tasks {
