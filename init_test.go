@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 
@@ -260,6 +261,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 }
 
 func TestSvcInitCallback(t *testing.T) {
+	var runStarted, runStopped atomic.Bool
 	started := &testList[int]{}
 	stopped := &testList[int]{}
 
@@ -302,6 +304,14 @@ func TestSvcInitCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
+		WithStartedCallback(func(ctx context.Context) error {
+			runStarted.Store(true)
+			return nil
+		}),
+		WithStoppedCallback(func(ctx context.Context) error {
+			runStopped.Store(true)
+			return nil
+		}),
 		WithStartTaskCallback(
 			TaskCallbackFunc(func(ctx context.Context, task Task) {
 				globalTaskCallback(ctx, task)
@@ -361,9 +371,9 @@ func TestSvcInitCallback(t *testing.T) {
 	sinit.StopManualTask(stopService)
 
 	err := sinit.Run()
-
 	assert.NilError(t, err)
-
+	assert.Assert(t, runStarted.Load())
+	assert.Assert(t, runStopped.Load())
 	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
