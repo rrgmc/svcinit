@@ -3,7 +3,6 @@ package svcinit
 import (
 	"context"
 	"errors"
-	"sync"
 )
 
 type Task interface {
@@ -14,6 +13,10 @@ type TaskFunc func(ctx context.Context) error
 
 func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
+}
+
+type StopTask interface {
+	isStopTask()
 }
 
 // WrappedTask is a task which was wrapped from one [Task]s.
@@ -92,13 +95,14 @@ func (s *serviceTask) Run(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
+/*
 // MultipleTask runs multiple tasks in parallel, wrapped in a single Task.
 type MultipleTask struct {
 	tasks    []Task
 	resolved resolved
 }
 
-var _ pendingStopTask = (*MultipleTask)(nil)
+// var _ pendingStopTask = (*MultipleTask)(nil)
 var _ WrappedTasks = (*MultipleTask)(nil)
 
 func NewMultipleTask(tasks ...Task) Task {
@@ -141,12 +145,13 @@ func (t *MultipleTask) isResolved() bool {
 
 func (t *MultipleTask) setResolved() {
 	for _, st := range t.tasks {
-		if ps, ok := st.(pendingStopTask); ok {
+		if ps, ok := st.(*pendingStopTask); ok {
 			ps.setResolved()
 		}
 	}
 	t.resolved.setResolved()
 }
+*/
 
 // TaskWithCallback wraps a service with a callback to be called before and after it runs.
 func TaskWithCallback(task Task, callback TaskCallback) Task {

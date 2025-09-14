@@ -201,9 +201,9 @@ func TestSvcInit(t *testing.T) {
 				return nil
 			}))
 
-			sinit.StopTask(i2Stop)
-			sinit.StopTask(i3Stop)
-			sinit.StopTask(i4Stop)
+			sinit.StopManualTask(i2Stop)
+			sinit.StopManualTask(i3Stop)
+			sinit.StopManualTask(i4Stop)
 
 			err := sinit.Run()
 			if test.expectedErr != nil {
@@ -248,8 +248,10 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 			return nil
 		})
 
-	sinit.
-		StopMultipleTasks(stopTask1, stopTask2)
+	// sinit.
+	// 	StopMultipleTasks(stopTask1, stopTask2)
+	sinit.StopManualTask(stopTask1)
+	sinit.StopManualTask(stopTask2)
 
 	err := sinit.Run()
 
@@ -347,9 +349,9 @@ func TestSvcInitCallback(t *testing.T) {
 		StartService(svc, WithTaskCallback(getTaskCallback(3, false))).
 		ManualStop()
 
-	sinit.StopTask(stopTask1)
-	sinit.StopTask(stopTask2)
-	sinit.StopTask(stopService)
+	sinit.StopManualTask(stopTask1)
+	sinit.StopManualTask(stopTask2)
+	sinit.StopManualTask(stopService)
 
 	err := sinit.Run()
 

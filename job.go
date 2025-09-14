@@ -54,9 +54,6 @@ func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceC
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTask(task Task) {
-	if ps, ok := task.(pendingStopTask); ok {
-		ps.setResolved()
-	}
 	s.cleanup = append(s.cleanup, task)
 }
 
@@ -65,12 +62,22 @@ func (s *SvcInit) StopTaskFunc(task TaskFunc) {
 	s.StopTask(task)
 }
 
+// StopManualTask adds a shutdown task. The shutdown will be done in the order they are added.
+func (s *SvcInit) StopManualTask(task StopTask) {
+	if ps, ok := task.(*pendingStopTask); ok {
+		ps.setResolved()
+		s.cleanup = append(s.cleanup, ps.stopTask)
+	}
+}
+
+/*
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
 func (s *SvcInit) StopMultipleTasks(tasks ...Task) {
 	s.StopTask(NewMultipleTask(tasks...))
 }
+*/
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTask(task Task) {
@@ -98,28 +105,28 @@ func (s StartTaskCmd) AutoStop() {
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancel() Task {
+func (s StartTaskCmd) ManualStopCancel() StopTask {
 	return s.stopCancel(nil)
 }
 
 // ManualStopCancelTask returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTask(stop Task, options ...TaskOption) Task {
+func (s StartTaskCmd) ManualStopCancelTask(stop Task, options ...TaskOption) StopTask {
 	return s.stopCancel(stop, options...)
 }
 
 // ManualStopCancelTaskFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, options ...TaskOption) Task {
+func (s StartTaskCmd) ManualStopCancelTaskFunc(stop TaskFunc, options ...TaskOption) StopTask {
 	return s.ManualStopCancelTask(stop, options...)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) Task {
+func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start)
 	return s.s.addPendingStopTask(parseTaskOptions(stop, options...))
@@ -128,11 +135,11 @@ func (s StartTaskCmd) ManualStop(stop Task, options ...TaskOption) Task {
 // ManualStopFunc returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartTaskCmd) ManualStopFunc(stop TaskFunc, options ...TaskOption) Task {
+func (s StartTaskCmd) ManualStopFunc(stop TaskFunc, options ...TaskOption) StopTask {
 	return s.ManualStop(stop, options...)
 }
 
-func (s StartTaskCmd) stopCancel(stop Task, options ...TaskOption) Task {
+func (s StartTaskCmd) stopCancel(stop Task, options ...TaskOption) StopTask {
 	if stop != nil {
 		stop = parseTaskOptions(stop, options...)
 	}
@@ -170,7 +177,7 @@ func (s StartServiceCmd) AutoStop() {
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartServiceCmd) ManualStopCancel() Task {
+func (s StartServiceCmd) ManualStopCancel() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
 	startTask, stopTask := ServiceAsTasks(s.svc)
@@ -184,7 +191,7 @@ func (s StartServiceCmd) ManualStopCancel() Task {
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
 // The returned StopTask must be added in order to [SvcInit.StopTask].
-func (s StartServiceCmd) ManualStop() Task {
+func (s StartServiceCmd) ManualStop() StopTask {
 	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(s.s.ctx, startTask)
@@ -211,46 +218,26 @@ type pendingItem interface {
 	isResolved() bool
 }
 
-func newPendingStopTask(task Task) pendingStopTask {
-	return newPendingStopTaskImpl(task)
-}
-
-type pendingStopTask interface {
-	Task
-	pendingItem
-	setResolved()
-}
-
-type pendingStopTaskImpl struct {
+type pendingStopTask struct {
 	stopTask Task
 	resolved resolved
 }
 
-var _ WrappedTask = (*pendingStopTaskImpl)(nil)
+var _ StopTask = (*pendingStopTask)(nil)
 
-func newPendingStopTaskImpl(stopTask Task) pendingStopTaskImpl {
-	return pendingStopTaskImpl{
+func newPendingStopTask(stopTask Task) *pendingStopTask {
+	return &pendingStopTask{
 		stopTask: stopTask,
 		resolved: newResolved(),
 	}
 }
 
-func (p pendingStopTaskImpl) WrappedTask() Task {
-	return p.stopTask
-}
-
-func (p pendingStopTaskImpl) Stop(ctx context.Context) error {
-	return p.stopTask.Run(ctx)
-}
-
-func (p pendingStopTaskImpl) Run(ctx context.Context) error {
-	return p.Stop(ctx)
-}
-
-func (p pendingStopTaskImpl) isResolved() bool {
+func (p *pendingStopTask) isResolved() bool {
 	return p.resolved.isResolved()
 }
 
-func (p pendingStopTaskImpl) setResolved() {
+func (p *pendingStopTask) setResolved() {
 	p.resolved.setResolved()
 }
+
+func (p *pendingStopTask) isStopTask() {}
