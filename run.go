@@ -121,13 +121,13 @@ func runTask(ctx context.Context, task Task, callbacks ...TaskCallback) error {
 	}
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.BeforeRun(ctx, task)
+			callback.BeforeRun(ctx, UnwrapTask(task))
 		}
 	}
 	err := task.Run(ctx)
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.AfterRun(ctx, task, err)
+			callback.AfterRun(ctx, UnwrapTask(task), err)
 		}
 	}
 	return err

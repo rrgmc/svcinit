@@ -126,6 +126,27 @@ func ServiceWithCallback(service Service, callback TaskCallback) Service {
 	}
 }
 
+func WrapTask(task Task, options ...WrapTaskOption) Task {
+	if task == nil {
+		return task
+	}
+	ret := &wrappedTask{
+		task: task,
+	}
+	for _, option := range options {
+		option(ret)
+	}
+	return ret
+}
+
+type WrapTaskOption func(task *wrappedTask)
+
+func WithWrapTaskHandler(handler func(ctx context.Context, task Task) error) WrapTaskOption {
+	return func(task *wrappedTask) {
+		task.handler = handler
+	}
+}
+
 // UnwrapTask unwraps WrappedTask from tasks.
 func UnwrapTask(task Task) Task {
 	for {

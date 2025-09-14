@@ -204,3 +204,19 @@ func (m *multipleTaskBuilder) StopTask(task Task) {
 func (m *multipleTaskBuilder) StopTaskFunc(task TaskFunc) {
 	m.stopTask(task)
 }
+
+type wrappedTask struct {
+	task    Task
+	handler func(ctx context.Context, task Task) error
+}
+
+func (t *wrappedTask) Run(ctx context.Context) error {
+	if t.handler == nil {
+		return t.task.Run(ctx)
+	}
+	return t.handler(ctx, t.task)
+}
+
+func (t *wrappedTask) WrappedTask() Task {
+	return t.task
+}
