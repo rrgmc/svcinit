@@ -54,11 +54,6 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 	return ServiceFunc(start, stop)
 }
 
-// type ServiceToTask interface {
-// 	Service
-// 	ToTask(isStart bool) Task
-// }
-
 // TaskCallback is called before and after the task is run.
 type TaskCallback interface {
 	BeforeRun(ctx context.Context, task Task)
