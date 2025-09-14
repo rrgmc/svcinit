@@ -302,11 +302,19 @@ func TestSvcInitCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
-		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
-			globalTaskCallback(ctx, task)
-		}, func(ctx context.Context, task Task, err error) {
-			globalTaskCallback(ctx, task)
-		})))
+		WithStartTaskCallback(
+			TaskCallbackFunc(func(ctx context.Context, task Task) {
+				globalTaskCallback(ctx, task)
+			}, func(ctx context.Context, task Task, err error) {
+				globalTaskCallback(ctx, task)
+			})),
+		WithStopTaskCallback(
+			TaskCallbackFunc(func(ctx context.Context, task Task) {
+				globalTaskCallback(ctx, task)
+			}, func(ctx context.Context, task Task, err error) {
+				globalTaskCallback(ctx, task)
+			})),
+	)
 
 	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
 		return TaskCallbackFunc(func(ctx context.Context, task Task) {
