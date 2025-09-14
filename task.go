@@ -24,6 +24,12 @@ type WrappedTask interface {
 	WrappedTask() Task
 }
 
+// WrappedService is a service which was wrapped from one [Service]s.
+type WrappedService interface {
+	Task
+	WrappedService() Service
+}
+
 // Service is task with start and stop methods.
 type Service interface {
 	Start(ctx context.Context) error
@@ -121,6 +127,20 @@ func UnwrapTask(task Task) Task {
 			task = tc.WrappedTask()
 		} else {
 			return task
+		}
+	}
+}
+
+// UnwrapService unwraps WrappedService from services.
+func UnwrapService(svc Service) Service {
+	for {
+		if svc == nil {
+			return nil
+		}
+		if tc, ok := svc.(WrappedService); ok {
+			svc = tc.WrappedService()
+		} else {
+			return svc
 		}
 	}
 }
