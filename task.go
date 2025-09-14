@@ -75,10 +75,10 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
 }
 
 // ServiceAsTask creates and adapter from a service method to a task.
-func ServiceAsTask(svc Service, isStart bool) (st Task) {
+func ServiceAsTask(svc Service, isStart bool) (st ServiceTask) {
 	st = &serviceTask{svc: svc, isStart: isStart}
 	if sc, ok := svc.(*serviceWithCallback); ok {
-		st = TaskWithCallback(st, sc.callback)
+		st = &serviceTaskWithCallback{svc: st, callback: sc.callback}
 	}
 	return st
 }

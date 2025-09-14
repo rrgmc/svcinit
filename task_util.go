@@ -47,6 +47,8 @@ type serviceTask struct {
 	isStart bool
 }
 
+var _ ServiceTask = (*serviceTask)(nil)
+
 func (s *serviceTask) Service() Service {
 	return s.svc
 }
@@ -139,20 +141,33 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
-// func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
-// 	if stt, ok := s.svc.(ServiceToTask); ok {
-// 		tt = stt.ToTask(isStart)
-// 	} else {
-// 		tt = &serviceTask{
-// 			svc:     s.svc,
-// 			isStart: isStart,
-// 		}
-// 	}
-// 	if s.callback != nil {
-// 		tt = TaskWithCallback(tt, s.callback)
-// 	}
-// 	return
-// }
+/*
+type serviceTaskWithCallback struct {
+	st serviceTask
+	taskWithCallback
+}
+
+var _ ServiceTask = (*serviceTaskWithCallback)(nil)
+*/
+
+type serviceTaskWithCallback struct {
+	svc      ServiceTask
+	callback TaskCallback
+}
+
+var _ ServiceTask = (*serviceTaskWithCallback)(nil)
+
+func (s *serviceTaskWithCallback) Service() Service {
+	return s.svc.Service()
+}
+
+func (s *serviceTaskWithCallback) IsStart() bool {
+	return s.svc.IsStart()
+}
+
+func (s *serviceTaskWithCallback) Run(ctx context.Context) error {
+	return runTask(ctx, s.svc, s.callback)
+}
 
 type serviceFunc struct {
 	start Task
