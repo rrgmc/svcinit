@@ -2,7 +2,6 @@ package svcinit
 
 import (
 	"context"
-	"errors"
 	"sync"
 )
 
@@ -120,13 +119,13 @@ type serviceWithCallback struct {
 var _ Service = (*serviceWithCallback)(nil)
 
 func (s *serviceWithCallback) Start(ctx context.Context) error {
-	return errors.New("this should never run")
-	// return s.svc.Start(ctx)
+	// return errors.New("this should never run")
+	return s.svc.Start(ctx)
 }
 
 func (s *serviceWithCallback) Stop(ctx context.Context) error {
-	return errors.New("this should never run")
-	// return s.svc.Stop(ctx)
+	// return errors.New("this should never run")
+	return s.svc.Stop(ctx)
 }
 
 // func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
