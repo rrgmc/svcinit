@@ -64,10 +64,7 @@ func (s *SvcInit) StopTaskFunc(task TaskFunc) {
 
 // StopManualTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopManualTask(task StopTask) {
-	if ps, ok := task.(*pendingStopTask); ok {
-		ps.setResolved()
-		s.cleanup = append(s.cleanup, ps.stopTask)
-	}
+	s.cleanup = append(s.cleanup, s.taskFromStopTask(task))
 }
 
 // StopMultipleManualTasks adds a shutdown task. The shutdown will be done in the order they are added.
@@ -88,10 +85,7 @@ func (s *SvcInit) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 	var multiTasks []Task
 	mtb := &multipleTaskBuilder{
 		stopManualTask: func(task StopTask) {
-			if ps, ok := task.(*pendingStopTask); ok {
-				ps.setResolved()
-				multiTasks = append(multiTasks, ps.stopTask)
-			}
+			multiTasks = append(multiTasks, s.taskFromStopTask(task))
 		},
 		stopTask: func(task Task) {
 			multiTasks = append(multiTasks, task)
@@ -111,6 +105,13 @@ func (s *SvcInit) AutoStopTask(task Task) {
 // AutoStopTaskFunc adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTaskFunc(task TaskFunc) {
 	s.AutoStopTask(task)
+}
+
+func (s *SvcInit) taskFromStopTask(task StopTask) Task {
+	if ps, ok := task.(*pendingStopTask); ok {
+		ps.setResolved()
+	}
+	return task.StopTask()
 }
 
 type StartTaskCmd struct {
@@ -256,6 +257,10 @@ func newPendingStopTask(stopTask Task) *pendingStopTask {
 	}
 }
 
+func (p *pendingStopTask) StopTask() Task {
+	return p.stopTask
+}
+
 func (p *pendingStopTask) isResolved() bool {
 	return p.resolved.isResolved()
 }
@@ -263,5 +268,3 @@ func (p *pendingStopTask) isResolved() bool {
 func (p *pendingStopTask) setResolved() {
 	p.resolved.setResolved()
 }
-
-func (p *pendingStopTask) isStopTask() {}

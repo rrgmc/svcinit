@@ -17,7 +17,7 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 }
 
 type StopTask interface {
-	isStopTask()
+	StopTask() Task
 }
 
 // WrappedTask is a task which was wrapped from one [Task]s.
