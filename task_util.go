@@ -103,37 +103,6 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, callbacks ...TaskCa
 	return allErr.build()
 }
 
-type taskWithCallback struct {
-	task     Task
-	callback TaskCallback
-}
-
-var _ Task = (*taskWithCallback)(nil)
-var _ WrappedTask = (*taskWithCallback)(nil)
-
-func (t *taskWithCallback) WrappedTask() Task {
-	return t.task
-}
-
-func (t *taskWithCallback) Run(ctx context.Context) error {
-	return runTask(ctx, t.task, t.callback)
-}
-
-// type serviceWithCallback struct {
-// 	svc      Service
-// 	callback TaskCallback
-// }
-//
-// var _ Service = (*serviceWithCallback)(nil)
-//
-// func (s *serviceWithCallback) Start(ctx context.Context) error {
-// 	return s.svc.Start(ctx)
-// }
-//
-// func (s *serviceWithCallback) Stop(ctx context.Context) error {
-// 	return s.svc.Stop(ctx)
-// }
-
 type serviceFunc struct {
 	start Task
 	stop  Task

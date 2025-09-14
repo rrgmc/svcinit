@@ -88,22 +88,6 @@ func NewMultipleTask(tasks ...Task) Task {
 	return newMultipleTask(t...)
 }
 
-// TaskWithCallback wraps a service with a callback to be called before and after it runs.
-func TaskWithCallback(task Task, callback TaskCallback) Task {
-	if task == nil || callback == nil {
-		return task
-	}
-	return &taskWithCallback{
-		task:     task,
-		callback: callback,
-	}
-}
-
-// TaskFuncWithCallback wraps a task with a callback to be called before and after it runs.
-func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
-	return TaskWithCallback(task, callback)
-}
-
 // WrapTask wraps a task in a WrappedTask, allowing the handler to be customized.
 func WrapTask(task Task, options ...WrapTaskOption) Task {
 	if task == nil {
