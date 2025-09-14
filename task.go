@@ -45,11 +45,13 @@ type ServiceTask interface {
 }
 
 // ServiceFunc returns a Service from start and stop tasks.
+// The passed tasks will NOT be returned in task callbacks, it is an internal detail only.
 func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
 }
 
 // ServiceTaskFunc returns a Service from start and stop tasks.
+// The passed tasks will NOT be returned in task callbacks, it is an internal detail only.
 func ServiceTaskFunc(start, stop TaskFunc) Service {
 	return ServiceFunc(start, stop)
 }
