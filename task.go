@@ -28,6 +28,14 @@ type Service interface {
 	Stop(ctx context.Context) error
 }
 
+// ServiceTask is a Task implemented from a Service.
+// Use Service to get the source service instance.
+type ServiceTask interface {
+	Task
+	Service() Service
+	IsStart() bool
+}
+
 // ServiceFunc returns a Service from start and stop tasks.
 func ServiceFunc(start, stop Task) Service {
 	return &serviceFunc{start: start, stop: stop}
@@ -48,7 +56,7 @@ func ServiceAsTask(svc Service, isStart bool) Task {
 	if stt, ok := svc.(ServiceToTask); ok {
 		return stt.ToTask(isStart)
 	}
-	return &ServiceTask{svc: svc, isStart: isStart}
+	return &serviceTask{svc: svc, isStart: isStart}
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
@@ -58,20 +66,20 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 
 // ServiceTask is a Task implemented from a Service.
 // Use Service to get the source service instance.
-type ServiceTask struct {
+type serviceTask struct {
 	svc     Service
 	isStart bool
 }
 
-func (s *ServiceTask) Service() Service {
+func (s *serviceTask) Service() Service {
 	return s.svc
 }
 
-func (s *ServiceTask) IsStart() bool {
+func (s *serviceTask) IsStart() bool {
 	return s.isStart
 }
 
-func (s *ServiceTask) Run(ctx context.Context) error {
+func (s *serviceTask) Run(ctx context.Context) error {
 	if s.isStart {
 		return s.svc.Start(ctx)
 	}
@@ -202,7 +210,7 @@ func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
 	if stt, ok := s.svc.(ServiceToTask); ok {
 		tt = stt.ToTask(isStart)
 	} else {
-		tt = &ServiceTask{
+		tt = &serviceTask{
 			svc:     s.svc,
 			isStart: isStart,
 		}
