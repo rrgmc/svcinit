@@ -163,8 +163,6 @@ type wrappedService struct {
 	stopHandler  func(ctx context.Context, svc Service) error
 }
 
-var _ Service = (*wrappedService)(nil)
-
 var _ WrappedService = (*wrappedService)(nil)
 
 func (t *wrappedService) Start(ctx context.Context) error {
