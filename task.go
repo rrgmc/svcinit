@@ -64,12 +64,8 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
 }
 
 // ServiceAsTask creates and adapter from a service method to a task.
-func ServiceAsTask(svc Service, isStart bool) (st Task) {
-	st = &serviceTask{svc: svc, isStart: isStart}
-	if sc, ok := svc.(*serviceWithCallback); ok {
-		st = TaskWithCallback(st, sc.callback)
-	}
-	return st
+func ServiceAsTask(svc Service, isStart bool) Task {
+	return &serviceTask{svc: svc, isStart: isStart}
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
@@ -106,14 +102,6 @@ func TaskWithCallback(task Task, callback TaskCallback) Task {
 // TaskFuncWithCallback wraps a task with a callback to be called before and after it runs.
 func TaskFuncWithCallback(task TaskFunc, callback TaskCallback) Task {
 	return TaskWithCallback(task, callback)
-}
-
-// ServiceWithCallback wraps a Service with a callback to be called before and after it runs.
-func ServiceWithCallback(service Service, callback TaskCallback) Service {
-	return &serviceWithCallback{
-		svc:      service,
-		callback: callback,
-	}
 }
 
 // WrapTask wraps a task in a WrappedTask, allowing the handler to be customized.
