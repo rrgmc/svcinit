@@ -109,8 +109,8 @@ func (s *SvcInit) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
-func (s *SvcInit) addPendingStopTask(task Task) StopTask {
-	st := newPendingStopTask(task)
+func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) StopTask {
+	st := newPendingStopTask(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
 }
@@ -128,6 +128,7 @@ func (s *SvcInit) runTask(ctx context.Context, task Task, callback TaskCallback)
 }
 
 type taskWrapper struct {
-	ctx  context.Context
-	task Task
+	ctx     context.Context
+	task    Task
+	options taskOptions
 }

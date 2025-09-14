@@ -107,20 +107,20 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 	// return s.svc.Stop(ctx)
 }
 
-func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
-	if stt, ok := s.svc.(ServiceToTask); ok {
-		tt = stt.ToTask(isStart)
-	} else {
-		tt = &serviceTask{
-			svc:     s.svc,
-			isStart: isStart,
-		}
-	}
-	if s.callback != nil {
-		tt = TaskWithCallback(tt, s.callback)
-	}
-	return
-}
+// func (s *serviceWithCallback) ToTask(isStart bool) (tt Task) {
+// 	if stt, ok := s.svc.(ServiceToTask); ok {
+// 		tt = stt.ToTask(isStart)
+// 	} else {
+// 		tt = &serviceTask{
+// 			svc:     s.svc,
+// 			isStart: isStart,
+// 		}
+// 	}
+// 	if s.callback != nil {
+// 		tt = TaskWithCallback(tt, s.callback)
+// 	}
+// 	return
+// }
 
 // taskFromCallback unwraps taskWithCallback from tasks.
 func taskFromCallback(task Task) Task {

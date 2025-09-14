@@ -13,14 +13,16 @@ type pendingItem interface {
 
 type pendingStopTask struct {
 	task     Task
+	options  []TaskOption
 	resolved resolved
 }
 
 var _ StopTask = (*pendingStopTask)(nil)
 
-func newPendingStopTask(stopTask Task) *pendingStopTask {
+func newPendingStopTask(stopTask Task, options ...TaskOption) *pendingStopTask {
 	return &pendingStopTask{
 		task:     stopTask,
+		options:  options,
 		resolved: newResolved(),
 	}
 }

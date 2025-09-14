@@ -54,16 +54,13 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 	return ServiceFunc(start, stop)
 }
 
-type ServiceToTask interface {
-	Service
-	ToTask(isStart bool) Task
-}
+// type ServiceToTask interface {
+// 	Service
+// 	ToTask(isStart bool) Task
+// }
 
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) Task {
-	if stt, ok := svc.(ServiceToTask); ok {
-		return stt.ToTask(isStart)
-	}
 	return &serviceTask{svc: svc, isStart: isStart}
 }
 
