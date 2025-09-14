@@ -139,25 +139,6 @@ func (s *serviceWithCallback) Stop(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
-type serviceTaskWithCallback struct {
-	svc      ServiceTask
-	callback TaskCallback
-}
-
-var _ ServiceTask = (*serviceTaskWithCallback)(nil)
-
-func (s *serviceTaskWithCallback) Service() Service {
-	return s.svc.Service()
-}
-
-func (s *serviceTaskWithCallback) IsStart() bool {
-	return s.svc.IsStart()
-}
-
-func (s *serviceTaskWithCallback) Run(ctx context.Context) error {
-	return runTask(ctx, s.svc, s.callback)
-}
-
 type serviceFunc struct {
 	start Task
 	stop  Task
