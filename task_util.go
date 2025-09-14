@@ -210,6 +210,8 @@ type wrappedTask struct {
 	handler func(ctx context.Context, task Task) error
 }
 
+var _ WrappedTask = (*wrappedTask)(nil)
+
 func (t *wrappedTask) Run(ctx context.Context) error {
 	if t.handler == nil {
 		return t.task.Run(ctx)

@@ -126,6 +126,7 @@ func ServiceWithCallback(service Service, callback TaskCallback) Service {
 	}
 }
 
+// WrapTask wraps a task in a WrappedTask, allowing the handler to be customized.
 func WrapTask(task Task, options ...WrapTaskOption) Task {
 	if task == nil {
 		return task
@@ -141,6 +142,7 @@ func WrapTask(task Task, options ...WrapTaskOption) Task {
 
 type WrapTaskOption func(task *wrappedTask)
 
+// WithWrapTaskHandler sets an optional handler for the task.
 func WithWrapTaskHandler(handler func(ctx context.Context, task Task) error) WrapTaskOption {
 	return func(task *wrappedTask) {
 		task.handler = handler

@@ -205,21 +205,6 @@ func (s StartServiceCmd) ManualStopCancel() StopTask {
 		cancel(ErrExit)
 		return task.Run(ctx)
 	})), s.options...)
-	// return s.s.addPendingStopTask(TaskFunc(func(ctx context.Context) error {
-	// 	cancel(ErrExit)
-	// 	return stopTask.Run(ctx)
-	// }), s.options...)
-	// return s.s.addPendingStopTask(stopTask, slices.Concat(s.options, []TaskOption{
-	// 	WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task) {
-	// 		cancel(ErrExit)
-	// 	}, nil)),
-	// })...)
-	// return s.s.addPendingStopTask(&serviceTaskWithCallback{
-	// 	svc: stopTask,
-	// 	callback: TaskCallbackFunc(func(ctx context.Context, task Task) {
-	// 		cancel(ErrExit)
-	// 	}, nil),
-	// }, s.options...)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
