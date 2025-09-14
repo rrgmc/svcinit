@@ -6,7 +6,36 @@ import (
 	"sync"
 )
 
-// ServiceTask is a Task implemented from a Service.
+type taskCallbackFunc struct {
+	beforeRun func(ctx context.Context, task Task)
+	afterRun  func(ctx context.Context, task Task, err error)
+}
+
+func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task) {
+	if t.beforeRun != nil {
+		t.beforeRun(ctx, task)
+	}
+}
+
+func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
+	if t.afterRun != nil {
+		t.afterRun(ctx, task, err)
+	}
+}
+
+func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
+	var ret []TaskCallback
+	for _, callbackList := range callbacks {
+		for _, callback := range callbackList {
+			if callback != nil {
+				ret = append(ret, callback)
+			}
+		}
+	}
+	return ret
+}
+
+// serviceTask is a Task implemented from a Service.
 // Use Service to get the source service instance.
 type serviceTask struct {
 	svc     Service
@@ -30,22 +59,22 @@ func (s *serviceTask) Run(ctx context.Context) error {
 
 // multipleTask runs multiple tasks in parallel, wrapped in a single Task.
 type multipleTask struct {
-	tasks    []Task
+	tasks    []taskWrapper
 	resolved resolved
 }
 
-var _ WrappedTasks = (*multipleTask)(nil)
+// var _ WrappedTasks = (*multipleTask)(nil)
 
-func newMultipleTask(tasks ...Task) Task {
+func newMultipleTask(tasks ...taskWrapper) Task {
 	return &multipleTask{
 		tasks:    tasks,
 		resolved: newResolved(),
 	}
 }
 
-func (t *multipleTask) WrappedTasks() []Task {
-	return t.tasks
-}
+// func (t *multipleTask) WrappedTasks() []Task {
+// 	return t.tasks
+// }
 
 func (t *multipleTask) Run(ctx context.Context) error {
 	allErr := newMultiErrorBuilder()
@@ -55,7 +84,7 @@ func (t *multipleTask) Run(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := st.Run(ctx)
+			err := st.run(ctx)
 			if err != nil {
 				allErr.add(err)
 			}

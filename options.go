@@ -12,17 +12,14 @@ type taskOptions struct {
 	callback TaskCallback
 }
 
-// func parseTaskOptions(task Task, opts ...TaskOption) Task {
+// func parseTaskOptions(opts ...TaskOption) taskOptions {
 // 	var optns taskOptions
 // 	for _, opt := range opts {
 // 		opt(&optns)
 // 	}
-// 	if optns.callback != nil {
-// 		task = TaskWithCallback(task, optns.callback)
-// 	}
-// 	return task
+// 	return optns
 // }
-//
+
 // func parseServiceTaskOptions(svc Service, opts ...TaskOption) Service {
 // 	var optns taskOptions
 // 	for _, opt := range opts {

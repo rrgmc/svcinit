@@ -56,7 +56,7 @@ func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceC
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopTask(task Task) {
-	s.cleanup = append(s.cleanup, task)
+	s.cleanup = append(s.cleanup, newStopTaskWrapper(task))
 }
 
 // StopTaskFunc adds a shutdown task. The shutdown will be done in the order they are added.
@@ -84,24 +84,24 @@ func (s *SvcInit) StopMultipleManualTasks(tasks ...StopTask) {
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
 func (s *SvcInit) StopMultipleTasks(f func(MultipleTaskBuilder)) {
-	var multiTasks []Task
+	var multiTasks []taskWrapper
 	mtb := &multipleTaskBuilder{
 		stopManualTask: func(task StopTask) {
 			multiTasks = append(multiTasks, s.taskFromStopTask(task))
 		},
 		stopTask: func(task Task) {
-			multiTasks = append(multiTasks, task)
+			multiTasks = append(multiTasks, newStopTaskWrapper(task))
 		},
 	}
 	f(mtb)
 	if len(multiTasks) > 0 {
-		s.StopTask(NewMultipleTask(multiTasks...))
+		s.StopTask(newMultipleTask(multiTasks...))
 	}
 }
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *SvcInit) AutoStopTask(task Task) {
-	s.autoCleanup = append(s.autoCleanup, task)
+	s.autoCleanup = append(s.autoCleanup, newStopTaskWrapper(task))
 }
 
 // AutoStopTaskFunc adds a shutdown task, when the shutdown order DOES NOT matter.
@@ -227,12 +227,5 @@ func (s StartServiceCmd) isResolved() bool {
 // If checkFinished is true, a context will be returned that will be done when the task finishes executing.
 // This is used to make the stop task wait the start task finish.
 func (s *SvcInit) addTask(ctx context.Context, fn Task, options ...TaskOption) {
-	newTask := taskWrapper{
-		ctx:  ctx,
-		task: fn,
-	}
-	for _, option := range options {
-		option(&newTask.options)
-	}
-	s.tasks = append(s.tasks, newTask)
+	s.tasks = append(s.tasks, newTaskWrapper(ctx, fn, options...))
 }

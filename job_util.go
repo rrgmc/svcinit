@@ -1,10 +1,14 @@
 package svcinit
 
-func (s *SvcInit) taskFromStopTask(task StopTask) Task {
+import "slices"
+
+func (s *SvcInit) taskFromStopTask(task StopTask) taskWrapper {
+	var optns []TaskOption
 	if ps, ok := task.(*pendingStopTask); ok {
 		ps.setResolved()
+		optns = slices.Clone(ps.options)
 	}
-	return task.stopTask()
+	return newStopTaskWrapper(task.stopTask(), optns...)
 }
 
 type pendingItem interface {

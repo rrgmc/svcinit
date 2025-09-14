@@ -59,6 +59,21 @@ func ServiceTaskFunc(start, stop TaskFunc) Service {
 // 	ToTask(isStart bool) Task
 // }
 
+// TaskCallback is called before and after the task is run.
+type TaskCallback interface {
+	BeforeRun(ctx context.Context, task Task)
+	AfterRun(ctx context.Context, task Task, err error)
+}
+
+// TaskCallbackFunc is called before and after the task is run.
+func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
+	afterRun func(ctx context.Context, task Task, err error)) TaskCallback {
+	return taskCallbackFunc{
+		beforeRun: beforeRun,
+		afterRun:  afterRun,
+	}
+}
+
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) Task {
 	return &serviceTask{svc: svc, isStart: isStart}
@@ -76,7 +91,11 @@ type MultipleTaskBuilder interface {
 }
 
 func NewMultipleTask(tasks ...Task) Task {
-	return newMultipleTask(tasks...)
+	var t []taskWrapper
+	for _, task := range tasks {
+		t = append(t, newTaskWrapper(nil, task))
+	}
+	return newMultipleTask(t...)
 }
 
 // TaskWithCallback wraps a service with a callback to be called before and after it runs.
