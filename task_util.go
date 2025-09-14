@@ -187,3 +187,31 @@ func (t *wrappedTask) Run(ctx context.Context) error {
 func (t *wrappedTask) WrappedTask() Task {
 	return t.task
 }
+
+type wrappedService struct {
+	svc          Service
+	startHandler func(ctx context.Context, svc Service) error
+	stopHandler  func(ctx context.Context, svc Service) error
+}
+
+var _ Service = (*wrappedService)(nil)
+
+// var _ WrappedService = (*wrappedService)(nil)
+
+func (t *wrappedService) Start(ctx context.Context) error {
+	if t.startHandler == nil {
+		return t.svc.Start(ctx)
+	}
+	return t.startHandler(ctx, t.svc)
+}
+
+func (t *wrappedService) Stop(ctx context.Context) error {
+	if t.stopHandler == nil {
+		return t.svc.Stop(ctx)
+	}
+	return t.stopHandler(ctx, t.svc)
+}
+
+func (t *wrappedService) WrappedService() Service {
+	return t.svc
+}
