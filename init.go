@@ -40,8 +40,8 @@ type SvcInit struct {
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options
-	startedCallback                     func(ctx context.Context) error
-	stoppedCallback                     func(ctx context.Context) error
+	startingCallback, startedCallback   func(ctx context.Context) error
+	stoppingCallback, stoppedCallback   func(ctx context.Context, cause error) error
 	startTaskCallback, stopTaskCallback TaskCallback
 	shutdownTimeout                     time.Duration
 	enforceShutdownTimeout              bool
@@ -56,12 +56,18 @@ func (s *SvcInit) RunWithErrors() (cause error, cleanupErr error) {
 	if len(s.tasks) == 0 {
 		return nil, nil
 	}
-	s.start()
+	err := s.start()
+	if err != nil {
+		return err, nil
+	}
 	<-s.cancelCtx.Done()
 	s.unorderedCancel(context.Cause(s.cancelCtx))
-	cleanupErr = s.shutdown()
-	s.wg.Wait()
 	cause = context.Cause(s.cancelCtx)
+	err, cleanupErr = s.shutdown(cause)
+	if err != nil {
+		return err, nil
+	}
+	s.wg.Wait()
 	if errors.Is(cause, ErrExit) || errors.Is(cause, context.Canceled) {
 		cause = nil
 	}
@@ -77,16 +83,4 @@ func (s *SvcInit) Run() error {
 // Shutdown starts the shutdown process as if a task finished.
 func (s *SvcInit) Shutdown() {
 	s.cancel(ErrExit)
-}
-
-// SetStartedCallback sets a callback to be called after all tasks were initialized.
-// It overrides the WithStartedCallback option.
-func (s *SvcInit) SetStartedCallback(startedCallback func(ctx context.Context) error) {
-	s.startedCallback = startedCallback
-}
-
-// SetStoppedCallback sets a callback to be called after all tasks were stopped.
-// It overrides the WithStoppedCallback option.
-func (s *SvcInit) SetStoppedCallback(stoppedCallback func(ctx context.Context) error) {
-	s.stoppedCallback = stoppedCallback
 }

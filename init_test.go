@@ -195,12 +195,14 @@ func TestSvcInit(t *testing.T) {
 
 			tasks := []testService{task1, task2, task3, task4, task5}
 
-			sinit.SetStartedCallback(func(ctx context.Context) error {
-				for _, taskNo := range test.cancelFn() {
-					tasks[taskNo-1].cancel()
-				}
-				return nil
-			})
+			sinit.SetOptions(
+				WithStartedCallback(func(ctx context.Context) error {
+					for _, taskNo := range test.cancelFn() {
+						tasks[taskNo-1].cancel()
+					}
+					return nil
+				}),
+			)
 
 			sinit.StopManualTask(i2Stop)
 			sinit.StopManualTask(i3Stop)
@@ -308,7 +310,7 @@ func TestSvcInitCallback(t *testing.T) {
 			runStarted.Store(true)
 			return nil
 		}),
-		WithStoppedCallback(func(ctx context.Context) error {
+		WithStoppedCallback(func(ctx context.Context, cause error) error {
 			runStopped.Store(true)
 			return nil
 		}),

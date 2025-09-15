@@ -5,7 +5,14 @@ import (
 	"sync"
 )
 
-func (s *SvcInit) start() {
+func (s *SvcInit) start() error {
+	if s.startingCallback != nil {
+		if serr := s.startingCallback(s.ctx); serr != nil {
+			s.cancel(serr)
+			return serr
+		}
+	}
+
 	var runWg sync.WaitGroup
 
 	// start all tasks in separate goroutines.
@@ -29,9 +36,17 @@ func (s *SvcInit) start() {
 			s.cancel(serr)
 		}
 	}
+
+	return nil
 }
 
-func (s *SvcInit) shutdown() error {
+func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
+	if s.stoppingCallback != nil {
+		if serr := s.stoppingCallback(s.shutdownCtx, cause); serr != nil {
+			return serr, nil
+		}
+	}
+
 	var (
 		wg sync.WaitGroup
 	)
@@ -79,12 +94,12 @@ func (s *SvcInit) shutdown() error {
 	}
 
 	if s.stoppedCallback != nil {
-		if serr := s.stoppedCallback(s.shutdownCtx); serr != nil {
+		if serr := s.stoppedCallback(s.shutdownCtx, cause); serr != nil {
 			errorBuilder.add(serr)
 		}
 	}
 
-	return errorBuilder.build()
+	return nil, errorBuilder.build()
 }
 
 func (s *SvcInit) checkPending() error {

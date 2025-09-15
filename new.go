@@ -17,13 +17,18 @@ func New(ctx context.Context, options ...Option) *SvcInit {
 		shutdownTimeout:        10 * time.Second,
 		enforceShutdownTimeout: true,
 	}
+	s.SetOptions(options...)
+	return s
+}
+
+// SetOptions allows overriding the options.
+func (s *SvcInit) SetOptions(options ...Option) {
 	for _, opt := range options {
 		opt(s)
 	}
 	if s.shutdownCtx == nil {
-		s.shutdownCtx = context.WithoutCancel(ctx)
+		s.shutdownCtx = context.WithoutCancel(s.ctx)
 	}
-	return s
 }
 
 // WithShutdownContext sets a separate context to use for shutdown.
@@ -52,15 +57,34 @@ func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 	}
 }
 
+// WithStartingCallback sets a callback to be called before tasks are run.
+// Returning an error will skip running all tasks and just returns the error from [SvcInit.Run].
+func WithStartingCallback(startingCallback func(ctx context.Context) error) Option {
+	return func(s *SvcInit) {
+		s.startingCallback = startingCallback
+	}
+}
+
 // WithStartedCallback sets a callback to be called after all tasks were initialized.
+// Returning an error will be the same as if one of the tasks returned that error.
 func WithStartedCallback(startedCallback func(ctx context.Context) error) Option {
 	return func(s *SvcInit) {
 		s.startedCallback = startedCallback
 	}
 }
 
+// WithStoppingCallback sets a callback to be called before tasks area stopped.
+// WARNING: returning an error from this callback WILL SKIP STOPPING TASKS and just returns the error from the
+// [SvcInit.Run] function.
+func WithStoppingCallback(stoppingCallback func(ctx context.Context, cause error) error) Option {
+	return func(s *SvcInit) {
+		s.stoppingCallback = stoppingCallback
+	}
+}
+
 // WithStoppedCallback sets a callback to be called after all tasks were stopped.
-func WithStoppedCallback(stoppedCallback func(ctx context.Context) error) Option {
+// Returning an error will be the same as if one stop task returned an error.
+func WithStoppedCallback(stoppedCallback func(ctx context.Context, cause error) error) Option {
 	return func(s *SvcInit) {
 		s.stoppedCallback = stoppedCallback
 	}
