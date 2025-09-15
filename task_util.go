@@ -123,16 +123,16 @@ func (sf *serviceFunc) Stop(ctx context.Context) error {
 }
 
 type multipleTaskBuilder struct {
-	stopManualTask func(task StopTask)
-	stopTask       func(task Task)
+	stopTask func(task StopTask)
+	stop     func(task Task)
 }
 
-func (m *multipleTaskBuilder) StopManualTask(task StopTask) {
-	m.stopManualTask(task)
-}
-
-func (m *multipleTaskBuilder) StopTask(task Task) {
+func (m *multipleTaskBuilder) StopTask(task StopTask) {
 	m.stopTask(task)
+}
+
+func (m *multipleTaskBuilder) Stop(task Task) {
+	m.stop(task)
 }
 
 type wrappedTask struct {

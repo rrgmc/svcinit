@@ -78,8 +78,8 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 }
 
 type MultipleTaskBuilder interface {
-	StopManualTask(task StopTask)
-	StopTask(task Task)
+	StopTask(task StopTask)
+	Stop(task Task)
 }
 
 // NewMultipleTask creates a Task from multiple tasks. The tasks will be run in parallel.
