@@ -13,9 +13,12 @@ import (
 	"github.com/rrgmc/svcinit"
 )
 
+// healthService wraps an HTTP service in a [svcinit.Service] interface.
 type healthService struct {
 	server *http.Server
 }
+
+var _ svcinit.Service = (*healthService)(nil)
 
 func (s *healthService) Start(ctx context.Context) error {
 	s.server.BaseContext = func(net.Listener) context.Context {
@@ -55,6 +58,13 @@ func ExampleSvcInit() {
 
 	sinit := svcinit.New(ctx)
 
+	// start health HTTP server as a service using manual stop ordering.
+	// it is only started on the Run call.
+	healthStop := sinit.
+		StartService(healthHTTPServer).
+		// stop the service using the Stop call WITHOUT cancelling the Start context.
+		Stop()
+
 	// start core HTTP server using manual stop ordering.
 	// uses the task method instead of the service call. In the end it is the same thing, but the Service interface
 	// can be implemented and reused.
@@ -70,13 +80,6 @@ func ExampleSvcInit() {
 		Stop(svcinit.TaskFunc(func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
 		}))
-
-	// start health HTTP server as a service using manual stop ordering.
-	// it is only started on the Run call.
-	healthStop := sinit.
-		StartService(healthHTTPServer).
-		// stop the service using the Stop call WITHOUT cancelling the Start context.
-		Stop()
 
 	// start a dummy task where the stop order doesn't matter.
 	// unordered tasks are stopped in parallel.
