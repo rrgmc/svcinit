@@ -4,17 +4,17 @@ import (
 	"context"
 )
 
-// ExecuteTask executes the passed task when the shutdown order DOES NOT matter.
+// Execute executes the passed task when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled on stop.
 // The task is only executed at the Run call.
-func (s *SvcInit) ExecuteTask(task Task, options ...TaskOption) {
+func (s *SvcInit) Execute(task Task, options ...TaskOption) {
 	s.addTask(s.unorderedCancelCtx, task, options...)
 }
 
-// StartTask executes a task and allows the shutdown method to be customized.
+// Start executes a task and allows the shutdown method to be customized.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *SvcInit) StartTask(task Task, options ...TaskOption) StartTaskCmd {
+func (s *SvcInit) Start(task Task, options ...TaskOption) StartTaskCmd {
 	cmd := StartTaskCmd{
 		s:        s,
 		start:    task,
@@ -40,31 +40,31 @@ func (s *SvcInit) StartService(svc Service, options ...TaskOption) StartServiceC
 	return cmd
 }
 
-// StopTask adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopTask(task Task, options ...TaskOption) {
+// Stop adds a shutdown task. The shutdown will be done in the order they are added.
+func (s *SvcInit) Stop(task Task, options ...TaskOption) {
 	s.cleanup = append(s.cleanup, newStopTaskWrapper(task, options...))
 }
 
-// StopManualTask adds a shutdown task. The shutdown will be done in the order they are added.
-func (s *SvcInit) StopManualTask(task StopTask) {
+// StopManual adds a shutdown task. The shutdown will be done in the order they are added.
+func (s *SvcInit) StopManual(task StopTask) {
 	s.cleanup = append(s.cleanup, s.taskFromStopTask(task))
 }
 
-// StopMultipleManualTasks adds a shutdown task. The shutdown will be done in the order they are added.
+// StopMultipleManual adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
-func (s *SvcInit) StopMultipleManualTasks(tasks ...StopTask) {
-	s.StopMultipleTasks(func(builder MultipleTaskBuilder) {
+func (s *SvcInit) StopMultipleManual(tasks ...StopTask) {
+	s.StopMultiple(func(builder MultipleTaskBuilder) {
 		for _, task := range tasks {
 			builder.StopManualTask(task)
 		}
 	})
 }
 
-// StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
+// StopMultiple adds a shutdown task. The shutdown will be done in the order they are added.
 // This method groups a list of stop tasks into a single one and run all of them in parallel.
 // In this case, order between these tasks are undefined.
-func (s *SvcInit) StopMultipleTasks(f func(MultipleTaskBuilder)) {
+func (s *SvcInit) StopMultiple(f func(MultipleTaskBuilder)) {
 	var multiTasks []taskWrapper
 	mtb := &multipleTaskBuilder{
 		stopManualTask: func(task StopTask) {
@@ -76,12 +76,12 @@ func (s *SvcInit) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 	}
 	f(mtb)
 	if len(multiTasks) > 0 {
-		s.StopTask(newMultipleTask(multiTasks...))
+		s.Stop(newMultipleTask(multiTasks...))
 	}
 }
 
-// AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
-func (s *SvcInit) AutoStopTask(task Task, options ...TaskOption) {
+// AutoStop adds a shutdown task, when the shutdown order DOES NOT matter.
+func (s *SvcInit) AutoStop(task Task, options ...TaskOption) {
 	s.autoCleanup = append(s.autoCleanup, newStopTaskWrapper(task, options...))
 }
 
@@ -101,21 +101,21 @@ func (s StartTaskCmd) AutoStop() {
 
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
+// The returned StopTask must be added in order to [SvcInit.Stop].
 func (s StartTaskCmd) ManualStopCancel(stopOptions ...TaskOption) StopTask {
 	return s.stopCancel(nil, stopOptions...)
 }
 
 // ManualStopCancelTask returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
+// The returned StopTask must be added in order to [SvcInit.Stop].
 func (s StartTaskCmd) ManualStopCancelTask(stop Task, stopOptions ...TaskOption) StopTask {
 	return s.stopCancel(stop, stopOptions...)
 }
 
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
+// The returned StopTask must be added in order to [SvcInit.Stop].
 func (s StartTaskCmd) ManualStop(stop Task, stopOptions ...TaskOption) StopTask {
 	s.resolved.setResolved()
 	s.s.addTask(s.s.ctx, s.start, s.options...)
@@ -163,7 +163,7 @@ func (s StartServiceCmd) AutoStop() {
 
 // ManualStopCancel returns a StopTask to be stopped when the order matters.
 // The context passed to the task will be canceled BEFORE calling the stop task.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
+// The returned StopTask must be added in order to [SvcInit.Stop].
 func (s StartServiceCmd) ManualStopCancel() StopTask {
 	s.resolved.setResolved()
 	ctx, cancel := context.WithCancelCause(s.s.ctx)
@@ -177,7 +177,7 @@ func (s StartServiceCmd) ManualStopCancel() StopTask {
 
 // ManualStop returns a StopTask to be stopped when the order matters.
 // The context passed to the task will NOT be canceled.
-// The returned StopTask must be added in order to [SvcInit.StopTask].
+// The returned StopTask must be added in order to [SvcInit.Stop].
 func (s StartServiceCmd) ManualStop() StopTask {
 	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)

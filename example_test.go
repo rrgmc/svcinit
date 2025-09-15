@@ -45,20 +45,20 @@ func ExampleSvcInit() {
 		}, func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
 		})).
-		ManualStop() // stop the service using the StopTask call WITHOUT cancelling the Start context.
+		ManualStop() // stop the service using the Stop call WITHOUT cancelling the Start context.
 
 	// start health HTTP server using manual stop ordering.
 	// uses the task method instead of the service call. In the end it is the same thing, but the Service interface
 	// can be implemented and reused.
 	// it is only started on the Run call.
 	healthStop := sinit.
-		StartTask(svcinit.TaskFunc(func(ctx context.Context) error {
+		Start(svcinit.TaskFunc(func(ctx context.Context) error {
 			healthHTTPServer.BaseContext = func(net.Listener) context.Context {
 				return ctx
 			}
 			return healthHTTPServer.ListenAndServe()
 		})).
-		// stop the service using the StopTask call WITHOUT cancelling the Start context.
+		// stop the service using the Stop call WITHOUT cancelling the Start context.
 		ManualStop(svcinit.TaskFunc(func(ctx context.Context) error {
 			return healthHTTPServer.Shutdown(ctx)
 		}))
@@ -66,7 +66,7 @@ func ExampleSvcInit() {
 	// start a dummy task where the stop order doesn't matter.
 	// unordered tasks are stopped in parallel.
 	sinit.
-		StartTask(svcinit.TaskFunc(func(ctx context.Context) error {
+		Start(svcinit.TaskFunc(func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 			}
@@ -76,17 +76,17 @@ func ExampleSvcInit() {
 
 	// shutdown on OS signal.
 	// it is only started on the Run call.
-	sinit.ExecuteTask(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+	sinit.Execute(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
 	// sleep 10 seconds and shutdown.
 	// it is only started on the Run call.
-	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
+	sinit.Execute(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
 
 	// add manual stops. They will be stopped in the added order.
 
 	// stop HTTP server before health server
-	sinit.StopManualTask(httpStop)
-	sinit.StopManualTask(healthStop)
+	sinit.StopManual(httpStop)
+	sinit.StopManual(healthStop)
 
 	err := sinit.Run()
 	if err != nil {
