@@ -40,9 +40,9 @@ type SvcInit struct {
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options
-	startingCallback, startedCallback   func(ctx context.Context) error
-	stoppingCallback, stoppedCallback   func(ctx context.Context, cause error) error
-	startTaskCallback, stopTaskCallback TaskCallback
+	startingCallback, startedCallback   []func(ctx context.Context) error
+	stoppingCallback, stoppedCallback   []func(ctx context.Context, cause error) error
+	startTaskCallback, stopTaskCallback []TaskCallback
 	shutdownTimeout                     time.Duration
 	enforceShutdownTimeout              bool
 }

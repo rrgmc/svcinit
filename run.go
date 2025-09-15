@@ -7,9 +7,11 @@ import (
 
 func (s *SvcInit) start() error {
 	if s.startingCallback != nil {
-		if serr := s.startingCallback(s.ctx); serr != nil {
-			s.cancel(serr)
-			return serr
+		for _, scallback := range s.startingCallback {
+			if serr := scallback(s.ctx); serr != nil {
+				s.cancel(serr)
+				return serr
+			}
 		}
 	}
 
@@ -22,7 +24,7 @@ func (s *SvcInit) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, s.startTaskCallback)
+			err := task.run(task.ctx, s.startTaskCallback...)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -32,8 +34,10 @@ func (s *SvcInit) start() error {
 	}
 	runWg.Wait()
 	if s.startedCallback != nil {
-		if serr := s.startedCallback(s.ctx); serr != nil {
-			s.cancel(serr)
+		for _, scallback := range s.startedCallback {
+			if serr := scallback(s.ctx); serr != nil {
+				s.cancel(serr)
+			}
 		}
 	}
 
@@ -42,8 +46,10 @@ func (s *SvcInit) start() error {
 
 func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
 	if s.stoppingCallback != nil {
-		if serr := s.stoppingCallback(s.shutdownCtx, cause); serr != nil {
-			return serr, nil
+		for _, scallback := range s.stoppingCallback {
+			if serr := scallback(s.shutdownCtx, cause); serr != nil {
+				return serr, nil
+			}
 		}
 	}
 
@@ -66,7 +72,7 @@ func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
 		for _, task := range s.autoCleanup {
 			go func() {
 				defer wg.Done()
-				err := task.run(ctx, s.stopTaskCallback)
+				err := task.run(ctx, s.stopTaskCallback...)
 				errorBuilder.add(err)
 			}()
 		}
@@ -78,7 +84,7 @@ func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
 		go func() {
 			defer wg.Done()
 			for _, task := range s.cleanup {
-				err := task.run(ctx, s.stopTaskCallback)
+				err := task.run(ctx, s.stopTaskCallback...)
 				errorBuilder.add(err)
 			}
 		}()
@@ -94,8 +100,10 @@ func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
 	}
 
 	if s.stoppedCallback != nil {
-		if serr := s.stoppedCallback(s.shutdownCtx, cause); serr != nil {
-			errorBuilder.add(serr)
+		for _, scallback := range s.stoppedCallback {
+			if serr := scallback(s.shutdownCtx, cause); serr != nil {
+				errorBuilder.add(serr)
+			}
 		}
 	}
 
