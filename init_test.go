@@ -263,7 +263,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 }
 
 func TestSvcInitCallback(t *testing.T) {
-	var runStarted, runStopped atomic.Bool
+	var runStarted, runStopped atomic.Int32
 	started := &testList[int]{}
 	stopped := &testList[int]{}
 
@@ -306,12 +306,20 @@ func TestSvcInitCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
+		WithStartingCallback(func(ctx context.Context) error {
+			runStarted.Add(1)
+			return nil
+		}),
 		WithStartedCallback(func(ctx context.Context) error {
-			runStarted.Store(true)
+			runStarted.Add(1)
+			return nil
+		}),
+		WithStoppingCallback(func(ctx context.Context, cause error) error {
+			runStopped.Add(1)
 			return nil
 		}),
 		WithStoppedCallback(func(ctx context.Context, cause error) error {
-			runStopped.Store(true)
+			runStopped.Add(1)
 			return nil
 		}),
 		WithStartTaskCallback(
@@ -374,8 +382,8 @@ func TestSvcInitCallback(t *testing.T) {
 
 	err := sinit.Run()
 	assert.NilError(t, err)
-	assert.Assert(t, runStarted.Load())
-	assert.Assert(t, runStopped.Load())
+	assert.Equal(t, int32(2), runStarted.Load())
+	assert.Equal(t, int32(2), runStopped.Load())
 	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
