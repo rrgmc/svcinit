@@ -132,7 +132,7 @@ func (s *SvcInit) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
-func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) StopTask {
+func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) StopFuture {
 	st := newPendingStopTask(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
@@ -175,7 +175,7 @@ func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskW
 		task: task,
 	}
 	for _, option := range options {
-		option(&ret.options)
+		option.taskOption(&ret.options)
 	}
 	return ret
 }

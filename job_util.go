@@ -2,7 +2,7 @@ package svcinit
 
 import "slices"
 
-func (s *SvcInit) taskFromStopTask(task StopTask) taskWrapper {
+func (s *SvcInit) taskFromStopTask(task StopFuture) taskWrapper {
 	var optns []TaskOption
 	if ps, ok := task.(*pendingStopTask); ok {
 		ps.setResolved()
@@ -21,7 +21,7 @@ type pendingStopTask struct {
 	resolved resolved
 }
 
-var _ StopTask = (*pendingStopTask)(nil)
+var _ StopFuture = (*pendingStopTask)(nil)
 
 func newPendingStopTask(stopTask Task, options ...TaskOption) *pendingStopTask {
 	return &pendingStopTask{

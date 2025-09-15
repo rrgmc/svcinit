@@ -14,7 +14,8 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
-type StopTask interface {
+// StopFuture is a stop task to be scheduled using [SvcInit.StopFuture].
+type StopFuture interface {
 	stopTask() Task
 }
 
@@ -78,7 +79,7 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 }
 
 type MultipleTaskBuilder interface {
-	StopTask(task StopTask)
+	StopTask(task StopFuture)
 	Stop(task Task)
 }
 
