@@ -11,6 +11,7 @@ var (
 	ErrExit            = errors.New("normal exit")
 	ErrShutdownTimeout = errors.New("shutdown timeout")
 	ErrPending         = errors.New("pending start or stop command")
+	ErrNoTask          = errors.New("no tasks available")
 )
 
 // Manager schedules tasks to be run and stopped on service initialization.
@@ -53,7 +54,7 @@ func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
 		return err, nil
 	}
 	if len(s.tasks) == 0 {
-		return nil, nil
+		return ErrNoTask, nil
 	}
 	err := s.start()
 	if err != nil {

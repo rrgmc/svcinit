@@ -386,6 +386,14 @@ func TestManagerCallback(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
+func TestManagerWithoutTask(t *testing.T) {
+	ctx := context.Background()
+
+	sinit := New(ctx)
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrNoTask)
+}
+
 func TestManagerShutdownOptions(t *testing.T) {
 	ctx := context.Background()
 	shutdownCtx := context.WithValue(ctx, "test-shutdown", 5)
