@@ -412,6 +412,46 @@ func TestManagerShutdownOptions(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+func TestManagerTaskWithID(t *testing.T) {
+	ctx := context.Background()
+
+	started := &testList[string]{}
+	stopped := &testList[string]{}
+
+	sinit := newTestManager(ctx,
+		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+			if tid, ok := task.(TaskWithID); ok {
+				if tstr, ok := tid.TaskID().(string); ok {
+					started.add(tstr)
+				}
+			}
+		}, nil)),
+		WithStopTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+			if tid, ok := task.(TaskWithID); ok {
+				if tstr, ok := tid.TaskID().(string); ok {
+					stopped.add(tstr)
+				}
+			}
+		}, nil)),
+	)
+
+	sinit.
+		StartTask(WrapTaskWithID("t1start", TaskFunc(func(ctx context.Context) error {
+			return nil
+		}))).
+		AutoStop(WrapTaskWithID("t1stop", TaskFunc(func(ctx context.Context) error {
+			return nil
+		})))
+
+	sinit.Shutdown()
+	err := sinit.Run()
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, []string{"t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+	assert.DeepEqual(t, []string{"t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+
+}
+
 func TestManagerPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 

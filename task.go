@@ -96,13 +96,13 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 
 // WrapTaskWithID wraps a Task as a TaskWithID.
 // Note: it DOES NOT implements WrappedTask.
-func WrapTaskWithID(task Task, id any) *WrappedTaskWithID {
+func WrapTaskWithID(id any, task Task) *WrappedTaskWithID {
 	return &WrappedTaskWithID{task: task, id: id}
 }
 
 // WrapServiceWithID wraps a Service as a ServiceWithID.
 // Note: it DOES NOT implements WrappedService.
-func WrapServiceWithID(svc Service, id any) *WrappedServiceWithID {
+func WrapServiceWithID(id any, svc Service) *WrappedServiceWithID {
 	return &WrappedServiceWithID{svc: svc, id: id}
 }
 
