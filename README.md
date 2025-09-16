@@ -101,7 +101,7 @@ func ExampleManager() {
             }
             return nil
         })).
-        AutoStop() // cancel the context of the start function on shutdown.
+        AutoStopContext() // cancel the context of the start function on shutdown.
 
     // shutdown on OS signal.
     // it is only started on the Run call.
