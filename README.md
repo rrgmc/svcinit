@@ -73,8 +73,8 @@ func ExampleSvcInit() {
     // it is only started on the Run call.
     healthStop := sinit.
         StartService(healthHTTPServer).
-        // stop the service using the Stop call WITHOUT cancelling the Start context.
-        Stop()
+        // stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
+        FutureStop()
 
     // start core HTTP server using manual stop ordering.
     // uses the task method instead of the service call. In the end it is the same thing, but the Service interface
@@ -87,8 +87,8 @@ func ExampleSvcInit() {
             }
             return httpServer.ListenAndServe()
         })).
-        // stop the service using the Stop call WITHOUT cancelling the Start context.
-        Stop(svcinit.TaskFunc(func(ctx context.Context) error {
+        // stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
+        FutureStop(svcinit.TaskFunc(func(ctx context.Context) error {
             return httpServer.Shutdown(ctx)
         }))
 
@@ -114,8 +114,8 @@ func ExampleSvcInit() {
     // add manual stops. They will be stopped in the added order.
 
     // stop HTTP server before health server
-    sinit.StopTask(httpStop)
-    sinit.StopTask(healthStop)
+    sinit.StopFuture(httpStop)
+    sinit.StopFuture(healthStop)
 
     err := sinit.Run()
     if err != nil {
