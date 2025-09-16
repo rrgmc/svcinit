@@ -277,27 +277,27 @@ func TestManagerCallback(t *testing.T) {
 		}
 	}
 
-	individualTaskCallback := func(taskNo int, isStop bool, isBefore bool) func(ctx context.Context, task Task) {
+	individualTaskCallback := func(taskNo int, isStart bool, isBefore bool) func(ctx context.Context, task Task) {
 		return func(ctx context.Context, task Task) {
 			stdAdd := 0
 			if st, ok := task.(ServiceTask); ok {
 				if _, ok := st.Service().(*testService); !ok {
 					assert.Check(t, false, "service is not of the expected type but %T", task)
 				}
-				isStop = !st.IsStart()
+				isStart = st.IsStart()
 				stdAdd = 4
 			} else if _, ok := task.(*testTask); !ok {
-				assert.Check(t, false, "task %d (isStop:%t)(isBefore:%t) is not of the expected type but %T",
-					taskNo, isStop, isBefore, task)
+				assert.Check(t, false, "task %d (isStart:%t)(isBefore:%t) is not of the expected type but %T",
+					taskNo, isStart, isBefore, task)
 			}
 			if !isBefore {
 				stdAdd++
 			}
-			if isStop {
+			if !isStart {
 				stdAdd += 2
 			}
 
-			if !isStop {
+			if isStart {
 				started.add((taskNo * 10) + stdAdd)
 			} else {
 				stopped.add((taskNo * 10) + stdAdd)
@@ -338,9 +338,9 @@ func TestManagerCallback(t *testing.T) {
 
 	getTaskCallback := func(taskNo int) TaskCallback {
 		return TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
-			individualTaskCallback(taskNo, !isStart, true)(ctx, task)
+			individualTaskCallback(taskNo, isStart, true)(ctx, task)
 		}, func(ctx context.Context, task Task, isStart bool, err error) {
-			individualTaskCallback(taskNo, !isStart, false)(ctx, task)
+			individualTaskCallback(taskNo, isStart, false)(ctx, task)
 		})
 	}
 
