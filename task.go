@@ -79,7 +79,7 @@ func ServiceAsTasks(svc Service) (start, stop Task) {
 }
 
 type MultipleTaskBuilder interface {
-	StopTask(task StopFuture)
+	StopFuture(task StopFuture)
 	Stop(task Task)
 }
 

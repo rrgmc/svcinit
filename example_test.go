@@ -62,7 +62,7 @@ func ExampleSvcInit() {
 	// it is only started on the Run call.
 	healthStop := sinit.
 		StartService(healthHTTPServer).
-		// stop the service using the FutureStopTask call WITHOUT cancelling the Start context.
+		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
 		FutureStop()
 
 	// start core HTTP server using manual stop ordering.
@@ -76,8 +76,8 @@ func ExampleSvcInit() {
 			}
 			return httpServer.ListenAndServe()
 		})).
-		// stop the service using the FutureStopTask call WITHOUT cancelling the Start context.
-		FutureStopTask(svcinit.TaskFunc(func(ctx context.Context) error {
+		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
+		FutureStop(svcinit.TaskFunc(func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
 		}))
 

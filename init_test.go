@@ -174,12 +174,12 @@ func TestSvcInit(t *testing.T) {
 			task2 := defaultTaskSvc(2, true)
 			i2Stop := sinit.
 				Start(ServiceAsTask(task2.svc, true)).
-				FutureStopTask(ServiceAsTask(task2.svc, false))
+				FutureStop(ServiceAsTask(task2.svc, false))
 
 			task3 := defaultTaskSvc(3, true)
 			i3Stop := sinit.
 				Start(ServiceAsTask(task3.svc, true)).
-				FutureStopTask(ServiceAsTask(task3.svc, false), WithCancelContext(true))
+				FutureStop(ServiceAsTask(task3.svc, false), WithCancelContext(true))
 
 			task4 := defaultTaskSvc(4, true)
 			i4Stop := sinit.
@@ -236,7 +236,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 			started.add(1)
 			return nil
 		})).
-		FutureStopTask(TaskFunc(func(ctx context.Context) error {
+		FutureStop(TaskFunc(func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
 		}))
@@ -246,7 +246,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 			started.add(2)
 			return nil
 		})).
-		FutureStopTask(TaskFunc(func(ctx context.Context) error {
+		FutureStop(TaskFunc(func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
 		}))
@@ -349,7 +349,7 @@ func TestSvcInitCallback(t *testing.T) {
 			started.add(1)
 			return nil
 		}), WithTaskCallback(getTaskCallback(1, false))).
-		FutureStopTask(newTestTask(1, func(ctx context.Context) error {
+		FutureStop(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
 		}), WithTaskCallback(getTaskCallback(1, true)))
@@ -359,7 +359,7 @@ func TestSvcInitCallback(t *testing.T) {
 			started.add(2)
 			return nil
 		}), WithTaskCallback(getTaskCallback(2, false))).
-		FutureStopTask(newTestTask(2, func(ctx context.Context) error {
+		FutureStop(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
 		}), WithTaskCallback(getTaskCallback(2, true)))
@@ -417,10 +417,10 @@ func TestSvcInitPendingStartService(t *testing.T) {
 func TestSvcInitPendingStop(t *testing.T) {
 	sinit := New(context.Background())
 
-	// must add stop function to FutureStopTask
+	// must add stop function to FutureStop
 	_ = sinit.Start(TaskFunc(func(ctx context.Context) error {
 		return nil
-	})).FutureStopTask(TaskFunc(func(ctx context.Context) error {
+	})).FutureStop(TaskFunc(func(ctx context.Context) error {
 		return nil
 	}))
 
@@ -431,7 +431,7 @@ func TestSvcInitPendingStop(t *testing.T) {
 func TestSvcInitPendingStopService(t *testing.T) {
 	sinit := New(context.Background())
 
-	// must add stop function to FutureStopTask
+	// must add stop function to FutureStop
 	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
 		return nil
 	}, func(ctx context.Context) error {

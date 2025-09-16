@@ -123,12 +123,12 @@ func (sf *serviceFunc) Stop(ctx context.Context) error {
 }
 
 type multipleTaskBuilder struct {
-	stopTask func(task StopFuture)
-	stop     func(task Task)
+	stopFuture func(task StopFuture)
+	stop       func(task Task)
 }
 
-func (m *multipleTaskBuilder) StopTask(task StopFuture) {
-	m.stopTask(task)
+func (m *multipleTaskBuilder) StopFuture(task StopFuture) {
+	m.stopFuture(task)
 }
 
 func (m *multipleTaskBuilder) Stop(task Task) {

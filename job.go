@@ -51,8 +51,8 @@ func (s *SvcInit) Stop(task Task, options ...TaskOption) {
 func (s *SvcInit) StopMultiple(f func(MultipleTaskBuilder)) {
 	var multiTasks []taskWrapper
 	mtb := &multipleTaskBuilder{
-		stopTask: func(task StopFuture) {
-			multiTasks = append(multiTasks, s.taskFromStopTask(task))
+		stopFuture: func(task StopFuture) {
+			multiTasks = append(multiTasks, s.taskFromStopFuture(task))
 		},
 		stop: func(task Task) {
 			multiTasks = append(multiTasks, newStopTaskWrapper(task))
@@ -66,7 +66,7 @@ func (s *SvcInit) StopMultiple(f func(MultipleTaskBuilder)) {
 
 // StopFuture adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *SvcInit) StopFuture(task StopFuture) {
-	s.cleanup = append(s.cleanup, s.taskFromStopTask(task))
+	s.cleanup = append(s.cleanup, s.taskFromStopFuture(task))
 }
 
 // StopFutureMultiple adds a shutdown task. The shutdown will be done in the order they are added.
@@ -75,7 +75,7 @@ func (s *SvcInit) StopFuture(task StopFuture) {
 func (s *SvcInit) StopFutureMultiple(tasks ...StopFuture) {
 	s.StopMultiple(func(builder MultipleTaskBuilder) {
 		for _, task := range tasks {
-			builder.StopTask(task)
+			builder.StopFuture(task)
 		}
 	})
 }
@@ -100,17 +100,17 @@ func (s StartTaskCmd) AutoStop() {
 }
 
 // FutureStop returns a StopFuture to be stopped when the order matters.
-// The context passed to the task will be canceled.
-// The returned StopFuture must be added in order to [SvcInit.Stop].
-func (s StartTaskCmd) FutureStop(stopOptions ...TaskOption) StopFuture {
-	return s.doStop(nil, castFutureStopOptions(stopOptions)...)
-}
-
-// FutureStopTask returns a StopFuture to be stopped when the order matters.
 // The context passed to the task will NOT be canceled, except if the option WithCancelContext(true) is set.
 // The returned StopFuture must be added in order to [SvcInit.Stop].
-func (s StartTaskCmd) FutureStopTask(stop Task, stopOptions ...FutureStopOption) StopFuture {
+func (s StartTaskCmd) FutureStop(stop Task, stopOptions ...FutureStopOption) StopFuture {
 	return s.doStop(stop, stopOptions...)
+}
+
+// FutureStopContext returns a StopFuture to be stopped when the order matters.
+// The context passed to the task will be canceled.
+// The returned StopFuture must be added in order to [SvcInit.Stop].
+func (s StartTaskCmd) FutureStopContext(stopOptions ...TaskOption) StopFuture {
+	return s.doStop(nil, castFutureStopOptions(stopOptions)...)
 }
 
 func (s StartTaskCmd) doStop(stop Task, stopOptions ...FutureStopOption) StopFuture {
