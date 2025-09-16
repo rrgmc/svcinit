@@ -40,11 +40,10 @@ type Manager struct {
 	// task finish wait group.
 	wg sync.WaitGroup
 	// options
-	startingCallback, startedCallback []func(ctx context.Context) error
-	stoppingCallback, stoppedCallback []func(ctx context.Context, cause error) error
-	taskCallback                      []TaskCallback
-	shutdownTimeout                   time.Duration
-	enforceShutdownTimeout            bool
+	managerCallback        []ManagerCallback
+	taskCallback           []TaskCallback
+	shutdownTimeout        time.Duration
+	enforceShutdownTimeout bool
 }
 
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,

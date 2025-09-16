@@ -1,5 +1,12 @@
 package svcinit
 
+import "context"
+
+type ManagerCallback interface {
+	BeforeRun(ctx context.Context, isStart bool, cause error) error
+	AfterRun(ctx context.Context, isStart bool, cause error) error
+}
+
 type TaskOption func(options *taskOptions)
 
 func WithTaskCallback(callback TaskCallback) TaskOption {

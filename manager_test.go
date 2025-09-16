@@ -198,12 +198,15 @@ func TestManager(t *testing.T) {
 			tasks := []testService{task1, task2, task3, task4, task5}
 
 			sinit.SetOptions(
-				WithStartedCallback(func(ctx context.Context) error {
+				WithManagerCallback(ManagerCallbackFuncAfterRun(func(ctx context.Context, isStart bool, cause error) error {
+					if !isStart {
+						return nil
+					}
 					for _, taskNo := range test.cancelFn() {
 						tasks[taskNo-1].cancel()
 					}
 					return nil
-				}),
+				})),
 			)
 
 			sinit.StopFuture(i2Stop)
@@ -308,22 +311,21 @@ func TestManagerCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
-		WithStartingCallback(func(ctx context.Context) error {
-			runStarted.Add(1)
+		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, isStart bool, cause error) error {
+			if isStart {
+				runStarted.Add(1)
+			} else {
+				runStopped.Add(1)
+			}
 			return nil
-		}),
-		WithStartedCallback(func(ctx context.Context) error {
-			runStarted.Add(1)
+		}, func(ctx context.Context, isStart bool, cause error) error {
+			if isStart {
+				runStarted.Add(1)
+			} else {
+				runStopped.Add(1)
+			}
 			return nil
-		}),
-		WithStoppingCallback(func(ctx context.Context, cause error) error {
-			runStopped.Add(1)
-			return nil
-		}),
-		WithStoppedCallback(func(ctx context.Context, cause error) error {
-			runStopped.Add(1)
-			return nil
-		}),
+		})),
 		WithGlobalTaskCallback(
 			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 				globalTaskCallback(ctx, task)

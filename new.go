@@ -31,6 +31,29 @@ func (s *Manager) SetOptions(options ...Option) {
 	}
 }
 
+// ManagerCallbackFunc is a functional implementation of ManagerCallback.
+func ManagerCallbackFunc(beforeRun func(ctx context.Context, isStart bool, cause error) error,
+	afterRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+	return managerCallbackFunc{
+		beforeRun: beforeRun,
+		afterRun:  afterRun,
+	}
+}
+
+// ManagerCallbackFuncBeforeRun is a functional implementation of ManagerCallback.
+func ManagerCallbackFuncBeforeRun(beforeRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+	return managerCallbackFunc{
+		beforeRun: beforeRun,
+	}
+}
+
+// ManagerCallbackFuncAfterRun is a functional implementation of ManagerCallback.
+func ManagerCallbackFuncAfterRun(afterRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+	return managerCallbackFunc{
+		afterRun: afterRun,
+	}
+}
+
 // WithShutdownContext sets a separate context to use for shutdown.
 // If the main context can be cancelled, it can't be used for shutdown as the shutdown tasks won't run.
 // The default is context.WithoutCancel(baseContext).
@@ -57,36 +80,10 @@ func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 	}
 }
 
-// WithStartingCallback appends a callback to be called before tasks are run.
-// Returning an error will skip running all tasks and just returns the error from [Manager.Run].
-func WithStartingCallback(startingCallback func(ctx context.Context) error) Option {
+// WithManagerCallback appends a function that is called before and after each lifecycle event happens.
+func WithManagerCallback(managerCallback ManagerCallback) Option {
 	return func(s *Manager) {
-		s.startingCallback = append(s.startingCallback, startingCallback)
-	}
-}
-
-// WithStartedCallback appends a callback to be called after all tasks were initialized.
-// Returning an error will be the same as if one of the tasks returned that error.
-func WithStartedCallback(startedCallback func(ctx context.Context) error) Option {
-	return func(s *Manager) {
-		s.startedCallback = append(s.startedCallback, startedCallback)
-	}
-}
-
-// WithStoppingCallback appends a callback to be called before tasks area stopped.
-// WARNING: returning an error from this callback WILL SKIP STOPPING TASKS and just returns the error from the
-// [Manager.Run] function.
-func WithStoppingCallback(stoppingCallback func(ctx context.Context, cause error) error) Option {
-	return func(s *Manager) {
-		s.stoppingCallback = append(s.stoppingCallback, stoppingCallback)
-	}
-}
-
-// WithStoppedCallback appends a callback to be called after all tasks were stopped.
-// Returning an error will be the same as if one stop task returned an error.
-func WithStoppedCallback(stoppedCallback func(ctx context.Context, cause error) error) Option {
-	return func(s *Manager) {
-		s.stoppedCallback = append(s.stoppedCallback, stoppedCallback)
+		s.managerCallback = append(s.managerCallback, managerCallback)
 	}
 }
 
