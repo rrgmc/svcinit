@@ -133,7 +133,7 @@ func (s *SvcInit) addPendingStop(p pendingItem) {
 }
 
 func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) StopFuture {
-	st := newPendingStopTask(task, options...)
+	st := newPendingStopFuture(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
 }

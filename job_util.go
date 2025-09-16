@@ -23,7 +23,7 @@ type pendingStopFuture struct {
 
 var _ StopFuture = (*pendingStopFuture)(nil)
 
-func newPendingStopTask(stopTask Task, options ...TaskOption) *pendingStopFuture {
+func newPendingStopFuture(stopTask Task, options ...TaskOption) *pendingStopFuture {
 	return &pendingStopFuture{
 		task:     stopTask,
 		options:  options,
