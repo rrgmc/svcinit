@@ -443,12 +443,20 @@ func TestManagerTaskWithID(t *testing.T) {
 			return nil
 		})))
 
+	sinit.
+		StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context) error {
+			return nil
+		}, func(ctx context.Context) error {
+			return nil
+		}))).
+		AutoStop()
+
 	sinit.Shutdown()
 	err := sinit.Run()
 	assert.NilError(t, err)
 
-	assert.DeepEqual(t, []string{"t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-	assert.DeepEqual(t, []string{"t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+	assert.DeepEqual(t, []string{"s1", "t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+	assert.DeepEqual(t, []string{"s1", "t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 
 }
 
