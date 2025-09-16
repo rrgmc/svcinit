@@ -448,7 +448,6 @@ func TestManagerTaskWithID(t *testing.T) {
 
 	assert.DeepEqual(t, []string{"s1", "t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
 	assert.DeepEqual(t, []string{"s1", "t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
-
 }
 
 func TestManagerPendingStart(t *testing.T) {
