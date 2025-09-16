@@ -24,7 +24,7 @@ func (s *Manager) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, true, s.startTaskCallback...)
+			err := task.run(task.ctx, true, s.taskCallback...)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -72,7 +72,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		for _, task := range s.autoCleanup {
 			go func() {
 				defer wg.Done()
-				err := task.run(ctx, false, s.stopTaskCallback...)
+				err := task.run(ctx, false, s.taskCallback...)
 				errorBuilder.add(err)
 			}()
 		}
@@ -84,7 +84,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		go func() {
 			defer wg.Done()
 			for _, task := range s.cleanup {
-				err := task.run(ctx, false, s.stopTaskCallback...)
+				err := task.run(ctx, false, s.taskCallback...)
 				errorBuilder.add(err)
 			}
 		}()

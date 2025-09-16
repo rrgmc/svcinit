@@ -324,13 +324,7 @@ func TestManagerCallback(t *testing.T) {
 			runStopped.Add(1)
 			return nil
 		}),
-		WithStartTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
-				globalTaskCallback(ctx, task)
-			}, func(ctx context.Context, task Task, isStart bool, err error) {
-				globalTaskCallback(ctx, task)
-			})),
-		WithStopTaskCallback(
+		WithTaskTaskCallback(
 			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 				globalTaskCallback(ctx, task)
 			}, func(ctx context.Context, task Task, isStart bool, err error) {
@@ -419,17 +413,14 @@ func TestManagerTaskWithID(t *testing.T) {
 	stopped := &testList[string]{}
 
 	sinit := newTestManager(ctx,
-		WithStartTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+		WithTaskTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 			if tid, ok := task.(TaskWithID); ok {
 				if tstr, ok := tid.TaskID().(string); ok {
-					started.add(tstr)
-				}
-			}
-		}, nil)),
-		WithStopTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
-			if tid, ok := task.(TaskWithID); ok {
-				if tstr, ok := tid.TaskID().(string); ok {
-					stopped.add(tstr)
+					if isStart {
+						started.add(tstr)
+					} else {
+						stopped.add(tstr)
+					}
 				}
 			}
 		}, nil)),
