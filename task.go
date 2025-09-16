@@ -80,6 +80,20 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, isStart boo
 	}
 }
 
+// TaskCallbackFuncBeforeRun is called before and after the task is run.
+func TaskCallbackFuncBeforeRun(beforeRun func(ctx context.Context, task Task, isStart bool)) TaskCallback {
+	return taskCallbackFunc{
+		beforeRun: beforeRun,
+	}
+}
+
+// TaskCallbackFuncAfterRun is called before and after the task is run.
+func TaskCallbackFuncAfterRun(afterRun func(ctx context.Context, task Task, isStart bool, err error)) TaskCallback {
+	return taskCallbackFunc{
+		afterRun: afterRun,
+	}
+}
+
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) Task {
 	ret := &serviceTask{svc: svc, isStart: isStart}
