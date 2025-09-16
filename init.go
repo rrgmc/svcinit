@@ -13,10 +13,10 @@ var (
 	ErrPending         = errors.New("pending start or stop command")
 )
 
-// SvcInit schedules tasks to be run and stopped on service initialization.
+// Manager schedules tasks to be run and stopped on service initialization.
 // The first task to return, with an error or nil, will cause all the other tasks to stop and return the error
 // from that one.
-type SvcInit struct {
+type Manager struct {
 	// ctx is the original context passed on New.
 	ctx context.Context
 	// shutdownCtx is the context to use for shutdown. The default is context.WithoutCancel(ctx).
@@ -49,7 +49,7 @@ type SvcInit struct {
 
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,
 // and a list of stop errors, if any.
-func (s *SvcInit) RunWithErrors() (cause error, cleanupErr error) {
+func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
 	if err := s.checkPending(); err != nil {
 		return err, nil
 	}
@@ -75,12 +75,12 @@ func (s *SvcInit) RunWithErrors() (cause error, cleanupErr error) {
 }
 
 // Run runs all tasks and returns the error of the first task to finish, which can be nil.
-func (s *SvcInit) Run() error {
+func (s *Manager) Run() error {
 	err, _ := s.RunWithErrors()
 	return err
 }
 
 // Shutdown starts the shutdown process as if a task finished.
-func (s *SvcInit) Shutdown() {
+func (s *Manager) Shutdown() {
 	s.cancel(ErrExit)
 }

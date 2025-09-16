@@ -32,7 +32,7 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 	}
 }
 
-func TestSvcInit(t *testing.T) {
+func TestManager(t *testing.T) {
 	isDebug := false
 
 	for _, test := range []struct {
@@ -225,7 +225,7 @@ func TestSvcInit(t *testing.T) {
 	}
 }
 
-func TestSvcInitStopMultipleTasks(t *testing.T) {
+func TestManagerStopMultipleTasks(t *testing.T) {
 	sinit := New(context.Background())
 
 	started := &testList[int]{}
@@ -262,7 +262,7 @@ func TestSvcInitStopMultipleTasks(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
-func TestSvcInitCallback(t *testing.T) {
+func TestManagerCallback(t *testing.T) {
 	var runStarted, runStopped atomic.Int32
 	started := &testList[int]{}
 	stopped := &testList[int]{}
@@ -388,7 +388,7 @@ func TestSvcInitCallback(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
-func TestSvcInitPendingStart(t *testing.T) {
+func TestManagerPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must call one StartTaskCmd method
@@ -400,7 +400,7 @@ func TestSvcInitPendingStart(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPending)
 }
 
-func TestSvcInitPendingStartService(t *testing.T) {
+func TestManagerPendingStartService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must call one StartServiceCmd method
@@ -414,7 +414,7 @@ func TestSvcInitPendingStartService(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPending)
 }
 
-func TestSvcInitPendingStop(t *testing.T) {
+func TestManagerPendingStop(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must add stop function to FutureStop
@@ -428,7 +428,7 @@ func TestSvcInitPendingStop(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPending)
 }
 
-func TestSvcInitPendingStopService(t *testing.T) {
+func TestManagerPendingStopService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must add stop function to FutureStop

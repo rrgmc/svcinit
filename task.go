@@ -14,7 +14,7 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
-// StopFuture is a stop task to be scheduled using [SvcInit.StopFuture].
+// StopFuture is a stop task to be scheduled using [Manager.StopFuture].
 type StopFuture interface {
 	stopTask() Task
 }

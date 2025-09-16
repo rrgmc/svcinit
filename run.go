@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func (s *SvcInit) start() error {
+func (s *Manager) start() error {
 	if s.startingCallback != nil {
 		for _, scallback := range s.startingCallback {
 			if serr := scallback(s.ctx); serr != nil {
@@ -44,7 +44,7 @@ func (s *SvcInit) start() error {
 	return nil
 }
 
-func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
+func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if s.stoppingCallback != nil {
 		for _, scallback := range s.stoppingCallback {
 			if serr := scallback(s.shutdownCtx, cause); serr != nil {
@@ -110,7 +110,7 @@ func (s *SvcInit) shutdown(cause error) (err error, cleanupErr error) {
 	return nil, errorBuilder.build()
 }
 
-func (s *SvcInit) checkPending() error {
+func (s *Manager) checkPending() error {
 	for _, task := range s.pendingStarts {
 		if !task.isResolved() {
 			return ErrPending
@@ -124,15 +124,15 @@ func (s *SvcInit) checkPending() error {
 	return nil
 }
 
-func (s *SvcInit) addPendingStart(p pendingItem) {
+func (s *Manager) addPendingStart(p pendingItem) {
 	s.pendingStarts = append(s.pendingStarts, p)
 }
 
-func (s *SvcInit) addPendingStop(p pendingItem) {
+func (s *Manager) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
-func (s *SvcInit) addPendingStopTask(task Task, options ...TaskOption) StopFuture {
+func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFuture {
 	st := newPendingStopFuture(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st

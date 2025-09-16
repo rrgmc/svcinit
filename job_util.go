@@ -2,7 +2,7 @@ package svcinit
 
 import "slices"
 
-func (s *SvcInit) taskFromStopFuture(task StopFuture) taskWrapper {
+func (s *Manager) taskFromStopFuture(task StopFuture) taskWrapper {
 	var optns []TaskOption
 	if ps, ok := task.(*pendingStopFuture); ok {
 		ps.setResolved()

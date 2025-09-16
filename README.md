@@ -53,7 +53,7 @@ func newHealthService() *healthService {
     return &healthService{healthHTTPServer}
 }
 
-func ExampleSvcInit() {
+func ExampleManager() {
     ctx := context.Background()
 
     // create health HTTP server
@@ -73,7 +73,7 @@ func ExampleSvcInit() {
     // it is only started on the Run call.
     healthStop := sinit.
         StartService(healthHTTPServer).
-        // stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the start context.
+        // stop the service using the [svcinit.Manager.FutureStop] call WITHOUT cancelling the start context.
         FutureStop()
 
     // start core HTTP server using manual stop ordering.
@@ -87,7 +87,7 @@ func ExampleSvcInit() {
             }
             return httpServer.ListenAndServe()
         })).
-        // stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the start context.
+        // stop the service using the [svcinit.Manager.FutureStop] call WITHOUT cancelling the start context.
         FutureStop(svcinit.TaskFunc(func(ctx context.Context) error {
             return httpServer.Shutdown(ctx)
         }))
