@@ -10,7 +10,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 
+	cmp2 "github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 )
@@ -388,25 +390,27 @@ func TestManagerCallback(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
-//
-// func TestManagerShutdownOptions(t *testing.T) {
-// 	ctx := context.Background()
-// 	shutdownCtx := context.WithValue(ctx, "test=shutdown", 5)
-//
-// 	sinit := New(ctx,
-// 		WithShutdownContext(shutdownCtx))
-//
-// 	sinit.
-// 		StartTask(TaskFunc(func(ctx context.Context) error {
-// 			return nil
-// 		})).
-// 		AutoStop(TaskFunc(func(ctx context.Context) error {
-// 			return nil
-// 		}))
-//
-// 	err := sinit.Run()
-// 	assert.ErrorIs(t, err, ErrPending)
-// }
+func TestManagerShutdownOptions(t *testing.T) {
+	ctx := context.Background()
+	shutdownCtx := context.WithValue(ctx, "test-shutdown", 5)
+
+	sinit := newTestManager(ctx,
+		WithShutdownContext(shutdownCtx))
+
+	sinit.
+		StartTask(TaskFunc(func(ctx context.Context) error {
+			assert.Check(t, !cmp2.Equal(5, ctx.Value("test-shutdown")), "not expected context value")
+			return nil
+		})).
+		AutoStop(TaskFunc(func(ctx context.Context) error {
+			assert.Check(t, cmp2.Equal(5, ctx.Value("test-shutdown")), "expected context value is different")
+			return nil
+		}))
+
+	sinit.Shutdown()
+	err := sinit.Run()
+	assert.NilError(t, err)
+}
 
 func TestManagerPendingStart(t *testing.T) {
 	sinit := New(context.Background())
@@ -515,4 +519,10 @@ func (l *testList[T]) get() []T {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.list
+}
+
+func newTestManager(ctx context.Context, options ...Option) *Manager {
+	sinit := New(ctx, options...)
+	sinit.ExecuteTask(TimeoutTask(5*time.Second, errors.New("test timeout")))
+	return sinit
 }
