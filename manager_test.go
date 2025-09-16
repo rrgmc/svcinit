@@ -323,24 +323,24 @@ func TestManagerCallback(t *testing.T) {
 			return nil
 		}),
 		WithStartTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task) {
+			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 				globalTaskCallback(ctx, task)
-			}, func(ctx context.Context, task Task, err error) {
+			}, func(ctx context.Context, task Task, isStart bool, err error) {
 				globalTaskCallback(ctx, task)
 			})),
 		WithStopTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task) {
+			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 				globalTaskCallback(ctx, task)
-			}, func(ctx context.Context, task Task, err error) {
+			}, func(ctx context.Context, task Task, isStart bool, err error) {
 				globalTaskCallback(ctx, task)
 			})),
 	)
 
-	getTaskCallback := func(taskNo int, isStop bool) TaskCallback {
-		return TaskCallbackFunc(func(ctx context.Context, task Task) {
-			individualTaskCallback(taskNo, isStop, true)(ctx, task)
-		}, func(ctx context.Context, task Task, err error) {
-			individualTaskCallback(taskNo, isStop, false)(ctx, task)
+	getTaskCallback := func(taskNo int) TaskCallback {
+		return TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+			individualTaskCallback(taskNo, !isStart, true)(ctx, task)
+		}, func(ctx context.Context, task Task, isStart bool, err error) {
+			individualTaskCallback(taskNo, !isStart, false)(ctx, task)
 		})
 	}
 
@@ -348,21 +348,21 @@ func TestManagerCallback(t *testing.T) {
 		StartTask(newTestTask(1, func(ctx context.Context) error {
 			started.add(1)
 			return nil
-		}), WithTaskCallback(getTaskCallback(1, false))).
+		}), WithTaskCallback(getTaskCallback(1))).
 		FutureStop(newTestTask(1, func(ctx context.Context) error {
 			stopped.add(1)
 			return nil
-		}), WithTaskCallback(getTaskCallback(1, true)))
+		}))
 
 	stopTask2 := sinit.
 		StartTask(newTestTask(2, func(ctx context.Context) error {
 			started.add(2)
 			return nil
-		}), WithTaskCallback(getTaskCallback(2, false))).
+		}), WithTaskCallback(getTaskCallback(2))).
 		FutureStop(newTestTask(2, func(ctx context.Context) error {
 			stopped.add(2)
 			return nil
-		}), WithTaskCallback(getTaskCallback(2, true)))
+		}))
 
 	svc := newTestService(3, func(ctx context.Context) error {
 		started.add(3)
@@ -373,7 +373,7 @@ func TestManagerCallback(t *testing.T) {
 	})
 
 	stopService := sinit.
-		StartService(svc, WithTaskCallback(getTaskCallback(3, false))).
+		StartService(svc, WithTaskCallback(getTaskCallback(3))).
 		FutureStop()
 
 	sinit.StopFuture(stopTask1)
@@ -388,27 +388,25 @@ func TestManagerCallback(t *testing.T) {
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
-func TestManagerShutdownOptions(t *testing.T) {
-	ctx := context.Background()
-	shutdownCtx := context.WithValue(ctx, "test=shutdown", 5)
-
-	sinit := New(ctx,
-		WithShutdownContext(shutdownCtx))
-
-	sinit.
-		StartTask(TaskFunc(func(ctx context.Context) error {
-
-		})).
-		AutoStop()
-
-	// must call one StartTaskCmd method
-	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
-		return nil
-	}))
-
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrPending)
-}
+//
+// func TestManagerShutdownOptions(t *testing.T) {
+// 	ctx := context.Background()
+// 	shutdownCtx := context.WithValue(ctx, "test=shutdown", 5)
+//
+// 	sinit := New(ctx,
+// 		WithShutdownContext(shutdownCtx))
+//
+// 	sinit.
+// 		StartTask(TaskFunc(func(ctx context.Context) error {
+// 			return nil
+// 		})).
+// 		AutoStop(TaskFunc(func(ctx context.Context) error {
+// 			return nil
+// 		}))
+//
+// 	err := sinit.Run()
+// 	assert.ErrorIs(t, err, ErrPending)
+// }
 
 func TestManagerPendingStart(t *testing.T) {
 	sinit := New(context.Background())

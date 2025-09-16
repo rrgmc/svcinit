@@ -55,13 +55,13 @@ func ServiceFunc(start, stop func(ctx context.Context) error) Service {
 // Tasks derived from services will call using  a ServiceTask.
 // Callbacks ALWAYS receives unwrapped tasks (with UnwrapTask).
 type TaskCallback interface {
-	BeforeRun(ctx context.Context, task Task)
-	AfterRun(ctx context.Context, task Task, err error)
+	BeforeRun(ctx context.Context, task Task, isStart bool)
+	AfterRun(ctx context.Context, task Task, isStart bool, err error)
 }
 
 // TaskCallbackFunc is called before and after the task is run.
-func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task),
-	afterRun func(ctx context.Context, task Task, err error)) TaskCallback {
+func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, isStart bool),
+	afterRun func(ctx context.Context, task Task, isStart bool, err error)) TaskCallback {
 	return taskCallbackFunc{
 		beforeRun: beforeRun,
 		afterRun:  afterRun,

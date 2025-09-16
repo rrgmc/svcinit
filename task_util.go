@@ -6,19 +6,19 @@ import (
 )
 
 type taskCallbackFunc struct {
-	beforeRun func(ctx context.Context, task Task)
-	afterRun  func(ctx context.Context, task Task, err error)
+	beforeRun func(ctx context.Context, task Task, isStart bool)
+	afterRun  func(ctx context.Context, task Task, isStart bool, err error)
 }
 
-func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task) {
+func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, isStart bool) {
 	if t.beforeRun != nil {
-		t.beforeRun(ctx, task)
+		t.beforeRun(ctx, task, isStart)
 	}
 }
 
-func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, err error) {
+func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, isStart bool, err error) {
 	if t.afterRun != nil {
-		t.afterRun(ctx, task, err)
+		t.afterRun(ctx, task, isStart, err)
 	}
 }
 
@@ -37,7 +37,7 @@ func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
 // taskRunCallback signals that the task can handle callback execution itself.
 type taskRunCallback interface {
 	Task
-	runWithCallbacks(ctx context.Context, callbacks ...TaskCallback) error
+	runWithCallbacks(ctx context.Context, isStart bool, callbacks ...TaskCallback) error
 }
 
 // serviceTask is a Task implemented from a Service.
@@ -80,10 +80,10 @@ func newMultipleTask(tasks ...taskWrapper) Task {
 }
 
 func (t *multipleTask) Run(ctx context.Context) error {
-	return t.runWithCallbacks(ctx)
+	return t.runWithCallbacks(ctx, true)
 }
 
-func (t *multipleTask) runWithCallbacks(ctx context.Context, callbacks ...TaskCallback) error {
+func (t *multipleTask) runWithCallbacks(ctx context.Context, isStart bool, callbacks ...TaskCallback) error {
 	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
@@ -91,7 +91,7 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, callbacks ...TaskCa
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := st.run(ctx, callbacks...)
+			err := st.run(ctx, isStart, callbacks...)
 			if err != nil {
 				allErr.add(err)
 			}

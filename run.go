@@ -24,7 +24,7 @@ func (s *Manager) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, s.startTaskCallback...)
+			err := task.run(task.ctx, true, s.startTaskCallback...)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -72,7 +72,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		for _, task := range s.autoCleanup {
 			go func() {
 				defer wg.Done()
-				err := task.run(ctx, s.stopTaskCallback...)
+				err := task.run(ctx, false, s.stopTaskCallback...)
 				errorBuilder.add(err)
 			}()
 		}
@@ -84,7 +84,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		go func() {
 			defer wg.Done()
 			for _, task := range s.cleanup {
-				err := task.run(ctx, s.stopTaskCallback...)
+				err := task.run(ctx, false, s.stopTaskCallback...)
 				errorBuilder.add(err)
 			}
 		}()
@@ -138,19 +138,19 @@ func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFutur
 	return st
 }
 
-func runTask(ctx context.Context, task Task, callbacks ...TaskCallback) error {
+func runTask(ctx context.Context, task Task, isStart bool, callbacks ...TaskCallback) error {
 	if tcb, ok := task.(taskRunCallback); ok {
-		return tcb.runWithCallbacks(ctx, callbacks...)
+		return tcb.runWithCallbacks(ctx, isStart, callbacks...)
 	}
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.BeforeRun(ctx, UnwrapTask(task))
+			callback.BeforeRun(ctx, UnwrapTask(task), isStart)
 		}
 	}
 	err := task.Run(ctx)
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.AfterRun(ctx, UnwrapTask(task), err)
+			callback.AfterRun(ctx, UnwrapTask(task), isStart, err)
 		}
 	}
 	return err
@@ -162,11 +162,11 @@ type taskWrapper struct {
 	options taskOptions
 }
 
-func (w *taskWrapper) run(ctx context.Context, callbacks ...TaskCallback) error {
+func (w *taskWrapper) run(ctx context.Context, isStart bool, callbacks ...TaskCallback) error {
 	if w.ctx != nil {
 		ctx = w.ctx
 	}
-	return runTask(ctx, w.task, joinTaskCallbacks(callbacks, []TaskCallback{w.options.callback})...)
+	return runTask(ctx, w.task, isStart, joinTaskCallbacks(callbacks, []TaskCallback{w.options.callback})...)
 }
 
 func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {
