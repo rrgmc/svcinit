@@ -161,27 +161,34 @@ func (s StartServiceCmd) AutoStop() {
 }
 
 // FutureStop returns a StopFuture to be stopped when the order matters.
-// The context passed to the task will NOT be canceled.
+// The context passed to the task will NOT be canceled, except if the option WithCancelContext(true) is set.
 // The returned StopFuture must be added in order to [SvcInit.Stop].
-func (s StartServiceCmd) FutureStop() StopFuture {
-	s.resolved.setResolved()
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(s.s.ctx, startTask, s.options...)
-	return s.s.addPendingStopTask(stopTask, s.options...)
-}
+func (s StartServiceCmd) FutureStop(stopOptions ...FutureStopOption) StopFuture {
+	optns := parseFutureStopOptions(stopOptions...)
+	pendingStopOptions := s.options // use same options as start
+	if optns.options != nil {
+		// use custom stop options
+		pendingStopOptions = optns.options
+	}
 
-// StopCancel returns a StopFuture to be stopped when the order matters.
-// The context passed to the task will be canceled BEFORE calling the stop task.
-// The returned StopFuture must be added in order to [SvcInit.Stop].
-func (s StartServiceCmd) StopCancel() StopFuture {
 	s.resolved.setResolved()
-	ctx, cancel := context.WithCancelCause(s.s.ctx)
+	ctx := s.s.ctx
+	var cancel context.CancelCauseFunc
+	if optns.futureStopOptions.cancelContext {
+		ctx, cancel = context.WithCancelCause(s.s.ctx)
+	}
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(ctx, startTask, s.options...)
-	return s.s.addPendingStopTask(WrapTask(stopTask, WithWrapTaskHandler(func(ctx context.Context, task Task) error {
-		cancel(ErrExit)
-		return task.Run(ctx)
-	})), s.options...)
+	var pendingStopTask Task
+	if !optns.futureStopOptions.cancelContext {
+		pendingStopTask = stopTask
+	} else {
+		pendingStopTask = WrapTask(stopTask, WithWrapTaskHandler(func(ctx context.Context, task Task) error {
+			cancel(ErrExit)
+			return task.Run(ctx)
+		}))
+	}
+	return s.s.addPendingStopTask(pendingStopTask, pendingStopOptions...)
 }
 
 func (s StartServiceCmd) isResolved() bool {
