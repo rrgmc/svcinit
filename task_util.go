@@ -64,6 +64,18 @@ func (s *serviceTask) Run(ctx context.Context) error {
 	return s.svc.Stop(ctx)
 }
 
+type serviceTaskWithID struct {
+	*serviceTask
+	id any
+}
+
+var _ ServiceTask = (*serviceTaskWithID)(nil)
+var _ TaskWithID = (*serviceTaskWithID)(nil)
+
+func (s *serviceTaskWithID) TaskID() any {
+	return s.id
+}
+
 // multipleTask runs multiple tasks in parallel, wrapped in a single Task.
 type multipleTask struct {
 	tasks    []taskWrapper
@@ -177,4 +189,46 @@ func (t *wrappedService) Stop(ctx context.Context) error {
 
 func (t *wrappedService) WrappedService() Service {
 	return t.svc
+}
+
+type WrappedTaskWithID struct {
+	task Task
+	id   any
+}
+
+var _ TaskWithID = (*WrappedTaskWithID)(nil)
+
+func (t *WrappedTaskWithID) TaskID() any {
+	return t.id
+}
+
+func (t *WrappedTaskWithID) Task() Task {
+	return t.task
+}
+
+func (t *WrappedTaskWithID) Run(ctx context.Context) error {
+	return t.task.Run(ctx)
+}
+
+type WrappedServiceWithID struct {
+	svc Service
+	id  any
+}
+
+var _ ServiceWithID = (*WrappedServiceWithID)(nil)
+
+func (s *WrappedServiceWithID) Service() any {
+	return s.svc
+}
+
+func (s *WrappedServiceWithID) ServiceID() any {
+	return s.id
+}
+
+func (s *WrappedServiceWithID) Start(ctx context.Context) error {
+	return s.svc.Start(ctx)
+}
+
+func (s *WrappedServiceWithID) Stop(ctx context.Context) error {
+	return s.svc.Stop(ctx)
 }

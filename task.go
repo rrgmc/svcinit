@@ -19,6 +19,12 @@ type StopFuture interface {
 	stopTask() Task
 }
 
+// TaskWithID is a task which has an ID.
+type TaskWithID interface {
+	Task
+	TaskID() any
+}
+
 // WrappedTask is a task which was wrapped from one [Task]s.
 type WrappedTask interface {
 	Task
@@ -35,6 +41,12 @@ type WrappedService interface {
 type Service interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
+}
+
+// ServiceWithID is a Service that has an ID.
+type ServiceWithID interface {
+	Service
+	ServiceID() any
 }
 
 // ServiceTask is a Task implemented from a Service.
@@ -70,12 +82,28 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, isStart boo
 
 // ServiceAsTask creates and adapter from a service method to a task.
 func ServiceAsTask(svc Service, isStart bool) Task {
-	return &serviceTask{svc: svc, isStart: isStart}
+	ret := &serviceTask{svc: svc, isStart: isStart}
+	if sid, ok := svc.(ServiceWithID); ok {
+		return &serviceTaskWithID{serviceTask: ret, id: sid.ServiceID()}
+	}
+	return ret
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
 func ServiceAsTasks(svc Service) (start, stop Task) {
 	return ServiceAsTask(svc, true), ServiceAsTask(svc, false)
+}
+
+// WrapTaskWithID wraps a Task as a TaskWithID.
+// Note: it DOES NOT implements WrappedTask.
+func WrapTaskWithID(task Task, id any) *WrappedTaskWithID {
+	return &WrappedTaskWithID{task: task, id: id}
+}
+
+// WrapServiceWithID wraps a Service as a ServiceWithID.
+// Note: it DOES NOT implements WrappedService.
+func WrapServiceWithID(svc Service, id any) *WrappedServiceWithID {
+	return &WrappedServiceWithID{svc: svc, id: id}
 }
 
 type MultipleTaskBuilder interface {
