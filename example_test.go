@@ -62,7 +62,7 @@ func ExampleSvcInit() {
 	// it is only started on the Run call.
 	healthStop := sinit.
 		StartService(healthHTTPServer).
-		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
+		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the start context.
 		FutureStop()
 
 	// start core HTTP server using manual stop ordering.
@@ -70,13 +70,13 @@ func ExampleSvcInit() {
 	// can be implemented and reused.
 	// it is only started on the Run call.
 	httpStop := sinit.
-		Start(svcinit.TaskFunc(func(ctx context.Context) error {
+		StartTask(svcinit.TaskFunc(func(ctx context.Context) error {
 			httpServer.BaseContext = func(net.Listener) context.Context {
 				return ctx
 			}
 			return httpServer.ListenAndServe()
 		})).
-		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the Start context.
+		// stop the service using the [svcinit.SvcInit.FutureStop] call WITHOUT cancelling the start context.
 		FutureStop(svcinit.TaskFunc(func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
 		}))
@@ -84,7 +84,7 @@ func ExampleSvcInit() {
 	// start a dummy task where the stop order doesn't matter.
 	// unordered tasks are stopped in parallel.
 	sinit.
-		Start(svcinit.TaskFunc(func(ctx context.Context) error {
+		StartTask(svcinit.TaskFunc(func(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 			}
@@ -94,11 +94,11 @@ func ExampleSvcInit() {
 
 	// shutdown on OS signal.
 	// it is only started on the Run call.
-	sinit.Execute(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+	sinit.ExecuteTask(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
 	// sleep 10 seconds and shutdown.
 	// it is only started on the Run call.
-	sinit.Execute(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
+	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
 
 	// add manual stops. They will be stopped in the added order.
 

@@ -131,7 +131,7 @@ func (m *multipleTaskBuilder) StopFuture(task StopFuture) {
 	m.stopFuture(task)
 }
 
-func (m *multipleTaskBuilder) Stop(task Task) {
+func (m *multipleTaskBuilder) StopTask(task Task) {
 	m.stop(task)
 }
 
