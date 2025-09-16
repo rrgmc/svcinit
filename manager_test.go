@@ -324,7 +324,7 @@ func TestManagerCallback(t *testing.T) {
 			runStopped.Add(1)
 			return nil
 		}),
-		WithTaskTaskCallback(
+		WithGlobalTaskCallback(
 			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 				globalTaskCallback(ctx, task)
 			}, func(ctx context.Context, task Task, isStart bool, err error) {
@@ -413,7 +413,7 @@ func TestManagerTaskWithID(t *testing.T) {
 	stopped := &testList[string]{}
 
 	sinit := newTestManager(ctx,
-		WithTaskTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
 			if tid, ok := task.(TaskWithID); ok {
 				if tstr, ok := tid.TaskID().(string); ok {
 					if isStart {

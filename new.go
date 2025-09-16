@@ -90,10 +90,10 @@ func WithStoppedCallback(stoppedCallback func(ctx context.Context, cause error) 
 	}
 }
 
-// WithTaskTaskCallback appends a function that is called before and after each task runs.
-func WithTaskTaskCallback(startTaskCallback TaskCallback) Option {
+// WithGlobalTaskCallback appends a function that is called before and after each task runs.
+func WithGlobalTaskCallback(taskCallback TaskCallback) Option {
 	return func(s *Manager) {
-		s.taskCallback = append(s.taskCallback, startTaskCallback)
+		s.taskCallback = append(s.taskCallback, taskCallback)
 	}
 }
 
