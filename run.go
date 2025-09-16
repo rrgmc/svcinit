@@ -175,7 +175,7 @@ func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskW
 		task: task,
 	}
 	for _, option := range options {
-		option.taskOption(&ret.options)
+		option(&ret.options)
 	}
 	return ret
 }

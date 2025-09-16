@@ -189,7 +189,7 @@ func TestManager(t *testing.T) {
 			task5 := defaultTaskSvc(5, false)
 			sinit.
 				StartTask(ServiceAsTask(task5.svc, true)).
-				AutoStop()
+				AutoStopContext()
 
 			sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGTERM))
 
@@ -386,6 +386,28 @@ func TestManagerCallback(t *testing.T) {
 	assert.Equal(t, int32(2), runStopped.Load())
 	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+}
+
+func TestManagerShutdownOptions(t *testing.T) {
+	ctx := context.Background()
+	shutdownCtx := context.WithValue(ctx, "test=shutdown", 5)
+
+	sinit := New(ctx,
+		WithShutdownContext(shutdownCtx))
+
+	sinit.
+		StartTask(TaskFunc(func(ctx context.Context) error {
+
+		})).
+		AutoStop()
+
+	// must call one StartTaskCmd method
+	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
+		return nil
+	}))
+
+	err := sinit.Run()
+	assert.ErrorIs(t, err, ErrPending)
 }
 
 func TestManagerPendingStart(t *testing.T) {
