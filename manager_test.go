@@ -36,39 +36,39 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 }
 
 func TestManager(t *testing.T) {
-	ctx := context.Background()
+	synctest.Test(t, func(t *testing.T) {
+		started := &testList[string]{}
+		stopped := &testList[string]{}
 
-	started := &testList[string]{}
-	stopped := &testList[string]{}
+		sinit := New(t.Context())
 
-	sinit := newTestManager(ctx)
+		sinit.
+			StartTask(TaskFunc(func(ctx context.Context) error {
+				started.add("task1")
+				return nil
+			})).
+			AutoStop(TaskFunc(func(ctx context.Context) error {
+				stopped.add("task1")
+				return nil
+			}))
 
-	sinit.
-		StartTask(TaskFunc(func(ctx context.Context) error {
-			started.add("task1")
-			return nil
-		})).
-		AutoStop(TaskFunc(func(ctx context.Context) error {
-			stopped.add("task1")
-			return nil
-		}))
+		sinit.
+			StartService(ServiceFunc(func(ctx context.Context) error {
+				started.add("service1")
+				return nil
+			}, func(ctx context.Context) error {
+				stopped.add("service1")
+				return nil
+			})).
+			AutoStop()
 
-	sinit.
-		StartService(ServiceFunc(func(ctx context.Context) error {
-			started.add("service1")
-			return nil
-		}, func(ctx context.Context) error {
-			stopped.add("service1")
-			return nil
-		})).
-		AutoStop()
+		sinit.Shutdown()
+		err := sinit.Run()
+		assert.NilError(t, err)
 
-	sinit.Shutdown()
-	err := sinit.Run()
-	assert.NilError(t, err)
-
-	assert.DeepEqual(t, []string{"task1", "service1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-	assert.DeepEqual(t, []string{"task1", "service1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task1", "service1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task1", "service1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+	})
 }
 
 func TestManagerWorkflows(t *testing.T) {
@@ -268,227 +268,232 @@ func TestManagerWorkflows(t *testing.T) {
 }
 
 func TestManagerStopMultipleTasks(t *testing.T) {
-	sinit := New(context.Background())
+	synctest.Test(t, func(t *testing.T) {
+		sinit := New(t.Context())
 
-	started := &testList[int]{}
-	stopped := &testList[int]{}
+		started := &testList[int]{}
+		stopped := &testList[int]{}
 
-	stopTask1 := sinit.
-		StartTask(TaskFunc(func(ctx context.Context) error {
-			started.add(1)
-			return nil
-		})).
-		FutureStop(TaskFunc(func(ctx context.Context) error {
-			stopped.add(1)
-			return nil
-		}))
+		stopTask1 := sinit.
+			StartTask(TaskFunc(func(ctx context.Context) error {
+				started.add(1)
+				return nil
+			})).
+			FutureStop(TaskFunc(func(ctx context.Context) error {
+				stopped.add(1)
+				return nil
+			}))
 
-	stopTask2 := sinit.
-		StartTask(TaskFunc(func(ctx context.Context) error {
-			started.add(2)
-			return nil
-		})).
-		FutureStop(TaskFunc(func(ctx context.Context) error {
-			stopped.add(2)
-			return nil
-		}))
+		stopTask2 := sinit.
+			StartTask(TaskFunc(func(ctx context.Context) error {
+				started.add(2)
+				return nil
+			})).
+			FutureStop(TaskFunc(func(ctx context.Context) error {
+				stopped.add(2)
+				return nil
+			}))
 
-	sinit.
-		StopFutureMultiple(stopTask1, stopTask2)
+		sinit.
+			StopFutureMultiple(stopTask1, stopTask2)
 
-	err := sinit.Run()
+		err := sinit.Run()
 
-	assert.NilError(t, err)
+		assert.NilError(t, err)
 
-	assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+		assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+		assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
+	})
 }
 
 func TestManagerCallback(t *testing.T) {
-	var runStarted, runStopped atomic.Int32
-	started := &testList[int]{}
-	stopped := &testList[int]{}
+	synctest.Test(t, func(t *testing.T) {
+		var runStarted, runStopped atomic.Int32
+		started := &testList[int]{}
+		stopped := &testList[int]{}
 
-	globalTaskCallback := func(ctx context.Context, task Task) {
-		if st, ok := task.(ServiceTask); ok {
-			if _, ok := st.Service().(*testService); !ok {
-				assert.Check(t, false, "service is not of the expected type")
-			}
-		} else if _, ok := task.(*testTask); !ok {
-			assert.Check(t, false, "task is not of the expected type")
-		}
-	}
-
-	individualTaskCallback := func(taskNo int, stage Stage, step Step) func(ctx context.Context, task Task) {
-		return func(ctx context.Context, task Task) {
-			stdAdd := 0
-			isStart := stage == StageStart
-			isBefore := step == StepBefore
+		globalTaskCallback := func(ctx context.Context, task Task) {
 			if st, ok := task.(ServiceTask); ok {
 				if _, ok := st.Service().(*testService); !ok {
-					assert.Check(t, false, "service is not of the expected type but %T", task)
+					assert.Check(t, false, "service is not of the expected type")
 				}
-				isStart = st.Stage() == StageStart
-				stdAdd = 4
 			} else if _, ok := task.(*testTask); !ok {
-				assert.Check(t, false, "task %d (isStart:%t)(isBefore:%t) is not of the expected type but %T",
-					taskNo, isStart, isBefore, task)
-			}
-			if !isBefore {
-				stdAdd++
-			}
-			if !isStart {
-				stdAdd += 2
-			}
-
-			if isStart {
-				started.add((taskNo * 10) + stdAdd)
-			} else {
-				stopped.add((taskNo * 10) + stdAdd)
+				assert.Check(t, false, "task is not of the expected type")
 			}
 		}
-	}
 
-	sinit := New(context.Background(),
-		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage Stage, step Step, cause error) error {
-			if stage == StageStart {
-				runStarted.Add(1)
-			} else {
-				runStopped.Add(1)
+		individualTaskCallback := func(taskNo int, stage Stage, step Step) func(ctx context.Context, task Task) {
+			return func(ctx context.Context, task Task) {
+				stdAdd := 0
+				isStart := stage == StageStart
+				isBefore := step == StepBefore
+				if st, ok := task.(ServiceTask); ok {
+					if _, ok := st.Service().(*testService); !ok {
+						assert.Check(t, false, "service is not of the expected type but %T", task)
+					}
+					isStart = st.Stage() == StageStart
+					stdAdd = 4
+				} else if _, ok := task.(*testTask); !ok {
+					assert.Check(t, false, "task %d (isStart:%t)(isBefore:%t) is not of the expected type but %T",
+						taskNo, isStart, isBefore, task)
+				}
+				if !isBefore {
+					stdAdd++
+				}
+				if !isStart {
+					stdAdd += 2
+				}
+
+				if isStart {
+					started.add((taskNo * 10) + stdAdd)
+				} else {
+					stopped.add((taskNo * 10) + stdAdd)
+				}
 			}
-			return nil
-		})),
-		WithGlobalTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
-				globalTaskCallback(ctx, task)
+		}
+
+		sinit := New(t.Context(),
+			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage Stage, step Step, cause error) error {
+				if stage == StageStart {
+					runStarted.Add(1)
+				} else {
+					runStopped.Add(1)
+				}
+				return nil
 			})),
-	)
+			WithGlobalTaskCallback(
+				TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+					globalTaskCallback(ctx, task)
+				})),
+		)
 
-	getTaskCallback := func(taskNo int) TaskCallback {
-		return TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
-			individualTaskCallback(taskNo, stage, step)(ctx, task)
+		getTaskCallback := func(taskNo int) TaskCallback {
+			return TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+				individualTaskCallback(taskNo, stage, step)(ctx, task)
+			})
+		}
+
+		stopTask1 := sinit.
+			StartTask(newTestTask(1, func(ctx context.Context) error {
+				started.add(1)
+				return nil
+			}), WithTaskCallback(getTaskCallback(1))).
+			FutureStop(newTestTask(1, func(ctx context.Context) error {
+				stopped.add(1)
+				return nil
+			}))
+
+		stopTask2 := sinit.
+			StartTask(newTestTask(2, func(ctx context.Context) error {
+				started.add(2)
+				return nil
+			}), WithTaskCallback(getTaskCallback(2))).
+			FutureStop(newTestTask(2, func(ctx context.Context) error {
+				stopped.add(2)
+				return nil
+			}))
+
+		svc := newTestService(3, func(ctx context.Context) error {
+			started.add(3)
+			return nil
+		}, func(ctx context.Context) error {
+			stopped.add(3)
+			return nil
 		})
-	}
 
-	stopTask1 := sinit.
-		StartTask(newTestTask(1, func(ctx context.Context) error {
-			started.add(1)
-			return nil
-		}), WithTaskCallback(getTaskCallback(1))).
-		FutureStop(newTestTask(1, func(ctx context.Context) error {
-			stopped.add(1)
-			return nil
-		}))
+		stopService := sinit.
+			StartService(svc, WithTaskCallback(getTaskCallback(3))).
+			FutureStop()
 
-	stopTask2 := sinit.
-		StartTask(newTestTask(2, func(ctx context.Context) error {
-			started.add(2)
-			return nil
-		}), WithTaskCallback(getTaskCallback(2))).
-		FutureStop(newTestTask(2, func(ctx context.Context) error {
-			stopped.add(2)
-			return nil
-		}))
+		sinit.StopFuture(stopTask1)
+		sinit.StopFuture(stopTask2)
+		sinit.StopFuture(stopService)
 
-	svc := newTestService(3, func(ctx context.Context) error {
-		started.add(3)
-		return nil
-	}, func(ctx context.Context) error {
-		stopped.add(3)
-		return nil
+		err := sinit.Run()
+		assert.NilError(t, err)
+		assert.Equal(t, int32(2), runStarted.Load())
+		assert.Equal(t, int32(2), runStopped.Load())
+		assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
+		assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 	})
-
-	stopService := sinit.
-		StartService(svc, WithTaskCallback(getTaskCallback(3))).
-		FutureStop()
-
-	sinit.StopFuture(stopTask1)
-	sinit.StopFuture(stopTask2)
-	sinit.StopFuture(stopService)
-
-	err := sinit.Run()
-	assert.NilError(t, err)
-	assert.Equal(t, int32(2), runStarted.Load())
-	assert.Equal(t, int32(2), runStopped.Load())
-	assert.DeepEqual(t, []int{1, 2, 3, 10, 11, 20, 21, 34, 35}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
-	assert.DeepEqual(t, []int{1, 2, 3, 12, 13, 22, 23, 36, 37}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
 }
 
 func TestManagerWithoutTask(t *testing.T) {
-	ctx := context.Background()
-
-	sinit := New(ctx)
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrNoTask)
+	synctest.Test(t, func(t *testing.T) {
+		sinit := New(t.Context())
+		err := sinit.Run()
+		assert.ErrorIs(t, err, ErrNoTask)
+	})
 }
 
 func TestManagerShutdownOptions(t *testing.T) {
-	ctx := context.Background()
-	shutdownCtx := context.WithValue(ctx, "test-shutdown", 5)
+	synctest.Test(t, func(t *testing.T) {
+		shutdownCtx := context.WithValue(t.Context(), "test-shutdown", 5)
 
-	sinit := newTestManager(ctx,
-		WithShutdownContext(shutdownCtx))
+		sinit := New(t.Context(),
+			WithShutdownContext(shutdownCtx))
 
-	sinit.
-		StartTask(TaskFunc(func(ctx context.Context) error {
-			assert.Check(t, !cmp2.Equal(5, ctx.Value("test-shutdown")), "not expected context value")
-			return nil
-		})).
-		AutoStop(TaskFunc(func(ctx context.Context) error {
-			assert.Check(t, cmp2.Equal(5, ctx.Value("test-shutdown")), "expected context value is different")
-			return nil
-		}))
+		sinit.
+			StartTask(TaskFunc(func(ctx context.Context) error {
+				assert.Check(t, !cmp2.Equal(5, ctx.Value("test-shutdown")), "not expected context value")
+				return nil
+			})).
+			AutoStop(TaskFunc(func(ctx context.Context) error {
+				assert.Check(t, cmp2.Equal(5, ctx.Value("test-shutdown")), "expected context value is different")
+				return nil
+			}))
 
-	sinit.Shutdown()
-	err := sinit.Run()
-	assert.NilError(t, err)
+		sinit.Shutdown()
+		err := sinit.Run()
+		assert.NilError(t, err)
+	})
 }
 
 func TestManagerTaskWithID(t *testing.T) {
-	ctx := context.Background()
+	synctest.Test(t, func(t *testing.T) {
+		started := &testList[string]{}
+		stopped := &testList[string]{}
 
-	started := &testList[string]{}
-	stopped := &testList[string]{}
-
-	sinit := newTestManager(ctx,
-		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
-			if step != StepBefore {
-				return
-			}
-			if tid, ok := task.(TaskWithID); ok {
-				if tstr, ok := tid.TaskID().(string); ok {
-					if stage == StageStart {
-						started.add(tstr)
-					} else {
-						stopped.add(tstr)
+		sinit := New(t.Context(),
+			WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+				if step != StepBefore {
+					return
+				}
+				if tid, ok := task.(TaskWithID); ok {
+					if tstr, ok := tid.TaskID().(string); ok {
+						if stage == StageStart {
+							started.add(tstr)
+						} else {
+							stopped.add(tstr)
+						}
 					}
 				}
-			}
-		})),
-	)
+			})),
+		)
 
-	sinit.
-		StartTask(WrapTaskWithID("t1start", TaskFunc(func(ctx context.Context) error {
-			return nil
-		}))).
-		AutoStop(WrapTaskWithID("t1stop", TaskFunc(func(ctx context.Context) error {
-			return nil
-		})))
+		sinit.
+			StartTask(WrapTaskWithID("t1start", TaskFunc(func(ctx context.Context) error {
+				return nil
+			}))).
+			AutoStop(WrapTaskWithID("t1stop", TaskFunc(func(ctx context.Context) error {
+				return nil
+			})))
 
-	sinit.
-		StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context) error {
-			return nil
-		}, func(ctx context.Context) error {
-			return nil
-		}))).
-		AutoStop()
+		sinit.
+			StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context) error {
+				return nil
+			}, func(ctx context.Context) error {
+				return nil
+			}))).
+			AutoStop()
 
-	sinit.Shutdown()
-	err := sinit.Run()
-	assert.NilError(t, err)
+		sinit.Shutdown()
+		err := sinit.Run()
+		assert.NilError(t, err)
 
-	assert.DeepEqual(t, []string{"s1", "t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-	assert.DeepEqual(t, []string{"s1", "t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"s1", "t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"s1", "t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+	})
 }
 
 func TestManagerShutdownTimeout(t *testing.T) {
@@ -631,10 +636,4 @@ func (l *testList[T]) get() []T {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.list
-}
-
-func newTestManager(ctx context.Context, options ...Option) *Manager {
-	sinit := New(ctx, options...)
-	sinit.ExecuteTask(TimeoutTask(5*time.Second, errors.New("test timeout")))
-	return sinit
 }
