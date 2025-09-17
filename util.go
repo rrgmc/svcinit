@@ -6,6 +6,44 @@ import (
 	"sync"
 )
 
+// valuePtr allows changing the value even on value declarations.
+// It uses a pointer to a pointer internally.
+type valuePtr[T any] struct {
+	value **T
+}
+
+func newValuePtr[T any]() valuePtr[T] {
+	return valuePtr[T]{
+		value: new(*T),
+	}
+}
+
+func newValuePtrWithValue[T any](value T) valuePtr[T] {
+	ret := newValuePtr[T]()
+	ret.Set(value)
+	return ret
+}
+
+func (v valuePtr[T]) Set(value T) {
+	*v.value = &value
+}
+
+func (v valuePtr[T]) Clear() {
+	*v.value = nil
+}
+
+func (v valuePtr[T]) IsNil() bool {
+	return *v.value == nil
+}
+
+func (v valuePtr[T]) Get() T {
+	if v.IsNil() {
+		var zero T
+		return zero
+	}
+	return **v.value
+}
+
 type resolved struct {
 	value *bool
 }

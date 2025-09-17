@@ -107,6 +107,10 @@ func (s StartTaskCmd) AutoStopContext() {
 	s.s.addTask(s.s.unorderedCancelCtx, s.start, s.options...)
 }
 
+// func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
+// 	return s.createStopFuture(stop, stopOptions...)
+// }
+
 // FutureStop returns a StopFuture to be stopped when the order matters.
 // The context passed to the task will NOT be canceled, except if the option WithCancelContext(true) is set.
 // The returned StopFuture must be added in order to [Manager.StopTask].

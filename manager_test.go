@@ -39,6 +39,7 @@ func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := &testList[string]{}
 		stopped := &testList[string]{}
+		// prestopped := &testList[string]{}
 
 		sinit := New(t.Context())
 

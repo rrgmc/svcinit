@@ -24,7 +24,7 @@ func WithTaskCallback(callback TaskCallback) TaskOption {
 
 type StopOption func(options *stopOptions)
 
-// WithCancelContext sets whether to cancel the context on stop.
+// WithCancelContext sets whether to cancel the context of the START task on stop.
 // Default is false.
 func WithCancelContext(cancelContext bool) StopOption {
 	return func(options *stopOptions) {
