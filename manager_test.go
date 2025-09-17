@@ -39,13 +39,17 @@ func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := &testList[string]{}
 		stopped := &testList[string]{}
-		// prestopped := &testList[string]{}
+		prestopped := &testList[string]{}
 
 		sinit := New(t.Context())
 
 		sinit.
 			StartTask(TaskFunc(func(ctx context.Context) error {
 				started.add("task1")
+				return nil
+			})).
+			PreStop(TaskFunc(func(ctx context.Context) error {
+				prestopped.add("task1")
 				return nil
 			})).
 			AutoStop(TaskFunc(func(ctx context.Context) error {
@@ -61,6 +65,10 @@ func TestManager(t *testing.T) {
 				stopped.add("service1")
 				return nil
 			})).
+			PreStop(TaskFunc(func(ctx context.Context) error {
+				prestopped.add("service1")
+				return nil
+			})).
 			AutoStop()
 
 		sinit.Shutdown()
@@ -68,6 +76,7 @@ func TestManager(t *testing.T) {
 		assert.NilError(t, err)
 
 		assert.DeepEqual(t, []string{"task1", "service1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task1", "service1"}, prestopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 		assert.DeepEqual(t, []string{"task1", "service1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
