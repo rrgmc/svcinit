@@ -51,10 +51,16 @@ type WrappedService interface {
 	WrappedService() Service
 }
 
-// Service is task with start and stop methods.
+// Service is task with multiple stages.
 type Service interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
+	RunService(ctx context.Context, stage Stage) error
+}
+
+// ServiceFunc is a functional implementation of Service.
+type ServiceFunc func(ctx context.Context, stage Stage) error
+
+func (f ServiceFunc) RunService(ctx context.Context, stage Stage) error {
+	return f(ctx, stage)
 }
 
 // ServiceWithID is a Service that has an ID.
@@ -69,12 +75,6 @@ type ServiceTask interface {
 	Task
 	Service() Service
 	Stage() Stage
-}
-
-// ServiceFunc returns a Service from start and stop tasks.
-// The passed tasks will NOT be returned in task callbacks, it is an internal detail only.
-func ServiceFunc(start, stop func(ctx context.Context) error) Service {
-	return &serviceFunc{start: start, stop: stop}
 }
 
 // TaskCallback is called before and after the task is run.
@@ -169,32 +169,14 @@ func UnwrapTask(task Task) Task {
 }
 
 // WrapService wraps a service in a WrappedService, allowing the handler to be customized.
-func WrapService(service Service, options ...WrapServiceOption) Service {
-	if service == nil {
+// If service or handler is nil, the unmodified service will be returned.
+func WrapService(service Service, handler func(ctx context.Context, svc Service, stage Stage) error) Service {
+	if service == nil || handler == nil {
 		return service
 	}
-	ret := &wrappedService{
-		svc: service,
-	}
-	for _, option := range options {
-		option(ret)
-	}
-	return ret
-}
-
-type WrapServiceOption func(service *wrappedService)
-
-// WithWrapServiceStartHandler sets an optional start handler for the service.
-func WithWrapServiceStartHandler(handler func(ctx context.Context, service Service) error) WrapServiceOption {
-	return func(service *wrappedService) {
-		service.startHandler = handler
-	}
-}
-
-// WithWrapServiceStopHandler sets an optional start handler for the service.
-func WithWrapServiceStopHandler(handler func(ctx context.Context, service Service) error) WrapServiceOption {
-	return func(service *wrappedService) {
-		service.stopHandler = handler
+	return &wrappedService{
+		svc:     service,
+		handler: handler,
 	}
 }
 

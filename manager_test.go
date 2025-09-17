@@ -53,11 +53,13 @@ func TestManager(t *testing.T) {
 			}))
 
 		sinit.
-			StartService(ServiceFunc(func(ctx context.Context) error {
-				started.add("service1")
-				return nil
-			}, func(ctx context.Context) error {
-				stopped.add("service1")
+			StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
+				switch stage {
+				case StageStart:
+					started.add("service1")
+				case StageStop:
+					stopped.add("service1")
+				}
 				return nil
 			})).
 			AutoStop()
@@ -153,8 +155,9 @@ func TestManagerWorkflows(t *testing.T) {
 					cancel: func() {
 						dtCancel(testTaskNoError{taskNo: taskNo})
 					},
-					svc: ServiceFunc(
-						func(ctx context.Context) error {
+					svc: ServiceFunc(func(ctx context.Context, stage Stage) error {
+						switch stage {
+						case StageStart:
 							defer stCancel()
 
 							if isDebug {
@@ -184,7 +187,7 @@ func TestManagerWorkflows(t *testing.T) {
 								}
 								return context.Cause(ctx)
 							}
-						}, func(ctx context.Context) error {
+						case StageStop:
 							if isDebug {
 								fmt.Printf("Stopping task %d\n", taskNo)
 							}
@@ -200,8 +203,9 @@ func TestManagerWorkflows(t *testing.T) {
 							case <-stCtx.Done():
 							case <-ctx.Done():
 							}
-							return nil
-						}),
+						}
+						return nil
+					}),
 				}
 			}
 
@@ -393,11 +397,13 @@ func TestManagerCallback(t *testing.T) {
 				return nil
 			}))
 
-		svc := newTestService(3, func(ctx context.Context) error {
-			started.add(3)
-			return nil
-		}, func(ctx context.Context) error {
-			stopped.add(3)
+		svc := newTestService(3, func(ctx context.Context, stage Stage) error {
+			switch stage {
+			case StageStart:
+				started.add(3)
+			case StageStop:
+				stopped.add(3)
+			}
 			return nil
 		})
 
@@ -480,9 +486,7 @@ func TestManagerTaskWithID(t *testing.T) {
 			})))
 
 		sinit.
-			StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context) error {
-				return nil
-			}, func(ctx context.Context) error {
+			StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context, stage Stage) error {
 				return nil
 			}))).
 			AutoStop()
@@ -545,9 +549,7 @@ func TestManagerPendingStartService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must call one StartServiceCmd method
-	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
-		return nil
-	}, func(ctx context.Context) error {
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
 		return nil
 	}))
 
@@ -573,9 +575,7 @@ func TestManagerPendingStopService(t *testing.T) {
 	sinit := New(context.Background())
 
 	// must add stop function to FutureStop
-	_ = sinit.StartService(ServiceFunc(func(ctx context.Context) error {
-		return nil
-	}, func(ctx context.Context) error {
+	_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
 		return nil
 	})).FutureStop()
 
@@ -600,25 +600,20 @@ func (t *testTask) Run(ctx context.Context) error {
 }
 
 type testService struct {
-	taskNo int
-	start  func(ctx context.Context) error
-	stop   func(ctx context.Context) error
+	taskNo  int
+	handler func(ctx context.Context, stage Stage) error
+	stop    func(ctx context.Context) error
 }
 
-func newTestService(taskNo int, start func(ctx context.Context) error, stop func(ctx context.Context) error) *testService {
+func newTestService(taskNo int, handler func(ctx context.Context, stage Stage) error) *testService {
 	return &testService{
-		taskNo: taskNo,
-		start:  start,
-		stop:   stop,
+		taskNo:  taskNo,
+		handler: handler,
 	}
 }
 
-func (t *testService) Start(ctx context.Context) error {
-	return t.start(ctx)
-}
-
-func (t *testService) Stop(ctx context.Context) error {
-	return t.stop(ctx)
+func (t *testService) RunService(ctx context.Context, stage Stage) error {
+	return t.RunService(ctx, stage)
 }
 
 type testList[T any] struct {
