@@ -91,56 +91,62 @@ func TestManagerWorkflows(t *testing.T) {
 		expectedErr                                    error
 		expectedOrderedFinish, expectedOrderedStop     []int
 		expectedUnorderedFinish, expectedUnorderedStop []int
+		expectedUnorderedPreStop                       []int
 	}{
 		{
 			name: "stop 1: cancel execute unordered",
 			cancelFn: func() []int {
 				return []int{1}
 			},
-			expectedTaskErr:         1,
-			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 3, 4},
-			expectedUnorderedFinish: []int{1, 5},
+			expectedTaskErr:          1,
+			expectedOrderedFinish:    []int{2, 3, 4},
+			expectedOrderedStop:      []int{2, 3, 4},
+			expectedUnorderedPreStop: []int{3, 4},
+			expectedUnorderedFinish:  []int{1, 5},
 		},
 		{
 			name: "stop 2: cancel task ordered",
 			cancelFn: func() []int {
 				return []int{2}
 			},
-			expectedTaskErr:         2,
-			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 3, 4},
-			expectedUnorderedFinish: []int{1, 5},
+			expectedTaskErr:          2,
+			expectedOrderedFinish:    []int{2, 3, 4},
+			expectedOrderedStop:      []int{2, 3, 4},
+			expectedUnorderedPreStop: []int{3, 4},
+			expectedUnorderedFinish:  []int{1, 5},
 		},
 		{
 			name: "stop 3: cancel task context ordered",
 			cancelFn: func() []int {
 				return []int{3}
 			},
-			expectedTaskErr:         3,
-			expectedOrderedFinish:   []int{3, 2, 4},
-			expectedOrderedStop:     []int{2, 3, 4},
-			expectedUnorderedFinish: []int{1, 5},
+			expectedTaskErr:          3,
+			expectedOrderedFinish:    []int{3, 2, 4},
+			expectedOrderedStop:      []int{2, 3, 4},
+			expectedUnorderedPreStop: []int{3, 4},
+			expectedUnorderedFinish:  []int{1, 5},
 		},
 		{
 			name: "stop 4: cancel service ordered",
 			cancelFn: func() []int {
 				return []int{4}
 			},
-			expectedTaskErr:         4,
-			expectedOrderedFinish:   []int{4, 2, 3},
-			expectedOrderedStop:     []int{2, 3, 4},
-			expectedUnorderedFinish: []int{1, 5},
+			expectedTaskErr:          4,
+			expectedOrderedFinish:    []int{4, 2, 3},
+			expectedOrderedStop:      []int{2, 3, 4},
+			expectedUnorderedPreStop: []int{3, 4},
+			expectedUnorderedFinish:  []int{1, 5},
 		},
 		{
 			name: "stop 5: cancel task auto",
 			cancelFn: func() []int {
 				return []int{5}
 			},
-			expectedTaskErr:         5,
-			expectedOrderedFinish:   []int{2, 3, 4},
-			expectedOrderedStop:     []int{2, 3, 4},
-			expectedUnorderedFinish: []int{1, 5},
+			expectedTaskErr:          5,
+			expectedOrderedFinish:    []int{2, 3, 4},
+			expectedOrderedStop:      []int{2, 3, 4},
+			expectedUnorderedPreStop: []int{3, 4},
+			expectedUnorderedFinish:  []int{1, 5},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -150,6 +156,7 @@ func TestManagerWorkflows(t *testing.T) {
 			orderedStop := &testList[int]{}
 			unorderedFinish := &testList[int]{}
 			unorderedStop := &testList[int]{}
+			unorderedPreStop := &testList[int]{}
 
 			type testService struct {
 				svc    Service
@@ -195,6 +202,13 @@ func TestManagerWorkflows(t *testing.T) {
 								}
 								return context.Cause(ctx)
 							}
+						case StagePreStop:
+							if isDebug {
+								fmt.Printf("PreStopping task %d\n", taskNo)
+							}
+							defer func() {
+								unorderedPreStop.add(taskNo)
+							}()
 						case StageStop:
 							if isDebug {
 								fmt.Printf("Stopping task %d\n", taskNo)
@@ -231,6 +245,7 @@ func TestManagerWorkflows(t *testing.T) {
 			task3 := defaultTaskSvc(3, true)
 			i3Stop := sinit.
 				StartTask(ServiceAsTask(task3.svc, StageStart)).
+				PreStop(ServiceAsTask(task3.svc, StagePreStop)).
 				FutureStop(ServiceAsTask(task3.svc, StageStop), WithCancelContext(true))
 
 			task4 := defaultTaskSvc(4, true)
@@ -276,6 +291,7 @@ func TestManagerWorkflows(t *testing.T) {
 			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop.get())
 			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish.get(), cmpopts.SortSlices(cmp.Less[int]))
 			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop.get(), cmpopts.SortSlices(cmp.Less[int]))
+			assert.DeepEqual(t, test.expectedUnorderedPreStop, unorderedPreStop.get(), cmpopts.SortSlices(cmp.Less[int]))
 		})
 	}
 }
@@ -496,17 +512,17 @@ func TestManagerTaskWithID(t *testing.T) {
 		)
 
 		sinit.
-			StartTask(WrapTaskWithID("t1start", TaskFunc(func(ctx context.Context) error {
+			StartTask(TaskFuncWithID("t1start", func(ctx context.Context) error {
 				return nil
-			}))).
-			AutoStop(WrapTaskWithID("t1stop", TaskFunc(func(ctx context.Context) error {
+			})).
+			AutoStop(TaskFuncWithID("t1stop", func(ctx context.Context) error {
 				return nil
-			})))
+			}))
 
 		sinit.
-			StartService(WrapServiceWithID("s1", ServiceFunc(func(ctx context.Context, stage Stage) error {
+			StartService(ServiceFuncWithID("s1", func(ctx context.Context, stage Stage) error {
 				return nil
-			}))).
+			})).
 			AutoStop()
 
 		sinit.Shutdown()
