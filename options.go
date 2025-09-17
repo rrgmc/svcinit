@@ -2,18 +2,6 @@ package svcinit
 
 import "context"
 
-type Step int
-
-const (
-	StepBefore Step = iota
-	StepAfter
-)
-
-// type ManagerCallback interface {
-// 	BeforeRun(ctx context.Context, stage Stage, cause error) error
-// 	AfterRun(ctx context.Context, stage Stage, cause error) error
-// }
-
 // ManagerCallback is a callback for manager events.
 // The cause parameter is only set if stage == StageStop.
 type ManagerCallback interface {

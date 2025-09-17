@@ -11,6 +11,13 @@ const (
 	StageStop
 )
 
+type Step int
+
+const (
+	StepBefore Step = iota
+	StepAfter
+)
+
 type Task interface {
 	Run(ctx context.Context) error
 }
@@ -77,6 +84,11 @@ type TaskCallback interface {
 	BeforeRun(ctx context.Context, task Task, stage Stage)
 	AfterRun(ctx context.Context, task Task, stage Stage, err error)
 }
+
+// type TaskCallback interface {
+// 	BeforeRun(ctx context.Context, task Task, stage Stage)
+// 	AfterRun(ctx context.Context, task Task, stage Stage, err error)
+// }
 
 // TaskCallbackFunc is called before and after the task is run.
 func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, stage Stage),
