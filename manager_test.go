@@ -602,7 +602,6 @@ func (t *testTask) Run(ctx context.Context) error {
 type testService struct {
 	taskNo  int
 	handler func(ctx context.Context, stage Stage) error
-	stop    func(ctx context.Context) error
 }
 
 func newTestService(taskNo int, handler func(ctx context.Context, stage Stage) error) *testService {
@@ -613,7 +612,7 @@ func newTestService(taskNo int, handler func(ctx context.Context, stage Stage) e
 }
 
 func (t *testService) RunService(ctx context.Context, stage Stage) error {
-	return t.RunService(ctx, stage)
+	return t.handler(ctx, stage)
 }
 
 type testList[T any] struct {
