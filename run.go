@@ -68,7 +68,12 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 				errorBuilder.add(err)
 			})
 		}
-		_ = waitGroupWaitWithContext(ctx, &wgPreStop)
+
+		if s.enforceShutdownTimeout {
+			_ = waitGroupWaitWithContext(ctx, &wgPreStop)
+		} else {
+			wgPreStop.Wait()
+		}
 
 		if serr := s.runCallbacks(s.shutdownCtx, StagePreStop, StepAfter, cause); serr != nil {
 			return serr, nil
