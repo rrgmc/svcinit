@@ -40,6 +40,9 @@ func (s *healthService) RunService(ctx context.Context, stage svcinit.Stage) err
         return s.server.ListenAndServe()
     case svcinit.StageStop:
         return s.server.Shutdown(ctx)
+    case svcinit.StagePreStop:
+        // called just before shutdown starts.
+        // This could be used to make the readiness probe to fail during shutdown.
     default:
     }
     return nil
@@ -117,7 +120,8 @@ func ExampleManager() {
 
     // sleep 10 seconds and shutdown.
     // it is only started on the Run call.
-    sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
+    sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second,
+        svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
     // add manual stops. They will be stopped in the added order.
 

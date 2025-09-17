@@ -29,6 +29,9 @@ func (s *healthService) RunService(ctx context.Context, stage svcinit.Stage) err
 		return s.server.ListenAndServe()
 	case svcinit.StageStop:
 		return s.server.Shutdown(ctx)
+	case svcinit.StagePreStop:
+		// called just before shutdown starts.
+		// This could be used to make the readiness probe to fail during shutdown.
 	default:
 	}
 	return nil
