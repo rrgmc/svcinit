@@ -8,9 +8,22 @@ type Stage int
 
 const (
 	StageStart Stage = iota
-	StageStop
 	StagePreStop
+	StageStop
 )
+
+func (s Stage) String() string {
+	switch s {
+	case StageStart:
+		return "start"
+	case StageStop:
+		return "stop"
+	case StagePreStop:
+		return "pre-stop"
+	default:
+		return "unknown-stage"
+	}
+}
 
 type Step int
 
@@ -18,6 +31,17 @@ const (
 	StepBefore Step = iota
 	StepAfter
 )
+
+func (s Step) String() string {
+	switch s {
+	case StepBefore:
+		return "before"
+	case StepAfter:
+		return "after"
+	default:
+		return "unknown-step"
+	}
+}
 
 type Task interface {
 	Run(ctx context.Context) error

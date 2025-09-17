@@ -470,7 +470,7 @@ func TestManagerOrder(t *testing.T) {
 					}
 					m.Lock()
 					defer m.Unlock()
-					allTasks[taskNo] = append(allTasks[taskNo], fmt.Sprintf("%d-%d", stage, step))
+					allTasks[taskNo] = append(allTasks[taskNo], fmt.Sprintf("%s-%s", stage, step))
 				})),
 		)
 
@@ -519,9 +519,9 @@ func TestManagerOrder(t *testing.T) {
 		err := sinit.Run()
 		assert.NilError(t, err)
 		assert.DeepEqual(t, map[int][]string{
-			1: {"0-0", "0-1", "1-0", "1-1"},
-			2: {"0-0", "0-1", "2-0", "2-1", "1-0", "1-1"},
-			3: {"0-0", "0-1", "2-0", "2-1", "1-0", "1-1"},
+			1: {"start-before", "start-after", "stop-before", "stop-after"},
+			2: {"start-before", "start-after", "pre-stop-before", "pre-stop-after", "stop-before", "stop-after"},
+			3: {"start-before", "start-after", "pre-stop-before", "pre-stop-after", "stop-before", "stop-after"},
 		}, allTasks)
 	})
 }
