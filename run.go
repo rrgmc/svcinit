@@ -143,13 +143,13 @@ func runTask(ctx context.Context, task Task, stage Stage, callbacks ...TaskCallb
 	}
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.BeforeRun(ctx, UnwrapTask(task), stage)
+			callback.Callback(ctx, UnwrapTask(task), stage, StepBefore, nil)
 		}
 	}
 	err := task.Run(ctx)
 	for _, callback := range callbacks {
 		if callback != nil {
-			callback.AfterRun(ctx, UnwrapTask(task), stage, err)
+			callback.Callback(ctx, UnwrapTask(task), stage, StepAfter, err)
 		}
 	}
 	return err

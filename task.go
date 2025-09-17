@@ -80,37 +80,15 @@ func ServiceFunc(start, stop func(ctx context.Context) error) Service {
 // TaskCallback is called before and after the task is run.
 // Tasks derived from services will call using  a ServiceTask.
 // Callbacks ALWAYS receives unwrapped tasks (with UnwrapTask).
+// The err parameter is only set if Step == StepAfter.
 type TaskCallback interface {
-	BeforeRun(ctx context.Context, task Task, stage Stage)
-	AfterRun(ctx context.Context, task Task, stage Stage, err error)
+	Callback(ctx context.Context, task Task, stage Stage, step Step, err error)
 }
 
-// type TaskCallback interface {
-// 	BeforeRun(ctx context.Context, task Task, stage Stage)
-// 	AfterRun(ctx context.Context, task Task, stage Stage, err error)
-// }
+type TaskCallbackFunc func(ctx context.Context, task Task, stage Stage, step Step, err error)
 
-// TaskCallbackFunc is called before and after the task is run.
-func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, stage Stage),
-	afterRun func(ctx context.Context, task Task, stage Stage, err error)) TaskCallback {
-	return taskCallbackFunc{
-		beforeRun: beforeRun,
-		afterRun:  afterRun,
-	}
-}
-
-// TaskCallbackFuncBeforeRun is called before and after the task is run.
-func TaskCallbackFuncBeforeRun(beforeRun func(ctx context.Context, task Task, stage Stage)) TaskCallback {
-	return taskCallbackFunc{
-		beforeRun: beforeRun,
-	}
-}
-
-// TaskCallbackFuncAfterRun is called before and after the task is run.
-func TaskCallbackFuncAfterRun(afterRun func(ctx context.Context, task Task, stage Stage, err error)) TaskCallback {
-	return taskCallbackFunc{
-		afterRun: afterRun,
-	}
+func (f TaskCallbackFunc) Callback(ctx context.Context, task Task, stage Stage, step Step, err error) {
+	f(ctx, task, stage, step, err)
 }
 
 // ServiceAsTask creates and adapter from a service method to a task.

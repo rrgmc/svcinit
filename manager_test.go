@@ -283,10 +283,11 @@ func TestManagerCallback(t *testing.T) {
 		}
 	}
 
-	individualTaskCallback := func(taskNo int, stage Stage, isBefore bool) func(ctx context.Context, task Task) {
+	individualTaskCallback := func(taskNo int, stage Stage, step Step) func(ctx context.Context, task Task) {
 		return func(ctx context.Context, task Task) {
 			stdAdd := 0
 			isStart := stage == StageStart
+			isBefore := step == StepBefore
 			if st, ok := task.(ServiceTask); ok {
 				if _, ok := st.Service().(*testService); !ok {
 					assert.Check(t, false, "service is not of the expected type but %T", task)
@@ -322,18 +323,14 @@ func TestManagerCallback(t *testing.T) {
 			return nil
 		})),
 		WithGlobalTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage) {
-				globalTaskCallback(ctx, task)
-			}, func(ctx context.Context, task Task, stage Stage, err error) {
+			TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
 				globalTaskCallback(ctx, task)
 			})),
 	)
 
 	getTaskCallback := func(taskNo int) TaskCallback {
-		return TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage) {
-			individualTaskCallback(taskNo, stage, true)(ctx, task)
-		}, func(ctx context.Context, task Task, stage Stage, err error) {
-			individualTaskCallback(taskNo, stage, false)(ctx, task)
+		return TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+			individualTaskCallback(taskNo, stage, step)(ctx, task)
 		})
 	}
 
@@ -418,7 +415,10 @@ func TestManagerTaskWithID(t *testing.T) {
 	stopped := &testList[string]{}
 
 	sinit := newTestManager(ctx,
-		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage) {
+		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+			if step != StepBefore {
+				return
+			}
 			if tid, ok := task.(TaskWithID); ok {
 				if tstr, ok := tid.TaskID().(string); ok {
 					if stage == StageStart {
@@ -428,7 +428,7 @@ func TestManagerTaskWithID(t *testing.T) {
 					}
 				}
 			}
-		}, nil)),
+		})),
 	)
 
 	sinit.
