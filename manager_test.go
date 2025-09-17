@@ -456,6 +456,76 @@ func TestManagerCallback(t *testing.T) {
 	})
 }
 
+func TestManagerOrder(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var m sync.Mutex
+		allTasks := map[int][]string{}
+
+		sinit := New(t.Context(),
+			WithGlobalTaskCallback(
+				TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+					taskNo, ok := getTestTaskNo(task)
+					if !assert.Check(t, ok, "task is not of the expected type but %T", task) {
+						return
+					}
+					m.Lock()
+					defer m.Unlock()
+					allTasks[taskNo] = append(allTasks[taskNo], fmt.Sprintf("%d-%d", stage, step))
+				})),
+		)
+
+		stopTask1 := sinit.
+			StartTask(newTestTask(1, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			})).
+			FutureStop(newTestTask(1, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			}))
+
+		stopTask2 := sinit.
+			StartTask(newTestTask(2, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			})).
+			PreStop(newTestTask(2, func(ctx context.Context) error {
+				return nil
+			})).
+			FutureStop(newTestTask(2, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			}))
+
+		svc := newTestService(3, func(ctx context.Context, stage Stage) error {
+			switch stage {
+			case StageStart:
+				_ = SleepContext(ctx, time.Second)
+			case StageStop:
+				_ = SleepContext(ctx, time.Second)
+			default:
+			}
+			return nil
+		})
+
+		stopService := sinit.
+			StartService(svc).
+			FutureStop()
+
+		sinit.StopFuture(stopTask1)
+		sinit.StopFuture(stopTask2)
+		sinit.StopFuture(stopService)
+
+		err := sinit.Run()
+		assert.NilError(t, err)
+		assert.DeepEqual(t, map[int][]string{
+			1: {"0-0", "0-1", "1-0", "1-1"},
+			2: {"0-0", "0-1", "2-0", "2-1", "1-0", "1-1"},
+			3: {"0-0", "0-1", "2-0", "2-1", "1-0", "1-1"},
+		}, allTasks)
+	})
+}
+
 func TestManagerWithoutTask(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		sinit := New(t.Context())
@@ -624,6 +694,10 @@ func newTestTask(taskNo int, task TaskFunc) *testTask {
 	}
 }
 
+func (t *testTask) TaskNo() int {
+	return t.taskNo
+}
+
 func (t *testTask) Run(ctx context.Context) error {
 	return t.task(ctx)
 }
@@ -640,8 +714,23 @@ func newTestService(taskNo int, handler func(ctx context.Context, stage Stage) e
 	}
 }
 
+func (t *testService) TaskNo() int {
+	return t.taskNo
+}
+
 func (t *testService) RunService(ctx context.Context, stage Stage) error {
 	return t.handler(ctx, stage)
+}
+
+func getTestTaskNo(task Task) (int, bool) {
+	if st, ok := task.(ServiceTask); ok {
+		if ts, ok := st.Service().(*testService); ok {
+			return ts.TaskNo(), true
+		}
+	} else if tt, ok := task.(*testTask); ok {
+		return tt.TaskNo(), true
+	}
+	return -1, false
 }
 
 type testList[T any] struct {
