@@ -6,13 +6,9 @@ import (
 )
 
 func (s *Manager) start() error {
-	if s.managerCallback != nil {
-		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.ctx, StageStart, StepBefore, nil); serr != nil {
-				s.cancel(serr)
-				return serr
-			}
-		}
+	if serr := s.runCallbacks(s.shutdownCtx, StageStart, StepBefore, nil); serr != nil {
+		s.cancel(serr)
+		return serr
 	}
 
 	var runWg sync.WaitGroup
@@ -33,24 +29,17 @@ func (s *Manager) start() error {
 		}()
 	}
 	runWg.Wait()
-	if s.managerCallback != nil {
-		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.ctx, StageStart, StepAfter, nil); serr != nil {
-				s.cancel(serr)
-			}
-		}
+
+	if serr := s.runCallbacks(s.shutdownCtx, StageStart, StepAfter, nil); serr != nil {
+		s.cancel(serr)
 	}
 
 	return nil
 }
 
 func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
-	if s.managerCallback != nil {
-		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.shutdownCtx, StageStop, StepBefore, cause); serr != nil {
-				return serr, nil
-			}
-		}
+	if serr := s.runCallbacks(s.shutdownCtx, StageStop, StepBefore, cause); serr != nil {
+		return serr, nil
 	}
 
 	var (
@@ -67,6 +56,10 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	}
 
 	if len(s.preStopTasks) > 0 {
+		if serr := s.runCallbacks(s.shutdownCtx, StagePreStop, StepBefore, cause); serr != nil {
+			return serr, nil
+		}
+
 		var wgPreStop sync.WaitGroup
 		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.preStopTasks {
@@ -76,6 +69,10 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 			})
 		}
 		_ = waitGroupWaitWithContext(ctx, &wgPreStop)
+
+		if serr := s.runCallbacks(s.shutdownCtx, StagePreStop, StepAfter, cause); serr != nil {
+			return serr, nil
+		}
 	}
 
 	if len(s.stopTasks) > 0 {
@@ -110,12 +107,8 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		}
 	}
 
-	if s.managerCallback != nil {
-		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.shutdownCtx, StageStop, StepAfter, cause); serr != nil {
-				errorBuilder.add(serr)
-			}
-		}
+	if serr := s.runCallbacks(s.shutdownCtx, StageStop, StepAfter, cause); serr != nil {
+		errorBuilder.add(serr)
 	}
 
 	return nil, errorBuilder.build()
@@ -147,6 +140,18 @@ func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFutur
 	st := newPendingStopFuture(task, options...)
 	s.pendingStops = append(s.pendingStops, st)
 	return st
+}
+
+func (s *Manager) runCallbacks(ctx context.Context, stage Stage, step Step, cause error) error {
+	eb := newMultiErrorBuilder()
+	if s.managerCallback != nil {
+		for _, scallback := range s.managerCallback {
+			if serr := scallback.Callback(ctx, stage, step, cause); serr != nil {
+				eb.add(serr)
+			}
+		}
+	}
+	return eb.build()
 }
 
 func runTask(ctx context.Context, task Task, stage Stage, callbacks ...TaskCallback) error {
