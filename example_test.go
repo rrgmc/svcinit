@@ -29,6 +29,7 @@ func (s *healthService) RunService(ctx context.Context, stage svcinit.Stage) err
 		return s.server.ListenAndServe()
 	case svcinit.StageStop:
 		return s.server.Shutdown(ctx)
+	default:
 	}
 	return nil
 }

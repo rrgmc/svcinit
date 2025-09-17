@@ -211,6 +211,7 @@ func TestManagerWorkflows(t *testing.T) {
 							case <-stCtx.Done():
 							case <-ctx.Done():
 							}
+						default:
 						}
 						return nil
 					}),
@@ -417,6 +418,7 @@ func TestManagerCallback(t *testing.T) {
 				started.add(3)
 			case StageStop:
 				stopped.add(3)
+			default:
 			}
 			return nil
 		})
