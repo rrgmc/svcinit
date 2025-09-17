@@ -66,9 +66,9 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		defer cancel()
 	}
 
-	if len(s.autoCleanup) > 0 {
+	if len(s.stopTasks) > 0 {
 		// cleanups where order don't matter are done in parallel
-		for _, task := range s.autoCleanup {
+		for _, task := range s.stopTasks {
 			wg.Go(func() {
 				err := task.run(ctx, StageStop, s.taskCallback...)
 				errorBuilder.add(err)
@@ -77,9 +77,9 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	}
 
 	// execute ordered cleanups synchronously
-	if len(s.cleanup) > 0 {
+	if len(s.stopTasksOrdered) > 0 {
 		wg.Go(func() {
-			for _, task := range s.cleanup {
+			for _, task := range s.stopTasksOrdered {
 				err := task.run(ctx, StageStop, s.taskCallback...)
 				errorBuilder.add(err)
 			}

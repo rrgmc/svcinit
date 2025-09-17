@@ -43,7 +43,7 @@ func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceC
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *Manager) StopTask(task Task, options ...TaskOption) {
-	s.cleanup = append(s.cleanup, newStopTaskWrapper(task, options...))
+	s.stopTasksOrdered = append(s.stopTasksOrdered, newStopTaskWrapper(task, options...))
 }
 
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
@@ -67,7 +67,7 @@ func (s *Manager) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 
 // StopFuture adds a shutdown task. The shutdown will be done in the order they are added.
 func (s *Manager) StopFuture(task StopFuture) {
-	s.cleanup = append(s.cleanup, s.taskFromStopFuture(task))
+	s.stopTasksOrdered = append(s.stopTasksOrdered, s.taskFromStopFuture(task))
 }
 
 // StopFutureMultiple adds a shutdown task. The shutdown will be done in the order they are added.
@@ -83,7 +83,7 @@ func (s *Manager) StopFutureMultiple(tasks ...StopFuture) {
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
 func (s *Manager) AutoStopTask(task Task, options ...TaskOption) {
-	s.autoCleanup = append(s.autoCleanup, newStopTaskWrapper(task, options...))
+	s.stopTasks = append(s.stopTasks, newStopTaskWrapper(task, options...))
 }
 
 type StartTaskCmd struct {
@@ -173,7 +173,7 @@ func (s StartServiceCmd) AutoStop() {
 	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)
 	s.s.addTask(s.s.unorderedCancelCtx, startTask, s.options...)
-	s.s.autoCleanup = append(s.s.autoCleanup, newStopTaskWrapper(stopTask, s.options...))
+	s.s.stopTasks = append(s.s.stopTasks, newStopTaskWrapper(stopTask, s.options...))
 }
 
 // FutureStop returns a StopFuture to be stopped when the order matters.
