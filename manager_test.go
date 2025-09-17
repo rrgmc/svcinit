@@ -35,7 +35,7 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 	}
 }
 
-func TestManager(t *testing.T) {
+func TestManagerWorkflows(t *testing.T) {
 	isDebug := false
 
 	for _, test := range []struct {
