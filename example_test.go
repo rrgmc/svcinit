@@ -78,6 +78,11 @@ func ExampleManager() {
 			}
 			return httpServer.ListenAndServe()
 		})).
+		// called just before shutdown starts.
+		// This could be used to make the readiness probe to fail during shutdown.
+		PreStop(svcinit.TaskFunc(func(ctx context.Context) error {
+			return nil
+		})).
 		// stop the service using the [svcinit.Manager.FutureStop] call WITHOUT cancelling the start context.
 		FutureStop(svcinit.TaskFunc(func(ctx context.Context) error {
 			return httpServer.Shutdown(ctx)
