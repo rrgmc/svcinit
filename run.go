@@ -68,26 +68,22 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 
 	if len(s.autoCleanup) > 0 {
 		// cleanups where order don't matter are done in parallel
-		wg.Add(len(s.autoCleanup))
 		for _, task := range s.autoCleanup {
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				err := task.run(ctx, false, s.taskCallback...)
 				errorBuilder.add(err)
-			}()
+			})
 		}
 	}
 
 	// execute ordered cleanups synchronously
 	if len(s.cleanup) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for _, task := range s.cleanup {
 				err := task.run(ctx, false, s.taskCallback...)
 				errorBuilder.add(err)
 			}
-		}()
+		})
 	}
 
 	// wait for auto cleanups, if any

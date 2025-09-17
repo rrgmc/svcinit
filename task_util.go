@@ -100,14 +100,12 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, isStart bool, callb
 
 	var wg sync.WaitGroup
 	for _, st := range t.tasks {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := st.run(ctx, isStart, callbacks...)
 			if err != nil {
 				allErr.add(err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
