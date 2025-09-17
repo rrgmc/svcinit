@@ -8,7 +8,7 @@ import (
 func (s *Manager) start() error {
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.BeforeRun(s.ctx, TaskStageStart, nil); serr != nil {
+			if serr := scallback.Callback(s.ctx, TaskStageStart, StepBefore, nil); serr != nil {
 				s.cancel(serr)
 				return serr
 			}
@@ -35,7 +35,7 @@ func (s *Manager) start() error {
 	runWg.Wait()
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.AfterRun(s.ctx, TaskStageStart, nil); serr != nil {
+			if serr := scallback.Callback(s.ctx, TaskStageStart, StepAfter, nil); serr != nil {
 				s.cancel(serr)
 			}
 		}
@@ -47,7 +47,7 @@ func (s *Manager) start() error {
 func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.BeforeRun(s.shutdownCtx, TaskStageStop, cause); serr != nil {
+			if serr := scallback.Callback(s.shutdownCtx, TaskStageStop, StepBefore, cause); serr != nil {
 				return serr, nil
 			}
 		}
@@ -100,7 +100,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.AfterRun(s.shutdownCtx, TaskStageStop, cause); serr != nil {
+			if serr := scallback.Callback(s.shutdownCtx, TaskStageStop, StepAfter, cause); serr != nil {
 				errorBuilder.add(serr)
 			}
 		}

@@ -199,8 +199,8 @@ func TestManager(t *testing.T) {
 			tasks := []testService{task1, task2, task3, task4, task5}
 
 			sinit.SetOptions(
-				WithManagerCallback(ManagerCallbackFuncAfterRun(func(ctx context.Context, stage TaskStage, cause error) error {
-					if stage != TaskStageStart {
+				WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage TaskStage, step Step, cause error) error {
+					if stage != TaskStageStart || step != StepAfter {
 						return nil
 					}
 					for _, taskNo := range test.cancelFn() {
@@ -313,14 +313,7 @@ func TestManagerCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
-		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage TaskStage, cause error) error {
-			if stage == TaskStageStart {
-				runStarted.Add(1)
-			} else {
-				runStopped.Add(1)
-			}
-			return nil
-		}, func(ctx context.Context, stage TaskStage, cause error) error {
+		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage TaskStage, step Step, cause error) error {
 			if stage == TaskStageStart {
 				runStarted.Add(1)
 			} else {
