@@ -35,6 +35,42 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 	}
 }
 
+func TestManager(t *testing.T) {
+	ctx := context.Background()
+
+	started := &testList[string]{}
+	stopped := &testList[string]{}
+
+	sinit := newTestManager(ctx)
+
+	sinit.
+		StartTask(TaskFunc(func(ctx context.Context) error {
+			started.add("task1")
+			return nil
+		})).
+		AutoStop(TaskFunc(func(ctx context.Context) error {
+			stopped.add("task1")
+			return nil
+		}))
+
+	sinit.
+		StartService(ServiceFunc(func(ctx context.Context) error {
+			started.add("service1")
+			return nil
+		}, func(ctx context.Context) error {
+			stopped.add("service1")
+			return nil
+		})).
+		AutoStop()
+
+	sinit.Shutdown()
+	err := sinit.Run()
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, []string{"task1", "service1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+	assert.DeepEqual(t, []string{"task1", "service1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+}
+
 func TestManagerWorkflows(t *testing.T) {
 	isDebug := false
 
