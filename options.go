@@ -3,8 +3,8 @@ package svcinit
 import "context"
 
 type ManagerCallback interface {
-	BeforeRun(ctx context.Context, isStart bool, cause error) error
-	AfterRun(ctx context.Context, isStart bool, cause error) error
+	BeforeRun(ctx context.Context, stage TaskStage, cause error) error
+	AfterRun(ctx context.Context, stage TaskStage, cause error) error
 }
 
 type TaskOption func(options *taskOptions)

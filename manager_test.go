@@ -172,17 +172,17 @@ func TestManager(t *testing.T) {
 			sinit := New(ctx)
 
 			task1 := defaultTaskSvc(1, false)
-			sinit.ExecuteTask(ServiceAsTask(task1.svc, true))
+			sinit.ExecuteTask(ServiceAsTask(task1.svc, TaskStageStart))
 
 			task2 := defaultTaskSvc(2, true)
 			i2Stop := sinit.
-				StartTask(ServiceAsTask(task2.svc, true)).
-				FutureStop(ServiceAsTask(task2.svc, false))
+				StartTask(ServiceAsTask(task2.svc, TaskStageStart)).
+				FutureStop(ServiceAsTask(task2.svc, TaskStageStop))
 
 			task3 := defaultTaskSvc(3, true)
 			i3Stop := sinit.
-				StartTask(ServiceAsTask(task3.svc, true)).
-				FutureStop(ServiceAsTask(task3.svc, false), WithCancelContext(true))
+				StartTask(ServiceAsTask(task3.svc, TaskStageStart)).
+				FutureStop(ServiceAsTask(task3.svc, TaskStageStop), WithCancelContext(true))
 
 			task4 := defaultTaskSvc(4, true)
 			i4Stop := sinit.
@@ -191,7 +191,7 @@ func TestManager(t *testing.T) {
 
 			task5 := defaultTaskSvc(5, false)
 			sinit.
-				StartTask(ServiceAsTask(task5.svc, true)).
+				StartTask(ServiceAsTask(task5.svc, TaskStageStart)).
 				AutoStopContext()
 
 			sinit.ExecuteTask(SignalTask(os.Interrupt, syscall.SIGTERM))
@@ -199,8 +199,8 @@ func TestManager(t *testing.T) {
 			tasks := []testService{task1, task2, task3, task4, task5}
 
 			sinit.SetOptions(
-				WithManagerCallback(ManagerCallbackFuncAfterRun(func(ctx context.Context, isStart bool, cause error) error {
-					if !isStart {
+				WithManagerCallback(ManagerCallbackFuncAfterRun(func(ctx context.Context, stage TaskStage, cause error) error {
+					if stage != TaskStageStart {
 						return nil
 					}
 					for _, taskNo := range test.cancelFn() {
@@ -283,14 +283,15 @@ func TestManagerCallback(t *testing.T) {
 		}
 	}
 
-	individualTaskCallback := func(taskNo int, isStart bool, isBefore bool) func(ctx context.Context, task Task) {
+	individualTaskCallback := func(taskNo int, stage TaskStage, isBefore bool) func(ctx context.Context, task Task) {
 		return func(ctx context.Context, task Task) {
 			stdAdd := 0
+			isStart := stage == TaskStageStart
 			if st, ok := task.(ServiceTask); ok {
 				if _, ok := st.Service().(*testService); !ok {
 					assert.Check(t, false, "service is not of the expected type but %T", task)
 				}
-				isStart = st.IsStart()
+				isStart = st.Stage() == TaskStageStart
 				stdAdd = 4
 			} else if _, ok := task.(*testTask); !ok {
 				assert.Check(t, false, "task %d (isStart:%t)(isBefore:%t) is not of the expected type but %T",
@@ -312,15 +313,15 @@ func TestManagerCallback(t *testing.T) {
 	}
 
 	sinit := New(context.Background(),
-		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, isStart bool, cause error) error {
-			if isStart {
+		WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage TaskStage, cause error) error {
+			if stage == TaskStageStart {
 				runStarted.Add(1)
 			} else {
 				runStopped.Add(1)
 			}
 			return nil
-		}, func(ctx context.Context, isStart bool, cause error) error {
-			if isStart {
+		}, func(ctx context.Context, stage TaskStage, cause error) error {
+			if stage == TaskStageStart {
 				runStarted.Add(1)
 			} else {
 				runStopped.Add(1)
@@ -328,18 +329,18 @@ func TestManagerCallback(t *testing.T) {
 			return nil
 		})),
 		WithGlobalTaskCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+			TaskCallbackFunc(func(ctx context.Context, task Task, stage TaskStage) {
 				globalTaskCallback(ctx, task)
-			}, func(ctx context.Context, task Task, isStart bool, err error) {
+			}, func(ctx context.Context, task Task, stage TaskStage, err error) {
 				globalTaskCallback(ctx, task)
 			})),
 	)
 
 	getTaskCallback := func(taskNo int) TaskCallback {
-		return TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
-			individualTaskCallback(taskNo, isStart, true)(ctx, task)
-		}, func(ctx context.Context, task Task, isStart bool, err error) {
-			individualTaskCallback(taskNo, isStart, false)(ctx, task)
+		return TaskCallbackFunc(func(ctx context.Context, task Task, stage TaskStage) {
+			individualTaskCallback(taskNo, stage, true)(ctx, task)
+		}, func(ctx context.Context, task Task, stage TaskStage, err error) {
+			individualTaskCallback(taskNo, stage, false)(ctx, task)
 		})
 	}
 
@@ -424,10 +425,10 @@ func TestManagerTaskWithID(t *testing.T) {
 	stopped := &testList[string]{}
 
 	sinit := newTestManager(ctx,
-		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, isStart bool) {
+		WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage TaskStage) {
 			if tid, ok := task.(TaskWithID); ok {
 				if tstr, ok := tid.TaskID().(string); ok {
-					if isStart {
+					if stage == TaskStageStart {
 						started.add(tstr)
 					} else {
 						stopped.add(tstr)

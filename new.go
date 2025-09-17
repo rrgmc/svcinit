@@ -32,8 +32,8 @@ func (s *Manager) SetOptions(options ...Option) {
 }
 
 // ManagerCallbackFunc is a functional implementation of ManagerCallback.
-func ManagerCallbackFunc(beforeRun func(ctx context.Context, isStart bool, cause error) error,
-	afterRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+func ManagerCallbackFunc(beforeRun func(ctx context.Context, stage TaskStage, cause error) error,
+	afterRun func(ctx context.Context, stage TaskStage, cause error) error) ManagerCallback {
 	return managerCallbackFunc{
 		beforeRun: beforeRun,
 		afterRun:  afterRun,
@@ -41,14 +41,14 @@ func ManagerCallbackFunc(beforeRun func(ctx context.Context, isStart bool, cause
 }
 
 // ManagerCallbackFuncBeforeRun is a functional implementation of ManagerCallback.
-func ManagerCallbackFuncBeforeRun(beforeRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+func ManagerCallbackFuncBeforeRun(beforeRun func(ctx context.Context, stage TaskStage, cause error) error) ManagerCallback {
 	return managerCallbackFunc{
 		beforeRun: beforeRun,
 	}
 }
 
 // ManagerCallbackFuncAfterRun is a functional implementation of ManagerCallback.
-func ManagerCallbackFuncAfterRun(afterRun func(ctx context.Context, isStart bool, cause error) error) ManagerCallback {
+func ManagerCallbackFuncAfterRun(afterRun func(ctx context.Context, stage TaskStage, cause error) error) ManagerCallback {
 	return managerCallbackFunc{
 		afterRun: afterRun,
 	}

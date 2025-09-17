@@ -4,6 +4,13 @@ import (
 	"context"
 )
 
+type TaskStage int
+
+const (
+	TaskStageStart TaskStage = iota
+	TaskStageStop
+)
+
 type Task interface {
 	Run(ctx context.Context) error
 }
@@ -54,7 +61,7 @@ type ServiceWithID interface {
 type ServiceTask interface {
 	Task
 	Service() Service
-	IsStart() bool
+	Stage() TaskStage
 }
 
 // ServiceFunc returns a Service from start and stop tasks.
@@ -67,13 +74,13 @@ func ServiceFunc(start, stop func(ctx context.Context) error) Service {
 // Tasks derived from services will call using  a ServiceTask.
 // Callbacks ALWAYS receives unwrapped tasks (with UnwrapTask).
 type TaskCallback interface {
-	BeforeRun(ctx context.Context, task Task, isStart bool)
-	AfterRun(ctx context.Context, task Task, isStart bool, err error)
+	BeforeRun(ctx context.Context, task Task, stage TaskStage)
+	AfterRun(ctx context.Context, task Task, stage TaskStage, err error)
 }
 
 // TaskCallbackFunc is called before and after the task is run.
-func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, isStart bool),
-	afterRun func(ctx context.Context, task Task, isStart bool, err error)) TaskCallback {
+func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, stage TaskStage),
+	afterRun func(ctx context.Context, task Task, stage TaskStage, err error)) TaskCallback {
 	return taskCallbackFunc{
 		beforeRun: beforeRun,
 		afterRun:  afterRun,
@@ -81,22 +88,22 @@ func TaskCallbackFunc(beforeRun func(ctx context.Context, task Task, isStart boo
 }
 
 // TaskCallbackFuncBeforeRun is called before and after the task is run.
-func TaskCallbackFuncBeforeRun(beforeRun func(ctx context.Context, task Task, isStart bool)) TaskCallback {
+func TaskCallbackFuncBeforeRun(beforeRun func(ctx context.Context, task Task, stage TaskStage)) TaskCallback {
 	return taskCallbackFunc{
 		beforeRun: beforeRun,
 	}
 }
 
 // TaskCallbackFuncAfterRun is called before and after the task is run.
-func TaskCallbackFuncAfterRun(afterRun func(ctx context.Context, task Task, isStart bool, err error)) TaskCallback {
+func TaskCallbackFuncAfterRun(afterRun func(ctx context.Context, task Task, stage TaskStage, err error)) TaskCallback {
 	return taskCallbackFunc{
 		afterRun: afterRun,
 	}
 }
 
 // ServiceAsTask creates and adapter from a service method to a task.
-func ServiceAsTask(svc Service, isStart bool) Task {
-	ret := &serviceTask{svc: svc, isStart: isStart}
+func ServiceAsTask(svc Service, stage TaskStage) Task {
+	ret := &serviceTask{svc: svc, stage: stage}
 	if sid, ok := svc.(ServiceWithID); ok {
 		return &serviceTaskWithID{serviceTask: ret, id: sid.ServiceID()}
 	}
@@ -105,7 +112,7 @@ func ServiceAsTask(svc Service, isStart bool) Task {
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
 func ServiceAsTasks(svc Service) (start, stop Task) {
-	return ServiceAsTask(svc, true), ServiceAsTask(svc, false)
+	return ServiceAsTask(svc, TaskStageStart), ServiceAsTask(svc, TaskStageStop)
 }
 
 // WrapTaskWithID wraps a Task as a TaskWithID.

@@ -6,19 +6,19 @@ import (
 )
 
 type taskCallbackFunc struct {
-	beforeRun func(ctx context.Context, task Task, isStart bool)
-	afterRun  func(ctx context.Context, task Task, isStart bool, err error)
+	beforeRun func(ctx context.Context, task Task, stage TaskStage)
+	afterRun  func(ctx context.Context, task Task, stage TaskStage, err error)
 }
 
-func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, isStart bool) {
+func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, stage TaskStage) {
 	if t.beforeRun != nil {
-		t.beforeRun(ctx, task, isStart)
+		t.beforeRun(ctx, task, stage)
 	}
 }
 
-func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, isStart bool, err error) {
+func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, stage TaskStage, err error) {
 	if t.afterRun != nil {
-		t.afterRun(ctx, task, isStart, err)
+		t.afterRun(ctx, task, stage, err)
 	}
 }
 
@@ -37,14 +37,14 @@ func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
 // taskRunCallback signals that the task can handle callback execution itself.
 type taskRunCallback interface {
 	Task
-	runWithCallbacks(ctx context.Context, isStart bool, callbacks ...TaskCallback) error
+	runWithCallbacks(ctx context.Context, stage TaskStage, callbacks ...TaskCallback) error
 }
 
 // serviceTask is a Task implemented from a Service.
 // Use Service to get the source service instance.
 type serviceTask struct {
-	svc     Service
-	isStart bool
+	svc   Service
+	stage TaskStage
 }
 
 var _ ServiceTask = (*serviceTask)(nil)
@@ -53,15 +53,18 @@ func (s *serviceTask) Service() Service {
 	return s.svc
 }
 
-func (s *serviceTask) IsStart() bool {
-	return s.isStart
+func (s *serviceTask) Stage() TaskStage {
+	return s.stage
 }
 
 func (s *serviceTask) Run(ctx context.Context) error {
-	if s.isStart {
+	switch s.stage {
+	case TaskStageStart:
 		return s.svc.Start(ctx)
+	case TaskStageStop:
+		return s.svc.Stop(ctx)
 	}
-	return s.svc.Stop(ctx)
+	return nil
 }
 
 type serviceTaskWithID struct {
@@ -92,16 +95,16 @@ func newMultipleTask(tasks ...taskWrapper) Task {
 }
 
 func (t *multipleTask) Run(ctx context.Context) error {
-	return t.runWithCallbacks(ctx, true)
+	return t.runWithCallbacks(ctx, TaskStageStart)
 }
 
-func (t *multipleTask) runWithCallbacks(ctx context.Context, isStart bool, callbacks ...TaskCallback) error {
+func (t *multipleTask) runWithCallbacks(ctx context.Context, stage TaskStage, callbacks ...TaskCallback) error {
 	allErr := newMultiErrorBuilder()
 
 	var wg sync.WaitGroup
 	for _, st := range t.tasks {
 		wg.Go(func() {
-			err := st.run(ctx, isStart, callbacks...)
+			err := st.run(ctx, stage, callbacks...)
 			if err != nil {
 				allErr.add(err)
 			}
