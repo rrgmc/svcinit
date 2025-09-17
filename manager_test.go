@@ -632,6 +632,20 @@ func TestManagerShutdownTimeout(t *testing.T) {
 	timeoutTest(10*time.Second, false)
 }
 
+func TestManagerRunMultiple(t *testing.T) {
+	sinit := New(context.Background())
+
+	// must call one StartTaskCmd method
+	sinit.ExecuteTask(TaskFunc(func(ctx context.Context) error {
+		return nil
+	}))
+
+	err := sinit.Run()
+	assert.NilError(t, err)
+	err = sinit.Run()
+	assert.ErrorIs(t, err, ErrAlreadyRunning)
+}
+
 func TestManagerPendingStart(t *testing.T) {
 	sinit := New(context.Background())
 
