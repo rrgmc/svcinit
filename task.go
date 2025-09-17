@@ -102,8 +102,10 @@ func ServiceAsTask(svc Service, stage Stage) Task {
 }
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
-func ServiceAsTasks(svc Service) (start, stop Task) {
-	return ServiceAsTask(svc, StageStart), ServiceAsTask(svc, StageStop)
+func ServiceAsTasks(svc Service) (start, preStop, stop Task) {
+	return ServiceAsTask(svc, StageStart),
+		ServiceAsTask(svc, StagePreStop),
+		ServiceAsTask(svc, StageStop)
 }
 
 // WrapTaskWithID wraps a Task as a TaskWithID.

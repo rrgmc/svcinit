@@ -36,7 +36,6 @@ func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceC
 		s:        s,
 		svc:      svc,
 		options:  options,
-		preStop:  newValuePtr[Task](),
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -184,20 +183,14 @@ type StartServiceCmd struct {
 	s        *Manager
 	svc      Service
 	options  []TaskOption
-	preStop  valuePtr[Task]
 	resolved resolved
-}
-
-func (s StartServiceCmd) PreStop(preStop Task) StartServiceCmd {
-	s.preStop.Set(preStop)
-	return s
 }
 
 // AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.addStartTask(s.s.unorderedCancelCtx, startTask)
+	startTask, preStopTask, stopTask := ServiceAsTasks(s.svc)
+	s.addStartTask(s.s.unorderedCancelCtx, startTask, preStopTask)
 	s.s.stopTasks = append(s.s.stopTasks, newStopTaskWrapper(stopTask, s.options...))
 }
 
@@ -215,8 +208,8 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	if optns.cancelContext {
 		ctx, cancel = context.WithCancelCause(ctx)
 	}
-	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.addStartTask(ctx, startTask)
+	startTask, preStopTask, stopTask := ServiceAsTasks(s.svc)
+	s.addStartTask(ctx, startTask, preStopTask)
 	var pendingStopTask Task
 	if !optns.cancelContext {
 		pendingStopTask = stopTask
@@ -229,12 +222,10 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	return s.s.addPendingStopTask(pendingStopTask, s.options...)
 }
 
-func (s StartServiceCmd) addStartTask(ctx context.Context, startTask Task) {
+func (s StartServiceCmd) addStartTask(ctx context.Context, startTask Task, preStopTask Task) {
 	s.resolved.setResolved()
 	s.s.addTask(ctx, startTask, s.options...)
-	if !s.preStop.IsNil() {
-		s.s.PreStopTask(s.preStop.Get(), s.options...)
-	}
+	s.s.PreStopTask(preStopTask, s.options...)
 }
 
 func (s StartServiceCmd) isResolved() bool {

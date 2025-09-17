@@ -62,13 +62,11 @@ func TestManager(t *testing.T) {
 				switch stage {
 				case StageStart:
 					started.add("service1")
+				case StagePreStop:
+					prestopped.add("service1")
 				case StageStop:
 					stopped.add("service1")
 				}
-				return nil
-			})).
-			PreStop(TaskFunc(func(ctx context.Context) error {
-				prestopped.add("service1")
 				return nil
 			})).
 			AutoStop()
@@ -338,6 +336,10 @@ func TestManagerCallback(t *testing.T) {
 
 		individualTaskCallback := func(taskNo int, stage Stage, step Step) func(ctx context.Context, task Task) {
 			return func(ctx context.Context, task Task) {
+				if stage != StageStart && stage != StageStop {
+					return
+				}
+
 				stdAdd := 0
 				isStart := stage == StageStart
 				isBefore := step == StepBefore
@@ -368,10 +370,12 @@ func TestManagerCallback(t *testing.T) {
 
 		sinit := New(t.Context(),
 			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage Stage, step Step, cause error) error {
-				if stage == StageStart {
+				switch stage {
+				case StageStart:
 					runStarted.Add(1)
-				} else {
+				case StageStop:
 					runStopped.Add(1)
+				default:
 				}
 				return nil
 			})),
@@ -477,10 +481,12 @@ func TestManagerTaskWithID(t *testing.T) {
 				}
 				if tid, ok := task.(TaskWithID); ok {
 					if tstr, ok := tid.TaskID().(string); ok {
-						if stage == StageStart {
+						switch stage {
+						case StageStart:
 							started.add(tstr)
-						} else {
+						case StageStop:
 							stopped.add(tstr)
+						default:
 						}
 					}
 				}
