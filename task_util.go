@@ -5,23 +5,6 @@ import (
 	"sync"
 )
 
-// type taskCallbackFunc struct {
-// 	beforeRun func(ctx context.Context, task Task, stage Stage)
-// 	afterRun  func(ctx context.Context, task Task, stage Stage, err error)
-// }
-//
-// func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, stage Stage) {
-// 	if t.beforeRun != nil {
-// 		t.beforeRun(ctx, task, stage)
-// 	}
-// }
-//
-// func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, stage Stage, err error) {
-// 	if t.afterRun != nil {
-// 		t.afterRun(ctx, task, stage, err)
-// 	}
-// }
-
 func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
 	var ret []TaskCallback
 	for _, callbackList := range callbacks {
