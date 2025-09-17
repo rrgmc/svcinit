@@ -5,22 +5,22 @@ import (
 	"sync"
 )
 
-type taskCallbackFunc struct {
-	beforeRun func(ctx context.Context, task Task, stage Stage)
-	afterRun  func(ctx context.Context, task Task, stage Stage, err error)
-}
-
-func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, stage Stage) {
-	if t.beforeRun != nil {
-		t.beforeRun(ctx, task, stage)
-	}
-}
-
-func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, stage Stage, err error) {
-	if t.afterRun != nil {
-		t.afterRun(ctx, task, stage, err)
-	}
-}
+// type taskCallbackFunc struct {
+// 	beforeRun func(ctx context.Context, task Task, stage Stage)
+// 	afterRun  func(ctx context.Context, task Task, stage Stage, err error)
+// }
+//
+// func (t taskCallbackFunc) BeforeRun(ctx context.Context, task Task, stage Stage) {
+// 	if t.beforeRun != nil {
+// 		t.beforeRun(ctx, task, stage)
+// 	}
+// }
+//
+// func (t taskCallbackFunc) AfterRun(ctx context.Context, task Task, stage Stage, err error) {
+// 	if t.afterRun != nil {
+// 		t.afterRun(ctx, task, stage, err)
+// 	}
+// }
 
 func joinTaskCallbacks(callbacks ...[]TaskCallback) []TaskCallback {
 	var ret []TaskCallback
@@ -58,13 +58,7 @@ func (s *serviceTask) Stage() Stage {
 }
 
 func (s *serviceTask) Run(ctx context.Context) error {
-	switch s.stage {
-	case StageStart:
-		return s.svc.Start(ctx)
-	case StageStop:
-		return s.svc.Stop(ctx)
-	}
-	return nil
+	return s.svc.RunService(ctx, s.stage)
 }
 
 type serviceTaskWithID struct {
@@ -116,25 +110,6 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, stage Stage, callba
 	return allErr.build()
 }
 
-type serviceFunc struct {
-	start TaskFunc
-	stop  TaskFunc
-}
-
-func (sf *serviceFunc) Start(ctx context.Context) error {
-	if sf.start == nil {
-		return nil
-	}
-	return sf.start.Run(ctx)
-}
-
-func (sf *serviceFunc) Stop(ctx context.Context) error {
-	if sf.stop == nil {
-		return nil
-	}
-	return sf.stop.Run(ctx)
-}
-
 type multipleTaskBuilder struct {
 	stopFuture func(task StopFuture)
 	stop       func(task Task)
@@ -167,25 +142,17 @@ func (t *wrappedTask) WrappedTask() Task {
 }
 
 type wrappedService struct {
-	svc          Service
-	startHandler func(ctx context.Context, svc Service) error
-	stopHandler  func(ctx context.Context, svc Service) error
+	svc     Service
+	handler func(ctx context.Context, svc Service, stage Stage) error
 }
 
 var _ WrappedService = (*wrappedService)(nil)
 
-func (t *wrappedService) Start(ctx context.Context) error {
-	if t.startHandler == nil {
-		return t.svc.Start(ctx)
+func (t *wrappedService) RunService(ctx context.Context, stage Stage) error {
+	if t.handler == nil {
+		return t.svc.RunService(ctx, stage)
 	}
-	return t.startHandler(ctx, t.svc)
-}
-
-func (t *wrappedService) Stop(ctx context.Context) error {
-	if t.stopHandler == nil {
-		return t.svc.Stop(ctx)
-	}
-	return t.stopHandler(ctx, t.svc)
+	return t.handler(ctx, t.svc, stage)
 }
 
 func (t *wrappedService) WrappedService() Service {
@@ -226,10 +193,6 @@ func (s *WrappedServiceWithID) ServiceID() any {
 	return s.id
 }
 
-func (s *WrappedServiceWithID) Start(ctx context.Context) error {
-	return s.svc.Start(ctx)
-}
-
-func (s *WrappedServiceWithID) Stop(ctx context.Context) error {
-	return s.svc.Stop(ctx)
+func (s *WrappedServiceWithID) RunService(ctx context.Context, stage Stage) error {
+	return s.svc.RunService(ctx, stage)
 }

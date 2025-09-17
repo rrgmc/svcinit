@@ -20,15 +20,17 @@ type healthService struct {
 
 var _ svcinit.Service = (*healthService)(nil)
 
-func (s *healthService) Start(ctx context.Context) error {
-	s.server.BaseContext = func(net.Listener) context.Context {
-		return ctx
+func (s *healthService) RunService(ctx context.Context, stage svcinit.Stage) error {
+	switch stage {
+	case svcinit.StageStart:
+		s.server.BaseContext = func(net.Listener) context.Context {
+			return ctx
+		}
+		return s.server.ListenAndServe()
+	case svcinit.StageStop:
+		return s.server.Shutdown(ctx)
 	}
-	return s.server.ListenAndServe()
-}
-
-func (s *healthService) Stop(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	return nil
 }
 
 func newHealthService() *healthService {
