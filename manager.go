@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -42,8 +43,8 @@ type Manager struct {
 	pendingStarts []pendingItem
 	pendingStops  []pendingItem
 	// task finish wait group.
-	wg      sync.WaitGroup
-	runOnce sync.Once
+	wg        sync.WaitGroup
+	isRunning atomic.Bool
 	// options
 	managerCallback        []ManagerCallback
 	taskCallback           []TaskCallback
@@ -54,33 +55,32 @@ type Manager struct {
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,
 // and a list of stop errors, if any.
 func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
-	cause = ErrAlreadyRunning
-	s.runOnce.Do(func() {
-		if cause = s.checkPending(); cause != nil {
-			return
-		}
-		if len(s.tasks) == 0 {
-			cause = ErrNoTask
-			return
-		}
-		if cause = s.start(); cause != nil {
-			return
-		}
-		<-s.cancelCtx.Done()
-		s.unorderedCancel(context.Cause(s.cancelCtx))
-		cause = context.Cause(s.cancelCtx)
-		var err error
-		err, cleanupErr = s.shutdown(cause)
-		if err != nil {
-			cause = err
-			return
-		}
-		s.wg.Wait()
-		if errors.Is(cause, ErrExit) || errors.Is(cause, context.Canceled) {
-			cause = nil
-		}
-	})
-	return
+	if !s.isRunning.CompareAndSwap(false, true) {
+		return ErrAlreadyRunning, nil
+	}
+
+	if err := s.checkPending(); err != nil {
+		return err, nil
+	}
+	if len(s.tasks) == 0 {
+		return ErrNoTask, nil
+	}
+	err := s.start()
+	if err != nil {
+		return err, nil
+	}
+	<-s.cancelCtx.Done()
+	s.unorderedCancel(context.Cause(s.cancelCtx))
+	cause = context.Cause(s.cancelCtx)
+	err, cleanupErr = s.shutdown(cause)
+	if err != nil {
+		return err, nil
+	}
+	s.wg.Wait()
+	if errors.Is(cause, ErrExit) || errors.Is(cause, context.Canceled) {
+		cause = nil
+	}
+	return cause, cleanupErr
 }
 
 // Run runs all tasks and returns the error of the first task to finish, which can be nil.
