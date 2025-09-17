@@ -107,7 +107,7 @@ func ExampleManager() {
 	// it is only started on the Run call.
 	sinit.ExecuteTask(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
-	// sleep 10 seconds and shutdown.
+	// sleep 1 second and shutdown.
 	// it is only started on the Run call.
 	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second,
 		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
