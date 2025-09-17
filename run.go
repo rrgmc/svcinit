@@ -8,7 +8,7 @@ import (
 func (s *Manager) start() error {
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.ctx, TaskStageStart, StepBefore, nil); serr != nil {
+			if serr := scallback.Callback(s.ctx, StageStart, StepBefore, nil); serr != nil {
 				s.cancel(serr)
 				return serr
 			}
@@ -24,7 +24,7 @@ func (s *Manager) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, TaskStageStart, s.taskCallback...)
+			err := task.run(task.ctx, StageStart, s.taskCallback...)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -35,7 +35,7 @@ func (s *Manager) start() error {
 	runWg.Wait()
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.ctx, TaskStageStart, StepAfter, nil); serr != nil {
+			if serr := scallback.Callback(s.ctx, StageStart, StepAfter, nil); serr != nil {
 				s.cancel(serr)
 			}
 		}
@@ -47,7 +47,7 @@ func (s *Manager) start() error {
 func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.shutdownCtx, TaskStageStop, StepBefore, cause); serr != nil {
+			if serr := scallback.Callback(s.shutdownCtx, StageStop, StepBefore, cause); serr != nil {
 				return serr, nil
 			}
 		}
@@ -70,7 +70,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		// cleanups where order don't matter are done in parallel
 		for _, task := range s.autoCleanup {
 			wg.Go(func() {
-				err := task.run(ctx, TaskStageStop, s.taskCallback...)
+				err := task.run(ctx, StageStop, s.taskCallback...)
 				errorBuilder.add(err)
 			})
 		}
@@ -80,7 +80,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if len(s.cleanup) > 0 {
 		wg.Go(func() {
 			for _, task := range s.cleanup {
-				err := task.run(ctx, TaskStageStop, s.taskCallback...)
+				err := task.run(ctx, StageStop, s.taskCallback...)
 				errorBuilder.add(err)
 			}
 		})
@@ -100,7 +100,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 
 	if s.managerCallback != nil {
 		for _, scallback := range s.managerCallback {
-			if serr := scallback.Callback(s.shutdownCtx, TaskStageStop, StepAfter, cause); serr != nil {
+			if serr := scallback.Callback(s.shutdownCtx, StageStop, StepAfter, cause); serr != nil {
 				errorBuilder.add(serr)
 			}
 		}
@@ -137,7 +137,7 @@ func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFutur
 	return st
 }
 
-func runTask(ctx context.Context, task Task, stage TaskStage, callbacks ...TaskCallback) error {
+func runTask(ctx context.Context, task Task, stage Stage, callbacks ...TaskCallback) error {
 	if tcb, ok := task.(taskRunCallback); ok {
 		return tcb.runWithCallbacks(ctx, stage, callbacks...)
 	}
@@ -161,7 +161,7 @@ type taskWrapper struct {
 	options taskOptions
 }
 
-func (w *taskWrapper) run(ctx context.Context, stage TaskStage, callbacks ...TaskCallback) error {
+func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks ...TaskCallback) error {
 	if w.ctx != nil {
 		ctx = w.ctx
 	}

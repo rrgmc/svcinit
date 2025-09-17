@@ -10,19 +10,19 @@ const (
 )
 
 // type ManagerCallback interface {
-// 	BeforeRun(ctx context.Context, stage TaskStage, cause error) error
-// 	AfterRun(ctx context.Context, stage TaskStage, cause error) error
+// 	BeforeRun(ctx context.Context, stage Stage, cause error) error
+// 	AfterRun(ctx context.Context, stage Stage, cause error) error
 // }
 
 // ManagerCallback is a callback for manager events.
-// The cause parameter is only set if stage == TaskStageStop.
+// The cause parameter is only set if stage == StageStop.
 type ManagerCallback interface {
-	Callback(ctx context.Context, stage TaskStage, step Step, cause error) error
+	Callback(ctx context.Context, stage Stage, step Step, cause error) error
 }
 
-type ManagerCallbackFunc func(ctx context.Context, stage TaskStage, step Step, cause error) error
+type ManagerCallbackFunc func(ctx context.Context, stage Stage, step Step, cause error) error
 
-func (f ManagerCallbackFunc) Callback(ctx context.Context, stage TaskStage, step Step, cause error) error {
+func (f ManagerCallbackFunc) Callback(ctx context.Context, stage Stage, step Step, cause error) error {
 	return f(ctx, stage, step, cause)
 }
 
