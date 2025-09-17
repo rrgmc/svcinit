@@ -106,7 +106,8 @@ func ExampleManager() {
 
 	// sleep 10 seconds and shutdown.
 	// it is only started on the Run call.
-	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second, errors.New("timed out")))
+	sinit.ExecuteTask(svcinit.TimeoutTask(1*time.Second,
+		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
 	// add manual stops. They will be stopped in the added order.
 

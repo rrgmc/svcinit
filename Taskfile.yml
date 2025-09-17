@@ -1,6 +1,9 @@
 version: '3'
 
 tasks:
+  doc:
+    cmds:
+      - 'go doc -http'
   test:
     cmds:
       - 'go test ./...'

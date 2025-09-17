@@ -9,12 +9,15 @@ import (
 )
 
 // TimeoutTask stops the task after the specified timeout, or the context is done.
-// timeoutErr can be nil.
-func TimeoutTask(timeout time.Duration, timeoutErr error) *TaskTimeoutTask {
-	return &TaskTimeoutTask{
-		timeout:    timeout,
-		timeoutErr: timeoutErr,
+// By default, a TimeoutError is returned on timeout.
+func TimeoutTask(timeout time.Duration, options ...TimeoutTaskOption) *TaskTimeoutTask {
+	ret := &TaskTimeoutTask{
+		timeout: timeout,
 	}
+	for _, opt := range options {
+		opt(ret)
+	}
+	return ret
 }
 
 // SignalTask returns a task that returns when one of the passed OS signals is received.
@@ -23,25 +26,45 @@ func SignalTask(signals ...os.Signal) *TaskSignalTask {
 }
 
 type TaskTimeoutTask struct {
-	timeout    time.Duration
-	timeoutErr error
+	timeout        time.Duration
+	returnNilError bool
+	timeoutErr     error
 }
 
 func (t *TaskTimeoutTask) Timeout() time.Duration {
 	return t.timeout
 }
 
-func (t *TaskTimeoutTask) TimeoutErr() error {
-	return t.timeoutErr
-}
-
 func (t *TaskTimeoutTask) Run(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 	case <-time.After(t.timeout):
-		return t.timeoutErr
+		if t.returnNilError {
+			return nil
+		} else if t.timeoutErr != nil {
+			return t.timeoutErr
+		}
+		return &TimeoutError{
+			Timeout: t.timeout,
+		}
 	}
 	return nil
+}
+
+type TimeoutTaskOption func(task *TaskTimeoutTask)
+
+// WithTimeoutTaskError sets an error to be returned from the timeout task instead of TimeoutError.
+func WithTimeoutTaskError(timeoutErr error) TimeoutTaskOption {
+	return func(task *TaskTimeoutTask) {
+		task.timeoutErr = timeoutErr
+	}
+}
+
+// WithoutTimeoutTaskError returns a nil error in case of timeout.
+func WithoutTimeoutTaskError() TimeoutTaskOption {
+	return func(task *TaskTimeoutTask) {
+		task.returnNilError = true
+	}
 }
 
 type TaskSignalTask struct {
@@ -65,12 +88,20 @@ func (t *TaskSignalTask) Run(ctx context.Context) error {
 	}
 }
 
+// TimeoutError is returned by TimeoutTask by default.
+type TimeoutError struct {
+	Timeout time.Duration
+}
+
+func (e TimeoutError) Error() string {
+	return fmt.Sprintf("timed out after %v", e.Timeout)
+}
+
 // SignalError is returned from SignalTask if the signal was received.
 type SignalError struct {
 	Signal os.Signal
 }
 
-// Error implements the error interface.
 func (e SignalError) Error() string {
 	return fmt.Sprintf("received signal %s", e.Signal)
 }
