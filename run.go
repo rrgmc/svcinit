@@ -97,6 +97,9 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		}
 	} else {
 		wg.Wait()
+		if ctx.Err() != nil {
+			errorBuilder.add(context.Cause(ctx))
+		}
 	}
 
 	if s.managerCallback != nil {

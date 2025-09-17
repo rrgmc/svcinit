@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	cmp2 "github.com/google/go-cmp/cmp"
@@ -458,6 +459,39 @@ func TestManagerTaskWithID(t *testing.T) {
 
 	assert.DeepEqual(t, []string{"s1", "t1start"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
 	assert.DeepEqual(t, []string{"s1", "t1stop"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+}
+
+func TestManagerShutdownTimeout(t *testing.T) {
+	timeoutTest := func(taskStopSleep time.Duration, isError bool) {
+		synctest.Test(t, func(t *testing.T) {
+			sinit := New(t.Context(),
+				WithShutdownTimeout(30*time.Second))
+
+			sinit.
+				StartTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				})).
+				AutoStop(TaskFunc(func(ctx context.Context) error {
+					select {
+					case <-ctx.Done():
+						return context.Cause(ctx)
+					case <-time.After(taskStopSleep):
+						return nil
+					}
+				}))
+
+			err, cleanupErr := sinit.RunWithErrors()
+			assert.NilError(t, err)
+			if isError {
+				assert.ErrorIs(t, cleanupErr, ErrShutdownTimeout)
+			} else {
+				assert.NilError(t, cleanupErr)
+			}
+		})
+	}
+
+	timeoutTest(40*time.Second, true)
+	timeoutTest(10*time.Second, false)
 }
 
 func TestManagerPendingStart(t *testing.T) {

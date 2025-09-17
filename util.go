@@ -59,7 +59,7 @@ func (b *multiErrorBuilder) add(err error) {
 	b.errs = append(b.errs, err)
 }
 
-func (b *multiErrorBuilder) build() *multiError {
+func (b *multiErrorBuilder) build() error {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if len(b.errs) == 0 {
