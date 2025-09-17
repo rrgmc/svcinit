@@ -529,12 +529,7 @@ func TestManagerShutdownTimeout(t *testing.T) {
 					return nil
 				})).
 				AutoStop(TaskFunc(func(ctx context.Context) error {
-					select {
-					case <-ctx.Done():
-						return context.Cause(ctx)
-					case <-time.After(taskStopSleep):
-						return nil
-					}
+					return SleepContext(ctx, taskStopSleep)
 				}))
 
 			err, cleanupErr := sinit.RunWithErrors()
