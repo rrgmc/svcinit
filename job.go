@@ -20,6 +20,7 @@ func (s *Manager) StartTask(task Task, options ...TaskOption) StartTaskCmd {
 		s:        s,
 		start:    task,
 		options:  options,
+		preStop:  newValuePtr[Task](),
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
@@ -35,10 +36,16 @@ func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceC
 		s:        s,
 		svc:      svc,
 		options:  options,
+		preStop:  newValuePtr[Task](),
 		resolved: newResolved(),
 	}
 	s.addPendingStart(cmd)
 	return cmd
+}
+
+// PreStopTask adds a pre-stop task. They will be called in parallel, before stop tasks starts.
+func (s *Manager) PreStopTask(task Task, options ...TaskOption) {
+	s.preStopTasks = append(s.preStopTasks, newStopTaskWrapper(task, options...))
 }
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
@@ -89,6 +96,7 @@ func (s *Manager) AutoStopTask(task Task, options ...TaskOption) {
 type StartTaskCmd struct {
 	s        *Manager
 	start    Task
+	preStop  valuePtr[Task]
 	options  []TaskOption
 	resolved resolved
 }
@@ -103,13 +111,13 @@ func (s StartTaskCmd) AutoStop(stop Task) {
 // AutoStopContext schedules the task to be stopped when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStopContext() {
-	s.resolved.setResolved()
-	s.s.addTask(s.s.unorderedCancelCtx, s.start, s.options...)
+	s.addStartTask(s.s.unorderedCancelCtx)
 }
 
-// func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
-// 	return s.createStopFuture(stop, stopOptions...)
-// }
+func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
+	s.preStop.Set(preStop)
+	return s
+}
 
 // FutureStop returns a StopFuture to be stopped when the order matters.
 // The context passed to the task will NOT be canceled, except if the option WithCancelContext(true) is set.
@@ -130,6 +138,14 @@ func (s StartTaskCmd) createStopFuture(stop Task, options ...StopOption) StopFut
 	return s.s.addPendingStopTask(stopTask, s.options...)
 }
 
+func (s StartTaskCmd) addStartTask(ctx context.Context) {
+	s.resolved.setResolved()
+	s.s.addTask(ctx, s.start, s.options...)
+	if !s.preStop.IsNil() {
+		s.s.PreStopTask(s.preStop.Get(), s.options...)
+	}
+}
+
 func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...StopOption) Task {
 	var optns stopOptions
 	for _, opt := range options {
@@ -142,7 +158,7 @@ func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...
 	if optns.cancelContext {
 		ctx, cancel = context.WithCancelCause(s.s.ctx)
 	}
-	s.s.addTask(ctx, s.start, s.options...)
+	s.addStartTask(ctx)
 	var stopTask Task
 	if !optns.cancelContext {
 		stopTask = stop
@@ -168,15 +184,20 @@ type StartServiceCmd struct {
 	s        *Manager
 	svc      Service
 	options  []TaskOption
+	preStop  valuePtr[Task]
 	resolved resolved
+}
+
+func (s StartServiceCmd) PreStop(preStop Task) StartServiceCmd {
+	s.preStop.Set(preStop)
+	return s
 }
 
 // AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
-	s.resolved.setResolved()
 	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(s.s.unorderedCancelCtx, startTask, s.options...)
+	s.addStartTask(s.s.unorderedCancelCtx, startTask)
 	s.s.stopTasks = append(s.s.stopTasks, newStopTaskWrapper(stopTask, s.options...))
 }
 
@@ -189,15 +210,13 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 		opt(&optns)
 	}
 
-	s.resolved.setResolved()
-
 	ctx := s.s.ctx
 	var cancel context.CancelCauseFunc
 	if optns.cancelContext {
 		ctx, cancel = context.WithCancelCause(ctx)
 	}
 	startTask, stopTask := ServiceAsTasks(s.svc)
-	s.s.addTask(ctx, startTask, s.options...)
+	s.addStartTask(ctx, startTask)
 	var pendingStopTask Task
 	if !optns.cancelContext {
 		pendingStopTask = stopTask
@@ -208,6 +227,14 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 		}))
 	}
 	return s.s.addPendingStopTask(pendingStopTask, s.options...)
+}
+
+func (s StartServiceCmd) addStartTask(ctx context.Context, startTask Task) {
+	s.resolved.setResolved()
+	s.s.addTask(ctx, startTask, s.options...)
+	if !s.preStop.IsNil() {
+		s.s.PreStopTask(s.preStop.Get(), s.options...)
+	}
 }
 
 func (s StartServiceCmd) isResolved() bool {

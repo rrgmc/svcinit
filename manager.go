@@ -31,9 +31,11 @@ type Manager struct {
 	unorderedCancel    context.CancelCauseFunc
 	// list of tasks to start.
 	tasks []taskWrapper
-	// list of unordered stopTasksOrdered tasks.
+	// list of pre-stop tasks.
+	preStopTasks []taskWrapper
+	// list of unordered stop tasks.
 	stopTasks []taskWrapper
-	// list of ordered stopTasksOrdered tasks.
+	// list of ordered stop tasks.
 	stopTasksOrdered []taskWrapper
 	// list of pending starts and stops.
 	pendingStarts []pendingItem

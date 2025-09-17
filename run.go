@@ -66,8 +66,20 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		defer cancel()
 	}
 
+	if len(s.preStopTasks) > 0 {
+		var wgPreStop sync.WaitGroup
+		// stop tasks where order don't matter are done in parallel
+		for _, task := range s.preStopTasks {
+			wgPreStop.Go(func() {
+				err := task.run(ctx, StagePreStop, s.taskCallback...)
+				errorBuilder.add(err)
+			})
+		}
+		_ = waitGroupWaitWithContext(ctx, &wgPreStop)
+	}
+
 	if len(s.stopTasks) > 0 {
-		// cleanups where order don't matter are done in parallel
+		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.stopTasks {
 			wg.Go(func() {
 				err := task.run(ctx, StageStop, s.taskCallback...)
@@ -76,7 +88,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		}
 	}
 
-	// execute ordered cleanups synchronously
+	// execute ordered stop tasks synchronously
 	if len(s.stopTasksOrdered) > 0 {
 		wg.Go(func() {
 			for _, task := range s.stopTasksOrdered {
@@ -86,7 +98,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		})
 	}
 
-	// wait for auto cleanups, if any
+	// wait for auto stop tasks, if any
 	if s.enforceShutdownTimeout {
 		if !waitGroupWaitWithContext(ctx, &wg) {
 			errorBuilder.add(ErrShutdownTimeout)

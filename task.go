@@ -9,6 +9,7 @@ type Stage int
 const (
 	StageStart Stage = iota
 	StageStop
+	StagePreStop
 )
 
 type Step int
