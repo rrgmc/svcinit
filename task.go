@@ -40,6 +40,14 @@ type TaskWithID interface {
 	TaskID() any
 }
 
+// TaskFuncWithID returns a TaskWithID from a TaskFunc.
+func TaskFuncWithID(id any, fn TaskFunc) TaskWithID {
+	return &WrappedTaskWithID{
+		task: fn,
+		id:   id,
+	}
+}
+
 // WrappedTask is a task which was wrapped from one [Task]s.
 type WrappedTask interface {
 	Task
@@ -68,6 +76,14 @@ func (f ServiceFunc) RunService(ctx context.Context, stage Stage) error {
 type ServiceWithID interface {
 	Service
 	ServiceID() any
+}
+
+// ServiceFuncWithID returns a ServiceWithID from a ServiceFunc.
+func ServiceFuncWithID(id any, svc ServiceFunc) ServiceWithID {
+	return &WrappedServiceWithID{
+		svc: svc,
+		id:  id,
+	}
 }
 
 // ServiceTask is a Task implemented from a Service.
