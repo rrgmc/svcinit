@@ -525,7 +525,7 @@ func TestManagerRunMultiple(t *testing.T) {
 	assert.ErrorIs(t, err, ErrAlreadyRunning)
 }
 
-func TestManagerNullTask(t *testing.T) {
+func TestManagerNilTask(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		sinit := New(t.Context())
 
@@ -553,6 +553,15 @@ func TestManagerNullTask(t *testing.T) {
 				return nil
 			}), WithCancelContext(true))
 
+		stopTask4 := sinit.
+			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(nil).
+			FutureStop(nil, WithCancelContext(true))
+		stopTask5 := sinit.
+			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(nil).
+			FutureStop(nil, WithCancelContext(true))
+
 		stopService := sinit.
 			StartService(nil, WithTaskCallback(WaitStartTaskCallback())).
 			FutureStopContext()
@@ -560,7 +569,28 @@ func TestManagerNullTask(t *testing.T) {
 		sinit.StopFuture(stopTask1)
 		sinit.StopFuture(stopTask2)
 		sinit.StopFuture(stopTask3)
+		sinit.StopFutureMultiple(stopTask4, stopTask5)
 		sinit.StopFuture(stopService)
+
+		err := sinit.Run()
+		assert.ErrorIs(t, err, ErrNilTasks)
+	})
+}
+
+func TestManagerNilTaskMultiple(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		sinit := New(t.Context())
+
+		stopTask4 := sinit.
+			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(nil).
+			FutureStop(nil, WithCancelContext(true))
+		stopTask5 := sinit.
+			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(nil).
+			FutureStop(nil, WithCancelContext(true))
+
+		sinit.StopFutureMultiple(stopTask4, stopTask5)
 
 		err := sinit.Run()
 		assert.ErrorIs(t, err, ErrNilTasks)
