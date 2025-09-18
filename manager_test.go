@@ -707,7 +707,7 @@ func TestManagerNullTask(t *testing.T) {
 			{3, StageStop, StepBefore, nil},
 			{3, StageStop, StepAfter, nil},
 			{3, StageStart, StepAfter, nil},
-		}, testcb.allTestTasks, cmpopts.SortSlices(testCallbackItemLess))
+		}, testcb.allTestTasks, cmpopts.SortSlices(testCallbackItemCompare))
 	})
 }
 
@@ -846,7 +846,7 @@ func (t testCallbackItem) Equal(other testCallbackItem) bool {
 	return errors.Is(other.err, t.err)
 }
 
-func testCallbackItemLess(a, b testCallbackItem) int {
+func testCallbackItemCompare(a, b testCallbackItem) int {
 	if c := cmp.Compare(a.taskNo, b.taskNo); c != 0 {
 		return c
 	}
