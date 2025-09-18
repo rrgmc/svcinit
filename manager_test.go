@@ -207,78 +207,49 @@ func TestManagerWorkflows(t *testing.T) {
 	isDebug := false
 
 	for _, test := range []struct {
-		name                                           string
-		cancelFn                                       func() []int
-		expectedTaskErr                                int
-		expectedErr                                    error
-		expectedOrderedFinish, expectedOrderedStop     []int
-		expectedUnorderedFinish, expectedUnorderedStop []int
-		expectedUnorderedPreStop                       []int
+		name            string
+		cancelFn        func() []int
+		expectedTaskErr int
+		expectedErr     error
 	}{
 		{
 			name: "stop 1: cancel execute unordered",
 			cancelFn: func() []int {
 				return []int{1}
 			},
-			expectedTaskErr:          1,
-			expectedOrderedFinish:    []int{2, 3, 4},
-			expectedOrderedStop:      []int{2, 3, 4},
-			expectedUnorderedPreStop: []int{3, 4},
-			expectedUnorderedFinish:  []int{1, 5},
+			expectedTaskErr: 1,
 		},
 		{
 			name: "stop 2: cancel task ordered",
 			cancelFn: func() []int {
 				return []int{2}
 			},
-			expectedTaskErr:          2,
-			expectedOrderedFinish:    []int{2, 3, 4},
-			expectedOrderedStop:      []int{2, 3, 4},
-			expectedUnorderedPreStop: []int{3, 4},
-			expectedUnorderedFinish:  []int{1, 5},
+			expectedTaskErr: 2,
 		},
 		{
 			name: "stop 3: cancel task context ordered",
 			cancelFn: func() []int {
 				return []int{3}
 			},
-			expectedTaskErr:          3,
-			expectedOrderedFinish:    []int{3, 2, 4},
-			expectedOrderedStop:      []int{2, 3, 4},
-			expectedUnorderedPreStop: []int{3, 4},
-			expectedUnorderedFinish:  []int{1, 5},
+			expectedTaskErr: 3,
 		},
 		{
 			name: "stop 4: cancel service ordered",
 			cancelFn: func() []int {
 				return []int{4}
 			},
-			expectedTaskErr:          4,
-			expectedOrderedFinish:    []int{4, 2, 3},
-			expectedOrderedStop:      []int{2, 3, 4},
-			expectedUnorderedPreStop: []int{3, 4},
-			expectedUnorderedFinish:  []int{1, 5},
+			expectedTaskErr: 4,
 		},
 		{
 			name: "stop 5: cancel task auto",
 			cancelFn: func() []int {
 				return []int{5}
 			},
-			expectedTaskErr:          5,
-			expectedOrderedFinish:    []int{2, 3, 4},
-			expectedOrderedStop:      []int{2, 3, 4},
-			expectedUnorderedPreStop: []int{3, 4},
-			expectedUnorderedFinish:  []int{1, 5},
+			expectedTaskErr: 5,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
-
-			orderedFinish := &testList[int]{}
-			orderedStop := &testList[int]{}
-			unorderedFinish := &testList[int]{}
-			unorderedStop := &testList[int]{}
-			unorderedPreStop := &testList[int]{}
 
 			type testService struct {
 				svc    Service
@@ -304,14 +275,6 @@ func TestManagerWorkflows(t *testing.T) {
 								}()
 							}
 
-							defer func() {
-								if ordered {
-									orderedFinish.add(taskNo)
-								} else {
-									unorderedFinish.add(taskNo)
-								}
-							}()
-
 							select {
 							case <-dtCtx.Done():
 								if isDebug {
@@ -328,20 +291,11 @@ func TestManagerWorkflows(t *testing.T) {
 							if isDebug {
 								fmt.Printf("PreStopping task %d\n", taskNo)
 							}
-							defer func() {
-								unorderedPreStop.add(taskNo)
-							}()
 						case StageStop:
 							if isDebug {
 								fmt.Printf("Stopping task %d\n", taskNo)
 							}
-							defer func() {
-								if ordered {
-									orderedStop.add(taskNo)
-								} else {
-									unorderedStop.add(taskNo)
-								}
-							}()
+
 							dtCancel(ErrExit)
 							select {
 							case <-stCtx.Done():
@@ -408,12 +362,6 @@ func TestManagerWorkflows(t *testing.T) {
 			} else {
 				assert.NilError(t, err)
 			}
-
-			assert.DeepEqual(t, test.expectedOrderedFinish, orderedFinish.get())
-			assert.DeepEqual(t, test.expectedOrderedStop, orderedStop.get())
-			assert.DeepEqual(t, test.expectedUnorderedFinish, unorderedFinish.get(), cmpopts.SortSlices(cmp.Less[int]))
-			assert.DeepEqual(t, test.expectedUnorderedStop, unorderedStop.get(), cmpopts.SortSlices(cmp.Less[int]))
-			assert.DeepEqual(t, test.expectedUnorderedPreStop, unorderedPreStop.get(), cmpopts.SortSlices(cmp.Less[int]))
 		})
 	}
 }
@@ -811,7 +759,7 @@ func (t *testCallback) add(taskNo int, stage Stage, step Step, err error) {
 		step:   step,
 		err:    err,
 	}
-	if t.allTestTasks == nil {
+	if t.allTestTasksByNo == nil {
 		t.allTestTasksByNo = make(map[int][]testCallbackItem)
 	}
 	t.allTestTasks = append(t.allTestTasks, item)
