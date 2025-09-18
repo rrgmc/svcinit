@@ -537,7 +537,7 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil start, prestop and stop",
+			name: "nil task start, prestop and stop",
 			fn: func(sinit *Manager) {
 				stopTask1 := sinit.
 					StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
@@ -547,7 +547,7 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil stop",
+			name: "nil task stop",
 			fn: func(sinit *Manager) {
 				stopTask2 := sinit.
 					StartTask(newTestTask(2, func(ctx context.Context) error {
@@ -560,7 +560,7 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil prestop",
+			name: "nil task prestop",
 			fn: func(sinit *Manager) {
 				stopTask3 := sinit.
 					StartTask(newTestTask(3, func(ctx context.Context) error {
@@ -575,7 +575,7 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil multiple",
+			name: "nil task multiple",
 			fn: func(sinit *Manager) {
 				stopTask4 := sinit.
 					StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
@@ -595,6 +595,44 @@ func TestManagerNilTask(t *testing.T) {
 					StartService(nil, WithTaskCallback(WaitStartTaskCallback())).
 					FutureStopContext()
 				sinit.StopFuture(stopService)
+			},
+		},
+		{
+			name: "nil stop",
+			fn: func(sinit *Manager) {
+				sinit.ExecuteTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}), WithTaskCallback(WaitStartTaskCallback()))
+				sinit.StopTask(nil)
+			},
+		},
+		{
+			name: "nil stop multiple",
+			fn: func(sinit *Manager) {
+				sinit.ExecuteTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}), WithTaskCallback(WaitStartTaskCallback()))
+				sinit.StopMultipleTasks(func(builder MultipleTaskBuilder) {
+					builder.StopTask(nil)
+				})
+			},
+		},
+		{
+			name: "nil stop future",
+			fn: func(sinit *Manager) {
+				sinit.ExecuteTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}), WithTaskCallback(WaitStartTaskCallback()))
+				sinit.StopFuture(nil)
+			},
+		},
+		{
+			name: "nil stop multiple future",
+			fn: func(sinit *Manager) {
+				sinit.ExecuteTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}), WithTaskCallback(WaitStartTaskCallback()))
+				sinit.StopFutureMultiple(nil, nil)
 			},
 		},
 	} {
