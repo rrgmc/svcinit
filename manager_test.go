@@ -708,6 +708,14 @@ func TestManagerNullTask(t *testing.T) {
 			{3, StageStop, StepAfter, nil},
 			{3, StageStart, StepAfter, nil},
 		}, testcb.allTestTasks, cmpopts.SortSlices(testCallbackItemCompare))
+		assert.DeepEqual(t, map[testCount]int{
+			testCount{StageStart, StepBefore}:   4,
+			testCount{StageStart, StepAfter}:    4,
+			testCount{StagePreStop, StepBefore}: 3,
+			testCount{StagePreStop, StepAfter}:  3,
+			testCount{StageStop, StepBefore}:    4,
+			testCount{StageStop, StepAfter}:     4,
+		}, testcb.counts)
 	})
 }
 
@@ -872,6 +880,13 @@ type testCallback struct {
 }
 
 func (t *testCallback) Callback(_ context.Context, task Task, stage Stage, step Step, err error) {
+	t.m.Lock()
+	if t.counts == nil {
+		t.counts = make(map[testCount]int)
+	}
+	t.counts[testCount{stage: stage, step: step}]++
+	t.m.Unlock()
+
 	taskNo, ok := getTestTaskNo(task)
 	if !ok {
 		return
@@ -887,10 +902,6 @@ func (t *testCallback) Callback(_ context.Context, task Task, stage Stage, step 
 	if t.allTestTasks == nil {
 		t.allTestTasksByNo = make(map[int][]testCallbackItem)
 	}
-	if t.counts == nil {
-		t.counts = make(map[testCount]int)
-	}
 	t.allTestTasks = append(t.allTestTasks, item)
 	t.allTestTasksByNo[taskNo] = append(t.allTestTasksByNo[taskNo], item)
-	t.counts[testCount{stage: stage, step: step}]++
 }
