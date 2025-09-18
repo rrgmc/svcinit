@@ -67,7 +67,7 @@ type TaskWithID interface {
 // TaskFuncWithID returns a TaskWithID from a TaskFunc.
 // Note: it DOES NOT implements WrappedTask.
 func TaskFuncWithID(id any, fn TaskFunc) TaskWithID {
-	return &WrappedTaskWithID{
+	return &TaskWithIDTask{
 		task: fn,
 		id:   id,
 	}
@@ -105,7 +105,7 @@ type ServiceWithID interface {
 
 // ServiceFuncWithID returns a ServiceWithID from a ServiceFunc.
 func ServiceFuncWithID(id any, svc ServiceFunc) ServiceWithID {
-	return &WrappedServiceWithID{
+	return &ServiceWithIDService{
 		svc: svc,
 		id:  id,
 	}
@@ -149,16 +149,16 @@ func ServiceAsTasks(svc Service) (start, preStop, stop Task) {
 		ServiceAsTask(svc, StageStop)
 }
 
-// WrapTaskWithID wraps a Task as a TaskWithID.
+// TaskAsTaskWithID wraps a Task as a TaskWithID.
 // Note: it DOES NOT implements WrappedTask.
-func WrapTaskWithID(id any, task Task) *WrappedTaskWithID {
-	return &WrappedTaskWithID{task: task, id: id}
+func TaskAsTaskWithID(id any, task Task) *TaskWithIDTask {
+	return &TaskWithIDTask{task: task, id: id}
 }
 
-// WrapServiceWithID wraps a Service as a ServiceWithID.
+// ServiceAsServiceWithID wraps a Service as a ServiceWithID.
 // Note: it DOES NOT implements WrappedService.
-func WrapServiceWithID(id any, svc Service) *WrappedServiceWithID {
-	return &WrappedServiceWithID{svc: svc, id: id}
+func ServiceAsServiceWithID(id any, svc Service) *ServiceWithIDService {
+	return &ServiceWithIDService{svc: svc, id: id}
 }
 
 type MultipleTaskBuilder interface {
@@ -221,43 +221,43 @@ func WrapService(service Service, handler func(ctx context.Context, svc Service,
 	}
 }
 
-// WrappedTaskWithID DOES NOT implement WrappedTask.
-type WrappedTaskWithID struct {
+// TaskWithIDTask DOES NOT implement WrappedTask.
+type TaskWithIDTask struct {
 	task Task
 	id   any
 }
 
-var _ TaskWithID = (*WrappedTaskWithID)(nil)
+var _ TaskWithID = (*TaskWithIDTask)(nil)
 
-func (t *WrappedTaskWithID) TaskID() any {
+func (t *TaskWithIDTask) TaskID() any {
 	return t.id
 }
 
-func (t *WrappedTaskWithID) Task() Task {
+func (t *TaskWithIDTask) Task() Task {
 	return t.task
 }
 
-func (t *WrappedTaskWithID) Run(ctx context.Context) error {
+func (t *TaskWithIDTask) Run(ctx context.Context) error {
 	return t.task.Run(ctx)
 }
 
-// WrappedServiceWithID DOES NOT implement WrappedService.
-type WrappedServiceWithID struct {
+// ServiceWithIDService DOES NOT implement WrappedService.
+type ServiceWithIDService struct {
 	svc Service
 	id  any
 }
 
-var _ ServiceWithID = (*WrappedServiceWithID)(nil)
+var _ ServiceWithID = (*ServiceWithIDService)(nil)
 
-func (s *WrappedServiceWithID) Service() any {
+func (s *ServiceWithIDService) Service() any {
 	return s.svc
 }
 
-func (s *WrappedServiceWithID) ServiceID() any {
+func (s *ServiceWithIDService) ServiceID() any {
 	return s.id
 }
 
-func (s *WrappedServiceWithID) RunService(ctx context.Context, stage Stage) error {
+func (s *ServiceWithIDService) RunService(ctx context.Context, stage Stage) error {
 	return s.svc.RunService(ctx, stage)
 }
 
