@@ -526,75 +526,87 @@ func TestManagerRunMultiple(t *testing.T) {
 }
 
 func TestManagerNilTask(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		sinit := New(t.Context())
+	for _, test := range []struct {
+		name string
+		fn   func(sinit *Manager)
+	}{
+		{
+			name: "nil execute",
+			fn: func(sinit *Manager) {
+				sinit.ExecuteTask(nil, WithTaskCallback(WaitStartTaskCallback()))
+			},
+		},
+		{
+			name: "nil start, prestop and stop",
+			fn: func(sinit *Manager) {
+				stopTask1 := sinit.
+					StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+					PreStop(nil).
+					FutureStop(nil, WithCancelContext(true))
+				sinit.StopFuture(stopTask1)
+			},
+		},
+		{
+			name: "nil stop",
+			fn: func(sinit *Manager) {
+				stopTask2 := sinit.
+					StartTask(newTestTask(2, func(ctx context.Context) error {
+						_ = SleepContext(ctx, time.Second)
+						return nil
+					}), WithTaskCallback(WaitStartTaskCallback())).
+					FutureStop(nil, WithCancelContext(true))
 
-		stopTask1 := sinit.
-			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(nil).
-			FutureStop(nil, WithCancelContext(true))
-
-		stopTask2 := sinit.
-			StartTask(newTestTask(2, func(ctx context.Context) error {
-				_ = SleepContext(ctx, time.Second)
-				return nil
-			}), WithTaskCallback(WaitStartTaskCallback())).
-			FutureStop(nil, WithCancelContext(true))
-
-		stopTask3 := sinit.
-			StartTask(newTestTask(3, func(ctx context.Context) error {
-				_ = SleepContext(ctx, time.Second)
-				return nil
-			}), WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(newTestTask(3, func(ctx context.Context) error {
-				return nil
-			})).
-			FutureStop(newTestTask(3, func(ctx context.Context) error {
-				return nil
-			}), WithCancelContext(true))
-
-		stopTask4 := sinit.
-			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(nil).
-			FutureStop(nil, WithCancelContext(true))
-		stopTask5 := sinit.
-			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(nil).
-			FutureStop(nil, WithCancelContext(true))
-
-		stopService := sinit.
-			StartService(nil, WithTaskCallback(WaitStartTaskCallback())).
-			FutureStopContext()
-
-		sinit.StopFuture(stopTask1)
-		sinit.StopFuture(stopTask2)
-		sinit.StopFuture(stopTask3)
-		sinit.StopFutureMultiple(stopTask4, stopTask5)
-		sinit.StopFuture(stopService)
-
-		err := sinit.Run()
-		assert.ErrorIs(t, err, ErrNilTasks)
-	})
-}
-
-func TestManagerNilTaskMultiple(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		sinit := New(t.Context())
-
-		stopTask4 := sinit.
-			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(nil).
-			FutureStop(nil, WithCancelContext(true))
-		stopTask5 := sinit.
-			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
-			PreStop(nil).
-			FutureStop(nil, WithCancelContext(true))
-
-		sinit.StopFutureMultiple(stopTask4, stopTask5)
-
-		err := sinit.Run()
-		assert.ErrorIs(t, err, ErrNilTasks)
-	})
+				sinit.StopFuture(stopTask2)
+			},
+		},
+		{
+			name: "nil prestop",
+			fn: func(sinit *Manager) {
+				stopTask3 := sinit.
+					StartTask(newTestTask(3, func(ctx context.Context) error {
+						_ = SleepContext(ctx, time.Second)
+						return nil
+					}), WithTaskCallback(WaitStartTaskCallback())).
+					PreStop(nil).
+					FutureStop(newTestTask(3, func(ctx context.Context) error {
+						return nil
+					}), WithCancelContext(true))
+				sinit.StopFuture(stopTask3)
+			},
+		},
+		{
+			name: "nil multiple",
+			fn: func(sinit *Manager) {
+				stopTask4 := sinit.
+					StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+					PreStop(nil).
+					FutureStop(nil, WithCancelContext(true))
+				stopTask5 := sinit.
+					StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+					PreStop(nil).
+					FutureStop(nil, WithCancelContext(true))
+				sinit.StopFutureMultiple(stopTask4, stopTask5)
+			},
+		},
+		{
+			name: "nil service",
+			fn: func(sinit *Manager) {
+				stopService := sinit.
+					StartService(nil, WithTaskCallback(WaitStartTaskCallback())).
+					FutureStopContext()
+				sinit.StopFuture(stopService)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sinit := New(t.Context())
+				test.fn(sinit)
+				err := sinit.Run()
+				assert.ErrorIs(t, err, ErrNilTasks)
+			})
+		})
+	}
 }
 
 func TestManagerPending(t *testing.T) {

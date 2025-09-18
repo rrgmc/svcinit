@@ -103,7 +103,7 @@ type StartTaskCmd struct {
 // AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop(stop Task) {
-	stopTask := s.createStopTask(s.s.unorderedCancelCtx, stop, WithCancelContext(true))
+	stopTask := s.createStopTask(s.s.unorderedCancelCtx, stop, false, WithCancelContext(true))
 	s.s.AutoStopTask(stopTask)
 }
 
@@ -124,18 +124,18 @@ func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
 // The context passed to the task will NOT be canceled, except if the option WithCancelContext(true) is set.
 // The returned StopFuture must be added in order to [Manager.StopTask].
 func (s StartTaskCmd) FutureStop(stop Task, stopOptions ...StopOption) StopFuture {
-	return s.createStopFuture(stop, stopOptions...)
+	return s.createStopFuture(stop, false, stopOptions...)
 }
 
 // FutureStopContext returns a StopFuture to be stopped when the order matters.
 // The context passed to the task will be canceled.
 // The returned StopFuture must be added in order to [Manager.StopTask].
 func (s StartTaskCmd) FutureStopContext() StopFuture {
-	return s.createStopFuture(nil, WithCancelContext(true))
+	return s.createStopFuture(nil, true, WithCancelContext(true))
 }
 
-func (s StartTaskCmd) createStopFuture(stop Task, options ...StopOption) StopFuture {
-	stopTask := s.createStopTask(s.s.ctx, stop, options...)
+func (s StartTaskCmd) createStopFuture(stop Task, isAutoStop bool, options ...StopOption) StopFuture {
+	stopTask := s.createStopTask(s.s.ctx, stop, isAutoStop, options...)
 	return s.s.addPendingStopTask(stopTask, s.options...)
 }
 
@@ -147,7 +147,7 @@ func (s StartTaskCmd) addStartTask(ctx context.Context) {
 	}
 }
 
-func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...StopOption) Task {
+func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, isAutoStop bool, options ...StopOption) Task {
 	var optns stopOptions
 	for _, opt := range options {
 		opt(&optns)
@@ -162,6 +162,9 @@ func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...
 	s.addStartTask(ctx)
 	var stopTask Task
 	if stop == nil {
+		if !isAutoStop {
+			return stop
+		}
 		// TODO: maybe a deadlock if !optns.cancelContext?
 		stopTaskFunc := func(ctx context.Context) error {
 			if optns.cancelContext {
@@ -222,18 +225,7 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	s.addStartTask(ctx, startTask, preStopTask)
 	var pendingStopTask Task
 	if stopTask == nil {
-		// TODO: maybe a deadlock if !optns.cancelContext?
-		stopTaskFunc := func(ctx context.Context) error {
-			if optns.cancelContext {
-				cancel(ErrExit)
-			}
-			return nil
-		}
-		if tid, ok := startTask.(TaskWithID); ok {
-			stopTask = TaskFuncWithID(tid.TaskID(), stopTaskFunc)
-		} else {
-			stopTask = TaskFunc(stopTaskFunc)
-		}
+		return nil
 	} else if !optns.cancelContext {
 		pendingStopTask = stopTask
 	} else {
