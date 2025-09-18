@@ -45,3 +45,10 @@ func (p *pendingStopFuture) isResolved() bool {
 func (p *pendingStopFuture) setResolved() {
 	p.resolved.setResolved()
 }
+
+func jobServiceAsTasks(svc Service) (start, preStop, stop Task) {
+	if svc == nil {
+		return nil, nil, nil
+	}
+	return ServiceAsTasks(svc)
+}

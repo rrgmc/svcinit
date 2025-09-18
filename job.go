@@ -208,7 +208,7 @@ type StartServiceCmd struct {
 // AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
 // The context passed to the task will be canceled.
 func (s StartServiceCmd) AutoStop() {
-	startTask, preStopTask, stopTask := ServiceAsTasks(s.svc)
+	startTask, preStopTask, stopTask := jobServiceAsTasks(s.svc)
 	s.addStartTask(s.s.unorderedCancelCtx, startTask, preStopTask)
 	s.s.stopTasks = append(s.s.stopTasks, newStopTaskWrapper(stopTask, s.options...))
 }
@@ -227,7 +227,7 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	if optns.cancelContext {
 		ctx, cancel = context.WithCancelCause(ctx)
 	}
-	startTask, preStopTask, stopTask := ServiceAsTasks(s.svc)
+	startTask, preStopTask, stopTask := jobServiceAsTasks(s.svc)
 	s.addStartTask(ctx, startTask, preStopTask)
 	var pendingStopTask Task
 	if stopTask == nil {
