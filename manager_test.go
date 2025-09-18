@@ -81,6 +81,128 @@ func TestManager(t *testing.T) {
 	})
 }
 
+func TestManagerCallback(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var runStarted, runStopped atomic.Int32
+		testcb := &testCallback{}
+		testtaskcb := &testCallback{}
+		testruncb := &testCallback{}
+
+		sinit := New(t.Context(),
+			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage Stage, step Step, cause error) error {
+				switch stage {
+				case StageStart:
+					runStarted.Add(1)
+				case StageStop:
+					runStopped.Add(1)
+				default:
+				}
+				return nil
+			})),
+			WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
+				assertTestTask(t, task, stage, step)
+			})),
+			WithGlobalTaskCallback(testcb),
+		)
+
+		stopTask1 := sinit.
+			StartTask(newTestTask(1, func(ctx context.Context) error {
+				testruncb.add(1, StageStart, StepBefore, nil)
+				defer testruncb.add(1, StageStart, StepAfter, nil)
+				_ = SleepContext(ctx, 2*time.Second)
+				return nil
+			}), WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
+			FutureStop(newTestTask(1, func(ctx context.Context) error {
+				testruncb.add(1, StageStop, StepBefore, nil)
+				defer testruncb.add(1, StageStop, StepAfter, nil)
+				return nil
+			}), WithCancelContext(true))
+
+		stopTask2 := sinit.
+			StartTask(newTestTask(2, func(ctx context.Context) error {
+				testruncb.add(2, StageStart, StepBefore, nil)
+				defer testruncb.add(2, StageStart, StepAfter, nil)
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			}), WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
+			PreStop(newTestTask(2, func(ctx context.Context) error {
+				testruncb.add(2, StagePreStop, StepBefore, nil)
+				defer testruncb.add(2, StagePreStop, StepAfter, nil)
+				return nil
+			})).
+			FutureStop(newTestTask(2, func(ctx context.Context) error {
+				testruncb.add(2, StageStop, StepBefore, nil)
+				defer testruncb.add(2, StageStop, StepAfter, nil)
+				return nil
+			}), WithCancelContext(true))
+
+		svc := newTestService(3, func(ctx context.Context, stage Stage) error {
+			switch stage {
+			case StageStart:
+				testruncb.add(3, StageStart, StepBefore, nil)
+				defer testruncb.add(3, StageStart, StepAfter, nil)
+				_ = SleepContext(ctx, 2*time.Second)
+			case StagePreStop:
+				testruncb.add(3, StagePreStop, StepBefore, nil)
+				defer testruncb.add(3, StagePreStop, StepAfter, nil)
+			case StageStop:
+				testruncb.add(3, StageStop, StepBefore, nil)
+				defer testruncb.add(3, StageStop, StepAfter, nil)
+			default:
+			}
+			return nil
+		})
+
+		stopService := sinit.
+			StartService(svc, WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
+			FutureStopContext()
+
+		sinit.StopFuture(stopTask1)
+		sinit.StopFuture(stopTask2)
+		sinit.StopFuture(stopService)
+
+		err := sinit.Run()
+		assert.NilError(t, err)
+
+		expected := map[int][]testCallbackItem{
+			1: {
+				{1, StageStart, StepBefore, nil},
+				{1, StageStop, StepBefore, nil},
+				{1, StageStop, StepAfter, nil},
+				{1, StageStart, StepAfter, nil},
+			},
+			2: {
+				{2, StageStart, StepBefore, nil},
+				{2, StageStart, StepAfter, nil},
+				{2, StagePreStop, StepBefore, nil},
+				{2, StagePreStop, StepAfter, nil},
+				{2, StageStop, StepBefore, nil},
+				{2, StageStop, StepAfter, nil},
+			},
+			3: {
+				{3, StageStart, StepBefore, nil},
+				{3, StagePreStop, StepBefore, nil},
+				{3, StagePreStop, StepAfter, nil},
+				{3, StageStop, StepBefore, nil},
+				{3, StageStop, StepAfter, nil},
+				{3, StageStart, StepAfter, nil},
+			},
+		}
+
+		assert.Equal(t, int32(2), runStarted.Load())
+		assert.Equal(t, int32(2), runStopped.Load())
+		testcb.m.Lock()
+		defer testcb.m.Unlock()
+		testtaskcb.m.Lock()
+		defer testtaskcb.m.Unlock()
+		testruncb.m.Lock()
+		defer testruncb.m.Unlock()
+		assert.DeepEqual(t, expected, testcb.allTestTasksByNo)
+		assert.DeepEqual(t, expected, testtaskcb.allTestTasksByNo)
+		assert.DeepEqual(t, expected, testruncb.allTestTasksByNo)
+	})
+}
+
 func TestManagerWorkflows(t *testing.T) {
 	isDebug := false
 
@@ -332,128 +454,6 @@ func TestManagerStopMultipleTasks(t *testing.T) {
 
 		assert.DeepEqual(t, []int{1, 2}, started.get(), cmpopts.SortSlices(cmp.Less[int]))
 		assert.DeepEqual(t, []int{1, 2}, stopped.get(), cmpopts.SortSlices(cmp.Less[int]))
-	})
-}
-
-func TestManagerOrder(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		var runStarted, runStopped atomic.Int32
-		testcb := &testCallback{}
-		testtaskcb := &testCallback{}
-		testruncb := &testCallback{}
-
-		sinit := New(t.Context(),
-			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage Stage, step Step, cause error) error {
-				switch stage {
-				case StageStart:
-					runStarted.Add(1)
-				case StageStop:
-					runStopped.Add(1)
-				default:
-				}
-				return nil
-			})),
-			WithGlobalTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
-				assertTestTask(t, task, stage, step)
-			})),
-			WithGlobalTaskCallback(testcb),
-		)
-
-		stopTask1 := sinit.
-			StartTask(newTestTask(1, func(ctx context.Context) error {
-				testruncb.add(1, StageStart, StepBefore, nil)
-				defer testruncb.add(1, StageStart, StepAfter, nil)
-				_ = SleepContext(ctx, 2*time.Second)
-				return nil
-			}), WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
-			FutureStop(newTestTask(1, func(ctx context.Context) error {
-				testruncb.add(1, StageStop, StepBefore, nil)
-				defer testruncb.add(1, StageStop, StepAfter, nil)
-				return nil
-			}), WithCancelContext(true))
-
-		stopTask2 := sinit.
-			StartTask(newTestTask(2, func(ctx context.Context) error {
-				testruncb.add(2, StageStart, StepBefore, nil)
-				defer testruncb.add(2, StageStart, StepAfter, nil)
-				_ = SleepContext(ctx, time.Second)
-				return nil
-			}), WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
-			PreStop(newTestTask(2, func(ctx context.Context) error {
-				testruncb.add(2, StagePreStop, StepBefore, nil)
-				defer testruncb.add(2, StagePreStop, StepAfter, nil)
-				return nil
-			})).
-			FutureStop(newTestTask(2, func(ctx context.Context) error {
-				testruncb.add(2, StageStop, StepBefore, nil)
-				defer testruncb.add(2, StageStop, StepAfter, nil)
-				return nil
-			}), WithCancelContext(true))
-
-		svc := newTestService(3, func(ctx context.Context, stage Stage) error {
-			switch stage {
-			case StageStart:
-				testruncb.add(3, StageStart, StepBefore, nil)
-				defer testruncb.add(3, StageStart, StepAfter, nil)
-				_ = SleepContext(ctx, 2*time.Second)
-			case StagePreStop:
-				testruncb.add(3, StagePreStop, StepBefore, nil)
-				defer testruncb.add(3, StagePreStop, StepAfter, nil)
-			case StageStop:
-				testruncb.add(3, StageStop, StepBefore, nil)
-				defer testruncb.add(3, StageStop, StepAfter, nil)
-			default:
-			}
-			return nil
-		})
-
-		stopService := sinit.
-			StartService(svc, WithTaskCallback(testtaskcb, WaitStartTaskCallback())).
-			FutureStopContext()
-
-		sinit.StopFuture(stopTask1)
-		sinit.StopFuture(stopTask2)
-		sinit.StopFuture(stopService)
-
-		err := sinit.Run()
-		assert.NilError(t, err)
-
-		expected := map[int][]testCallbackItem{
-			1: {
-				{1, StageStart, StepBefore, nil},
-				{1, StageStop, StepBefore, nil},
-				{1, StageStop, StepAfter, nil},
-				{1, StageStart, StepAfter, nil},
-			},
-			2: {
-				{2, StageStart, StepBefore, nil},
-				{2, StageStart, StepAfter, nil},
-				{2, StagePreStop, StepBefore, nil},
-				{2, StagePreStop, StepAfter, nil},
-				{2, StageStop, StepBefore, nil},
-				{2, StageStop, StepAfter, nil},
-			},
-			3: {
-				{3, StageStart, StepBefore, nil},
-				{3, StagePreStop, StepBefore, nil},
-				{3, StagePreStop, StepAfter, nil},
-				{3, StageStop, StepBefore, nil},
-				{3, StageStop, StepAfter, nil},
-				{3, StageStart, StepAfter, nil},
-			},
-		}
-
-		assert.Equal(t, int32(2), runStarted.Load())
-		assert.Equal(t, int32(2), runStopped.Load())
-		testcb.m.Lock()
-		defer testcb.m.Unlock()
-		testtaskcb.m.Lock()
-		defer testtaskcb.m.Unlock()
-		testruncb.m.Lock()
-		defer testruncb.m.Unlock()
-		assert.DeepEqual(t, expected, testcb.allTestTasksByNo)
-		assert.DeepEqual(t, expected, testtaskcb.allTestTasksByNo)
-		assert.DeepEqual(t, expected, testruncb.allTestTasksByNo)
 	})
 }
 
