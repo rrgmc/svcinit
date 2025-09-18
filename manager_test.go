@@ -597,54 +597,56 @@ func TestManagerNilTaskMultiple(t *testing.T) {
 	})
 }
 
-func TestManagerPendingStart(t *testing.T) {
-	sinit := New(context.Background())
+func TestManagerPending(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		fn   func(sinit *Manager)
+	}{
+		{
+			name: "pending start",
+			fn: func(sinit *Manager) {
+				_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}))
 
-	// must call one StartTaskCmd method
-	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
-		return nil
-	}))
-
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrPending)
-}
-
-func TestManagerPendingStartService(t *testing.T) {
-	sinit := New(context.Background())
-
-	// must call one StartServiceCmd method
-	_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
-		return nil
-	}))
-
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrPending)
-}
-
-func TestManagerPendingStop(t *testing.T) {
-	sinit := New(context.Background())
-
-	// must add stop function to FutureStop
-	_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
-		return nil
-	})).FutureStop(TaskFunc(func(ctx context.Context) error {
-		return nil
-	}))
-
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrPending)
-}
-
-func TestManagerPendingStopService(t *testing.T) {
-	sinit := New(context.Background())
-
-	// must add stop function to FutureStop
-	_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
-		return nil
-	})).FutureStop()
-
-	err := sinit.Run()
-	assert.ErrorIs(t, err, ErrPending)
+			},
+		},
+		{
+			name: "pending start service",
+			fn: func(sinit *Manager) {
+				_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
+					return nil
+				}))
+			},
+		},
+		{
+			name: "pending stop",
+			fn: func(sinit *Manager) {
+				_ = sinit.StartTask(TaskFunc(func(ctx context.Context) error {
+					return nil
+				})).FutureStop(TaskFunc(func(ctx context.Context) error {
+					return nil
+				}))
+			},
+		},
+		{
+			name: "pending stop service",
+			fn: func(sinit *Manager) {
+				_ = sinit.StartService(ServiceFunc(func(ctx context.Context, stage Stage) error {
+					return nil
+				})).FutureStop()
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sinit := New(t.Context())
+				test.fn(sinit)
+				err := sinit.Run()
+				assert.ErrorIs(t, err, ErrPending)
+			})
+		})
+	}
 }
 
 type testTask struct {
