@@ -461,9 +461,9 @@ type waitTaskCallback struct {
 	waitCancel context.CancelFunc
 }
 
-func newWaitTaskCallback(ctx context.Context) *waitTaskCallback {
+func newWaitTaskCallback() *waitTaskCallback {
 	ret := &waitTaskCallback{}
-	ret.waitCtx, ret.waitCancel = context.WithCancel(ctx)
+	ret.waitCtx, ret.waitCancel = context.WithCancel(context.Background())
 	return ret
 }
 
@@ -485,15 +485,11 @@ func TestManagerOrder(t *testing.T) {
 		sinit := New(t.Context(),
 			WithGlobalTaskCallback(testcb))
 
-		waitTask1 := newWaitTaskCallback(t.Context())
-		waitTask2 := newWaitTaskCallback(t.Context())
-		waitTask3 := newWaitTaskCallback(t.Context())
-
 		stopTask1 := sinit.
 			StartTask(newTestTask(1, func(ctx context.Context) error {
 				_ = SleepContext(ctx, 2*time.Second)
 				return nil
-			}), WithTaskCallback(waitTask1)).
+			}), WithTaskCallback(newWaitTaskCallback())).
 			FutureStop(newTestTask(1, func(ctx context.Context) error {
 				return nil
 			}), WithCancelContext(true))
@@ -502,7 +498,7 @@ func TestManagerOrder(t *testing.T) {
 			StartTask(newTestTask(2, func(ctx context.Context) error {
 				_ = SleepContext(ctx, time.Second)
 				return nil
-			}), WithTaskCallback(waitTask2)).
+			}), WithTaskCallback(newWaitTaskCallback())).
 			PreStop(newTestTask(2, func(ctx context.Context) error {
 				return nil
 			})).
@@ -520,7 +516,7 @@ func TestManagerOrder(t *testing.T) {
 		})
 
 		stopService := sinit.
-			StartService(svc, WithTaskCallback(waitTask3)).
+			StartService(svc, WithTaskCallback(newWaitTaskCallback())).
 			FutureStopContext()
 
 		sinit.StopFuture(stopTask1)
