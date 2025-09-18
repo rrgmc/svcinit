@@ -105,3 +105,18 @@ type SignalError struct {
 func (e SignalError) Error() string {
 	return fmt.Sprintf("received signal %s", e.Signal)
 }
+
+// CheckNullTask returns NullTask if task is nil, otherwise return the task itself.
+func CheckNullTask(task Task) Task {
+	if task == nil {
+		return &NullTask{}
+	}
+	return task
+}
+
+type NullTask struct {
+}
+
+func (n *NullTask) Run(_ context.Context) error {
+	return nil
+}

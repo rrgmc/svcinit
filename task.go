@@ -176,9 +176,6 @@ func NewMultipleTask(tasks ...Task) Task {
 
 // WrapTask wraps a task in a WrappedTask, allowing the handler to be customized.
 func WrapTask(task Task, options ...WrapTaskOption) Task {
-	if task == nil {
-		return task
-	}
 	ret := &wrappedTask{
 		task: task,
 	}
@@ -199,11 +196,11 @@ func WithWrapTaskHandler(handler func(ctx context.Context, task Task) error) Wra
 
 // UnwrapTask unwraps WrappedTask from tasks.
 func UnwrapTask(task Task) Task {
+	if task == nil {
+		return nil
+	}
 	for {
-		if task == nil {
-			return nil
-		}
-		if tc, ok := task.(WrappedTask); ok {
+		if tc, ok := task.(WrappedTask); ok && tc.WrappedTask() != nil {
 			task = tc.WrappedTask()
 		} else {
 			return task
@@ -225,11 +222,11 @@ func WrapService(service Service, handler func(ctx context.Context, svc Service,
 
 // UnwrapService unwraps WrappedService from services.
 func UnwrapService(svc Service) Service {
+	if svc == nil {
+		return nil
+	}
 	for {
-		if svc == nil {
-			return nil
-		}
-		if tc, ok := svc.(WrappedService); ok {
+		if tc, ok := svc.(WrappedService); ok && tc.WrappedService() != nil {
 			svc = tc.WrappedService()
 		} else {
 			return svc

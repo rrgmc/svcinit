@@ -159,13 +159,19 @@ func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...
 	}
 	s.addStartTask(ctx)
 	var stopTask Task
-	if !optns.cancelContext {
-		stopTask = stop
-	} else if stop == nil {
-		stopTask = TaskFunc(func(ctx context.Context) error {
+	if stop == nil {
+		// TODO: maybe a deadlock if !optns.cancelContext?
+		stopTaskFunc := func(ctx context.Context) error {
 			cancel(ErrExit)
 			return nil
-		})
+		}
+		if tid, ok := s.start.(TaskWithID); ok {
+			stopTask = TaskFuncWithID(tid.TaskID(), stopTaskFunc)
+		} else {
+			stopTask = TaskFunc(stopTaskFunc)
+		}
+	} else if !optns.cancelContext {
+		stopTask = stop
 	} else {
 		stopTask = WrapTask(stop, WithWrapTaskHandler(func(ctx context.Context, task Task) error {
 			cancel(ErrExit)

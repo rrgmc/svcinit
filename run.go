@@ -194,7 +194,7 @@ func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks []TaskCall
 func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {
 	ret := taskWrapper{
 		ctx:  ctx,
-		task: task,
+		task: CheckNullTask(task),
 	}
 	for _, option := range options {
 		option(&ret.options)
