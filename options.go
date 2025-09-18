@@ -18,7 +18,7 @@ type TaskOption func(options *taskOptions)
 
 func WithTaskCallback(callback TaskCallback) TaskOption {
 	return func(options *taskOptions) {
-		options.callback = append(options.callback, callback)
+		options.callbacks = append(options.callbacks, callback)
 	}
 }
 
@@ -35,7 +35,7 @@ func WithCancelContext(cancelContext bool) StopOption {
 // definitions
 
 type taskOptions struct {
-	callback []TaskCallback
+	callbacks []TaskCallback
 }
 
 type stopOptions struct {

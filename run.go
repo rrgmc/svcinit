@@ -20,7 +20,7 @@ func (s *Manager) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, StageStart, s.taskCallback)
+			err := task.run(task.ctx, StageStart, s.globalTaskCallbacks)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -64,7 +64,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.preStopTasks {
 			wgPreStop.Go(func() {
-				err := task.run(ctx, StagePreStop, s.taskCallback)
+				err := task.run(ctx, StagePreStop, s.globalTaskCallbacks)
 				errorBuilder.add(err)
 			})
 		}
@@ -84,7 +84,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.stopTasks {
 			wg.Go(func() {
-				err := task.run(ctx, StageStop, s.taskCallback)
+				err := task.run(ctx, StageStop, s.globalTaskCallbacks)
 				errorBuilder.add(err)
 			})
 		}
@@ -94,7 +94,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if len(s.stopTasksOrdered) > 0 {
 		wg.Go(func() {
 			for _, task := range s.stopTasksOrdered {
-				err := task.run(ctx, StageStop, s.taskCallback)
+				err := task.run(ctx, StageStop, s.globalTaskCallbacks)
 				errorBuilder.add(err)
 			}
 		})
@@ -149,8 +149,8 @@ func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFutur
 
 func (s *Manager) runCallbacks(ctx context.Context, stage Stage, step Step, cause error) error {
 	eb := newMultiErrorBuilder()
-	if s.managerCallback != nil {
-		for _, scallback := range s.managerCallback {
+	if s.managerCallbacks != nil {
+		for _, scallback := range s.managerCallbacks {
 			if serr := scallback.Callback(ctx, stage, step, cause); serr != nil {
 				eb.add(serr)
 			}
@@ -159,7 +159,7 @@ func (s *Manager) runCallbacks(ctx context.Context, stage Stage, step Step, caus
 	return eb.build()
 }
 
-func runTask(ctx context.Context, task Task, stage Stage, callbacks ...TaskCallback) error {
+func runTask(ctx context.Context, task Task, stage Stage, callbacks []TaskCallback) error {
 	if tcb, ok := task.(taskRunCallback); ok {
 		return tcb.runWithCallbacks(ctx, stage, callbacks...)
 	}
@@ -187,7 +187,7 @@ func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks []TaskCall
 	if w.ctx != nil {
 		ctx = w.ctx
 	}
-	return runTask(ctx, w.task, stage, joinTaskCallbacks(callbacks, w.options.callback)...)
+	return runTask(ctx, w.task, stage, joinTaskCallbacks(callbacks, w.options.callbacks))
 }
 
 func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {

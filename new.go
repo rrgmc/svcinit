@@ -60,14 +60,14 @@ func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 // WithManagerCallback appends a function that is called before and after each lifecycle event happens.
 func WithManagerCallback(managerCallback ManagerCallback) Option {
 	return func(s *Manager) {
-		s.managerCallback = append(s.managerCallback, managerCallback)
+		s.managerCallbacks = append(s.managerCallbacks, managerCallback)
 	}
 }
 
 // WithGlobalTaskCallback appends a function that is called before and after each task runs.
 func WithGlobalTaskCallback(taskCallback TaskCallback) Option {
 	return func(s *Manager) {
-		s.taskCallback = append(s.taskCallback, taskCallback)
+		s.globalTaskCallbacks = append(s.globalTaskCallbacks, taskCallback)
 	}
 }
 

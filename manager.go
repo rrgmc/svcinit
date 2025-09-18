@@ -46,8 +46,8 @@ type Manager struct {
 	wg        sync.WaitGroup
 	isRunning atomic.Bool
 	// options
-	managerCallback        []ManagerCallback
-	taskCallback           []TaskCallback
+	managerCallbacks       []ManagerCallback
+	globalTaskCallbacks    []TaskCallback
 	shutdownTimeout        time.Duration
 	enforceShutdownTimeout bool
 }
