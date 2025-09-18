@@ -3,6 +3,9 @@ package svcinit
 import "slices"
 
 func (s *Manager) taskFromStopFuture(task StopFuture) taskWrapper {
+	if task == nil {
+		return newStopTaskWrapper(nil)
+	}
 	var optns []TaskOption
 	if ps, ok := task.(*pendingStopFuture); ok {
 		ps.setResolved()
