@@ -2,7 +2,7 @@ package svcinit
 
 import "context"
 
-// WaitStartTaskCallback is a TaskCallback that makes the stop task wait for the stop task to finished.
+// WaitStartTaskCallback is a TaskCallback that makes the stop task wait for the start task to finished.
 func WaitStartTaskCallback() TaskCallback {
 	ret := &waitStartTaskCallback{}
 	ret.waitCtx, ret.waitCancel = context.WithCancel(context.Background())
