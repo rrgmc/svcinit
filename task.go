@@ -220,6 +220,44 @@ func WrapService(service Service, handler func(ctx context.Context, svc Service,
 	}
 }
 
+type WrappedTaskWithID struct {
+	task Task
+	id   any
+}
+
+var _ TaskWithID = (*WrappedTaskWithID)(nil)
+
+func (t *WrappedTaskWithID) TaskID() any {
+	return t.id
+}
+
+func (t *WrappedTaskWithID) Task() Task {
+	return t.task
+}
+
+func (t *WrappedTaskWithID) Run(ctx context.Context) error {
+	return t.task.Run(ctx)
+}
+
+type WrappedServiceWithID struct {
+	svc Service
+	id  any
+}
+
+var _ ServiceWithID = (*WrappedServiceWithID)(nil)
+
+func (s *WrappedServiceWithID) Service() any {
+	return s.svc
+}
+
+func (s *WrappedServiceWithID) ServiceID() any {
+	return s.id
+}
+
+func (s *WrappedServiceWithID) RunService(ctx context.Context, stage Stage) error {
+	return s.svc.RunService(ctx, stage)
+}
+
 // UnwrapService unwraps WrappedService from services.
 func UnwrapService(svc Service) Service {
 	if svc == nil {
