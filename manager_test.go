@@ -646,6 +646,40 @@ func TestManagerNilTask(t *testing.T) {
 	}
 }
 
+func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var isStart, isStop atomic.Bool
+
+		mainCtx, mainCancel := context.WithCancel(t.Context())
+
+		sinit := New(mainCtx)
+
+		sinit.
+			StartTask(TaskFunc(func(ctx context.Context) error {
+				select {
+				case <-ctx.Done():
+				}
+				assert.Check(t, ctx.Err() != nil)
+				isStart.Store(true)
+				return nil
+			})).
+			AutoStop(TaskFunc(func(ctx context.Context) error {
+				isStop.Store(true)
+				assert.Check(t, ctx.Err() == nil)
+				return nil
+			}))
+
+		time.AfterFunc(1*time.Second, func() {
+			mainCancel()
+		})
+
+		err := sinit.Run()
+		assert.NilError(t, err)
+		assert.Equal(t, isStart.Load(), true)
+		assert.Equal(t, isStop.Load(), true)
+	})
+}
+
 func TestManagerPending(t *testing.T) {
 	for _, test := range []struct {
 		name string
