@@ -81,7 +81,7 @@ func (t *multipleTask) runWithCallbacks(ctx context.Context, stage Stage, callba
 	var wg sync.WaitGroup
 	for _, st := range t.tasks {
 		wg.Go(func() {
-			err := st.run(ctx, stage, callbacks...)
+			err := st.run(ctx, stage, callbacks)
 			if err != nil {
 				allErr.add(err)
 			}

@@ -20,7 +20,7 @@ func (s *Manager) start() error {
 		go func() {
 			defer s.wg.Done()
 			runWg.Done()
-			err := task.run(task.ctx, StageStart, s.taskCallback...)
+			err := task.run(task.ctx, StageStart, s.taskCallback)
 			if err != nil {
 				s.cancel(err)
 			} else {
@@ -64,7 +64,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.preStopTasks {
 			wgPreStop.Go(func() {
-				err := task.run(ctx, StagePreStop, s.taskCallback...)
+				err := task.run(ctx, StagePreStop, s.taskCallback)
 				errorBuilder.add(err)
 			})
 		}
@@ -84,7 +84,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 		// stop tasks where order don't matter are done in parallel
 		for _, task := range s.stopTasks {
 			wg.Go(func() {
-				err := task.run(ctx, StageStop, s.taskCallback...)
+				err := task.run(ctx, StageStop, s.taskCallback)
 				errorBuilder.add(err)
 			})
 		}
@@ -94,7 +94,7 @@ func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
 	if len(s.stopTasksOrdered) > 0 {
 		wg.Go(func() {
 			for _, task := range s.stopTasksOrdered {
-				err := task.run(ctx, StageStop, s.taskCallback...)
+				err := task.run(ctx, StageStop, s.taskCallback)
 				errorBuilder.add(err)
 			}
 		})
@@ -183,7 +183,7 @@ type taskWrapper struct {
 	options taskOptions
 }
 
-func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks ...TaskCallback) error {
+func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks []TaskCallback) error {
 	if w.ctx != nil {
 		ctx = w.ctx
 	}
