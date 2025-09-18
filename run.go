@@ -187,7 +187,7 @@ func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks ...TaskCal
 	if w.ctx != nil {
 		ctx = w.ctx
 	}
-	return runTask(ctx, w.task, stage, joinTaskCallbacks(callbacks, []TaskCallback{w.options.callback})...)
+	return runTask(ctx, w.task, stage, joinTaskCallbacks(callbacks, w.options.callback)...)
 }
 
 func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {
