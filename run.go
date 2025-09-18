@@ -187,6 +187,7 @@ func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks []TaskCall
 	if w.ctx != nil {
 		ctx = w.ctx
 	}
+	// run global callbacks first.
 	return runTask(ctx, w.task, stage, joinTaskCallbacks(callbacks, w.options.callbacks))
 }
 
