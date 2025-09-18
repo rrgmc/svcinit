@@ -65,6 +65,7 @@ type TaskWithID interface {
 }
 
 // TaskFuncWithID returns a TaskWithID from a TaskFunc.
+// Note: it DOES NOT implements WrappedTask.
 func TaskFuncWithID(id any, fn TaskFunc) TaskWithID {
 	return &WrappedTaskWithID{
 		task: fn,
@@ -220,6 +221,7 @@ func WrapService(service Service, handler func(ctx context.Context, svc Service,
 	}
 }
 
+// WrappedTaskWithID DOES NOT implement WrappedTask.
 type WrappedTaskWithID struct {
 	task Task
 	id   any
@@ -239,6 +241,7 @@ func (t *WrappedTaskWithID) Run(ctx context.Context) error {
 	return t.task.Run(ctx)
 }
 
+// WrappedServiceWithID DOES NOT implement WrappedService.
 type WrappedServiceWithID struct {
 	svc Service
 	id  any
