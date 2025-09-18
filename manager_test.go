@@ -456,61 +456,72 @@ func TestManagerCallback(t *testing.T) {
 	})
 }
 
+type waitTaskCallback struct {
+	waitCtx    context.Context
+	waitCancel context.CancelFunc
+}
+
+func newWaitTaskCallback(ctx context.Context) *waitTaskCallback {
+	ret := &waitTaskCallback{}
+	ret.waitCtx, ret.waitCancel = context.WithCancel(ctx)
+	return ret
+}
+
+func (t *waitTaskCallback) Callback(ctx context.Context, task Task, stage Stage, step Step, err error) {
+	if stage == StageStart && step == StepAfter {
+		t.waitCancel()
+	} else if stage == StageStop && step == StepAfter {
+		select {
+		case <-ctx.Done():
+		case <-t.waitCtx.Done():
+		}
+	}
+}
+
 func TestManagerOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		var m sync.Mutex
-		allTasks := map[int][]string{}
+		testcb := &testCallback{}
 
 		sinit := New(t.Context(),
-			WithGlobalTaskCallback(
-				TaskCallbackFunc(func(ctx context.Context, task Task, stage Stage, step Step, err error) {
-					taskNo, ok := getTestTaskNo(task)
-					if !assert.Check(t, ok, "task is not of the expected type but %T", task) {
-						return
-					}
-					m.Lock()
-					defer m.Unlock()
-					allTasks[taskNo] = append(allTasks[taskNo], fmt.Sprintf("%s-%s", stage, step))
-				})),
-		)
+			WithGlobalTaskCallback(testcb))
+
+		waitTask1 := newWaitTaskCallback(t.Context())
+		waitTask2 := newWaitTaskCallback(t.Context())
+		waitTask3 := newWaitTaskCallback(t.Context())
 
 		stopTask1 := sinit.
 			StartTask(newTestTask(1, func(ctx context.Context) error {
-				_ = SleepContext(ctx, time.Second)
+				_ = SleepContext(ctx, 2*time.Second)
 				return nil
-			})).
+			}), WithTaskCallback(waitTask1)).
 			FutureStop(newTestTask(1, func(ctx context.Context) error {
-				_ = SleepContext(ctx, time.Second)
 				return nil
-			}))
+			}), WithCancelContext(true))
 
 		stopTask2 := sinit.
 			StartTask(newTestTask(2, func(ctx context.Context) error {
 				_ = SleepContext(ctx, time.Second)
 				return nil
-			})).
+			}), WithTaskCallback(waitTask2)).
 			PreStop(newTestTask(2, func(ctx context.Context) error {
 				return nil
 			})).
 			FutureStop(newTestTask(2, func(ctx context.Context) error {
-				_ = SleepContext(ctx, time.Second)
 				return nil
-			}))
+			}), WithCancelContext(true))
 
 		svc := newTestService(3, func(ctx context.Context, stage Stage) error {
 			switch stage {
 			case StageStart:
-				_ = SleepContext(ctx, time.Second)
-			case StageStop:
-				_ = SleepContext(ctx, time.Second)
+				_ = SleepContext(ctx, 2*time.Second)
 			default:
 			}
 			return nil
 		})
 
 		stopService := sinit.
-			StartService(svc).
-			FutureStop()
+			StartService(svc, WithTaskCallback(waitTask3)).
+			FutureStop(WithCancelContext(true))
 
 		sinit.StopFuture(stopTask1)
 		sinit.StopFuture(stopTask2)
@@ -518,11 +529,33 @@ func TestManagerOrder(t *testing.T) {
 
 		err := sinit.Run()
 		assert.NilError(t, err)
-		assert.DeepEqual(t, map[int][]string{
-			1: {"start-before", "start-after", "stop-before", "stop-after"},
-			2: {"start-before", "start-after", "pre-stop-before", "pre-stop-after", "stop-before", "stop-after"},
-			3: {"start-before", "start-after", "pre-stop-before", "pre-stop-after", "stop-before", "stop-after"},
-		}, allTasks)
+
+		testcb.m.Lock()
+		defer testcb.m.Unlock()
+		assert.DeepEqual(t, map[int][]testCallbackItem{
+			1: {
+				{1, StageStart, StepBefore, nil},
+				{1, StageStop, StepBefore, nil},
+				{1, StageStop, StepAfter, nil},
+				{1, StageStart, StepAfter, nil},
+			},
+			2: {
+				{2, StageStart, StepBefore, nil},
+				{2, StageStart, StepAfter, nil},
+				{2, StagePreStop, StepBefore, nil},
+				{2, StagePreStop, StepAfter, nil},
+				{2, StageStop, StepBefore, nil},
+				{2, StageStop, StepAfter, nil},
+			},
+			3: {
+				{3, StageStart, StepBefore, nil},
+				{3, StageStart, StepAfter, nil},
+				{3, StagePreStop, StepBefore, nil},
+				{3, StagePreStop, StepAfter, nil},
+				{3, StageStop, StepBefore, nil},
+				{3, StageStop, StepAfter, nil},
+			},
+		}, testcb.allTasksByNo)
 	})
 }
 
@@ -762,4 +795,50 @@ func (l *testList[T]) get() []T {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.list
+}
+
+type testCallbackItem struct {
+	taskNo int
+	stage  Stage
+	step   Step
+	err    error
+}
+
+func (t testCallbackItem) Equal(other testCallbackItem) bool {
+	if t.taskNo != other.taskNo || t.stage != other.stage || t.step != other.step {
+		return false
+	}
+	if t.err == nil && other.err == nil {
+		return true
+	}
+	return errors.Is(other.err, t.err)
+}
+
+type testCallback struct {
+	m            sync.Mutex
+	allTasks     []testCallbackItem
+	allTasksByNo map[int][]testCallbackItem
+}
+
+func (t *testCallback) Callback(ctx context.Context, task Task, stage Stage, step Step, err error) {
+	taskNo, ok := getTestTaskNo(task)
+	if !ok {
+		return
+	}
+	// if !assert.Check(t, ok, "task is not of the expected type but %T", task) {
+	// 	return
+	// }
+	t.m.Lock()
+	defer t.m.Unlock()
+	item := testCallbackItem{
+		taskNo: taskNo,
+		stage:  stage,
+		step:   step,
+		err:    err,
+	}
+	if t.allTasks == nil {
+		t.allTasksByNo = make(map[int][]testCallbackItem)
+	}
+	t.allTasks = append(t.allTasks, item)
+	t.allTasksByNo[taskNo] = append(t.allTasksByNo[taskNo], item)
 }
