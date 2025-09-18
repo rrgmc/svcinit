@@ -529,7 +529,7 @@ func TestManagerOrder(t *testing.T) {
 				{3, StageStop, StepAfter, nil},
 				{3, StageStart, StepAfter, nil},
 			},
-		}, testcb.allTasksByNo)
+		}, testcb.allTestTasksByNo)
 	})
 }
 
@@ -651,6 +651,66 @@ func TestManagerRunMultiple(t *testing.T) {
 	assert.NilError(t, err)
 	err = sinit.Run()
 	assert.ErrorIs(t, err, ErrAlreadyRunning)
+}
+
+func TestManagerNullTask(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testcb := &testCallback{}
+
+		sinit := New(t.Context(),
+			WithGlobalTaskCallback(testcb))
+
+		stopTask1 := sinit.
+			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(nil).
+			FutureStop(nil, WithCancelContext(true))
+
+		stopTask2 := sinit.
+			StartTask(newTestTask(2, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			}), WithTaskCallback(WaitStartTaskCallback())).
+			FutureStop(nil, WithCancelContext(true))
+
+		stopTask3 := sinit.
+			StartTask(newTestTask(3, func(ctx context.Context) error {
+				_ = SleepContext(ctx, time.Second)
+				return nil
+			}), WithTaskCallback(WaitStartTaskCallback())).
+			PreStop(newTestTask(3, func(ctx context.Context) error {
+				return nil
+			})).
+			FutureStop(newTestTask(3, func(ctx context.Context) error {
+				return nil
+			}), WithCancelContext(true))
+
+		stopService := sinit.
+			StartService(nil, WithTaskCallback(WaitStartTaskCallback())).
+			FutureStopContext()
+
+		sinit.StopFuture(stopTask1)
+		sinit.StopFuture(stopTask2)
+		sinit.StopFuture(stopTask3)
+		sinit.StopFuture(stopService)
+
+		err := sinit.Run()
+		assert.NilError(t, err)
+
+		testcb.m.Lock()
+		defer testcb.m.Unlock()
+		assert.DeepEqual(t, []testCallbackItem{
+			{2, StageStart, StepBefore, nil},
+			{2, StageStart, StepAfter, nil},
+			{2, StageStop, StepBefore, nil},
+			{2, StageStop, StepAfter, nil},
+			{3, StageStart, StepBefore, nil},
+			{3, StagePreStop, StepBefore, nil},
+			{3, StagePreStop, StepAfter, nil},
+			{3, StageStop, StepBefore, nil},
+			{3, StageStop, StepAfter, nil},
+			{3, StageStart, StepAfter, nil},
+		}, testcb.allTestTasks, cmpopts.SortSlices(testCallbackItemLess))
+	})
 }
 
 func TestManagerPendingStart(t *testing.T) {
@@ -788,20 +848,30 @@ func (t testCallbackItem) Equal(other testCallbackItem) bool {
 	return errors.Is(other.err, t.err)
 }
 
-type testCallback struct {
-	m            sync.Mutex
-	allTasks     []testCallbackItem
-	allTasksByNo map[int][]testCallbackItem
+func testCallbackItemLess(a, b testCallbackItem) int {
+	if c := cmp.Compare(a.taskNo, b.taskNo); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.stage, b.stage); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.step, b.step); c != 0 {
+		return c
+	}
+	return 0
 }
 
-func (t *testCallback) Callback(ctx context.Context, task Task, stage Stage, step Step, err error) {
+type testCallback struct {
+	m                sync.Mutex
+	allTestTasks     []testCallbackItem
+	allTestTasksByNo map[int][]testCallbackItem
+}
+
+func (t *testCallback) Callback(_ context.Context, task Task, stage Stage, step Step, err error) {
 	taskNo, ok := getTestTaskNo(task)
 	if !ok {
 		return
 	}
-	// if !assert.Check(t, ok, "task is not of the expected type but %T", task) {
-	// 	return
-	// }
 	t.m.Lock()
 	defer t.m.Unlock()
 	item := testCallbackItem{
@@ -810,9 +880,9 @@ func (t *testCallback) Callback(ctx context.Context, task Task, stage Stage, ste
 		step:   step,
 		err:    err,
 	}
-	if t.allTasks == nil {
-		t.allTasksByNo = make(map[int][]testCallbackItem)
+	if t.allTestTasks == nil {
+		t.allTestTasksByNo = make(map[int][]testCallbackItem)
 	}
-	t.allTasks = append(t.allTasks, item)
-	t.allTasksByNo[taskNo] = append(t.allTasksByNo[taskNo], item)
+	t.allTestTasks = append(t.allTestTasks, item)
+	t.allTestTasksByNo[taskNo] = append(t.allTestTasksByNo[taskNo], item)
 }

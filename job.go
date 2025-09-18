@@ -162,7 +162,9 @@ func (s StartTaskCmd) createStopTask(ctx context.Context, stop Task, options ...
 	if stop == nil {
 		// TODO: maybe a deadlock if !optns.cancelContext?
 		stopTaskFunc := func(ctx context.Context) error {
-			cancel(ErrExit)
+			if optns.cancelContext {
+				cancel(ErrExit)
+			}
 			return nil
 		}
 		if tid, ok := s.start.(TaskWithID); ok {
@@ -217,7 +219,20 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	startTask, preStopTask, stopTask := ServiceAsTasks(s.svc)
 	s.addStartTask(ctx, startTask, preStopTask)
 	var pendingStopTask Task
-	if !optns.cancelContext {
+	if stopTask == nil {
+		// TODO: maybe a deadlock if !optns.cancelContext?
+		stopTaskFunc := func(ctx context.Context) error {
+			if optns.cancelContext {
+				cancel(ErrExit)
+			}
+			return nil
+		}
+		if tid, ok := startTask.(TaskWithID); ok {
+			stopTask = TaskFuncWithID(tid.TaskID(), stopTaskFunc)
+		} else {
+			stopTask = TaskFunc(stopTaskFunc)
+		}
+	} else if !optns.cancelContext {
 		pendingStopTask = stopTask
 	} else {
 		pendingStopTask = WrapTask(stopTask, WithWrapTaskHandler(func(ctx context.Context, task Task) error {

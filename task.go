@@ -143,6 +143,9 @@ func ServiceAsTask(svc Service, stage Stage) Task {
 
 // ServiceAsTasks creates and adapter from a service method to stop and start tasks.
 func ServiceAsTasks(svc Service) (start, preStop, stop Task) {
+	if svc == nil {
+		return nil, nil, nil
+	}
 	return ServiceAsTask(svc, StageStart),
 		ServiceAsTask(svc, StagePreStop),
 		ServiceAsTask(svc, StageStop)
