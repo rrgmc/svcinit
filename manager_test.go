@@ -456,28 +456,6 @@ func TestManagerCallback(t *testing.T) {
 	})
 }
 
-type waitTaskCallback struct {
-	waitCtx    context.Context
-	waitCancel context.CancelFunc
-}
-
-func newWaitTaskCallback() *waitTaskCallback {
-	ret := &waitTaskCallback{}
-	ret.waitCtx, ret.waitCancel = context.WithCancel(context.Background())
-	return ret
-}
-
-func (t *waitTaskCallback) Callback(ctx context.Context, task Task, stage Stage, step Step, err error) {
-	if stage == StageStart && step == StepAfter {
-		t.waitCancel()
-	} else if stage == StageStop && step == StepAfter {
-		select {
-		case <-ctx.Done():
-		case <-t.waitCtx.Done():
-		}
-	}
-}
-
 func TestManagerOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		testcb := &testCallback{}
@@ -489,7 +467,7 @@ func TestManagerOrder(t *testing.T) {
 			StartTask(newTestTask(1, func(ctx context.Context) error {
 				_ = SleepContext(ctx, 2*time.Second)
 				return nil
-			}), WithTaskCallback(newWaitTaskCallback())).
+			}), WithTaskCallback(WaitStartTaskCallback())).
 			FutureStop(newTestTask(1, func(ctx context.Context) error {
 				return nil
 			}), WithCancelContext(true))
@@ -498,7 +476,7 @@ func TestManagerOrder(t *testing.T) {
 			StartTask(newTestTask(2, func(ctx context.Context) error {
 				_ = SleepContext(ctx, time.Second)
 				return nil
-			}), WithTaskCallback(newWaitTaskCallback())).
+			}), WithTaskCallback(WaitStartTaskCallback())).
 			PreStop(newTestTask(2, func(ctx context.Context) error {
 				return nil
 			})).
@@ -516,7 +494,7 @@ func TestManagerOrder(t *testing.T) {
 		})
 
 		stopService := sinit.
-			StartService(svc, WithTaskCallback(newWaitTaskCallback())).
+			StartService(svc, WithTaskCallback(WaitStartTaskCallback())).
 			FutureStopContext()
 
 		sinit.StopFuture(stopTask1)
