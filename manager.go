@@ -56,7 +56,7 @@ type Manager struct {
 
 // RunWithErrors runs all tasks and returns the error of the first task to finish, which can be nil,
 // and a list of stop errors, if any.
-func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
+func (s *Manager) RunWithErrors() (cause error, stopErr error) {
 	if !s.isRunning.CompareAndSwap(false, true) {
 		return ErrAlreadyRunning, nil
 	}
@@ -78,7 +78,7 @@ func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
 	<-s.cancelCtx.Done()
 	s.unorderedCancel(context.Cause(s.cancelCtx))
 	cause = context.Cause(s.cancelCtx)
-	err, cleanupErr = s.shutdown(cause)
+	err, stopErr = s.shutdown(cause)
 	if err != nil {
 		return err, nil
 	}
@@ -86,7 +86,7 @@ func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
 	if errors.Is(cause, ErrExit) || errors.Is(cause, context.Canceled) {
 		cause = nil
 	}
-	return cause, cleanupErr
+	return cause, stopErr
 }
 
 // Run runs all tasks and returns the error of the first task to finish, which can be nil.

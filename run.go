@@ -37,7 +37,7 @@ func (s *Manager) start() error {
 	return nil
 }
 
-func (s *Manager) shutdown(cause error) (err error, cleanupErr error) {
+func (s *Manager) shutdown(cause error) (err error, stopErr error) {
 	if serr := s.runCallbacks(s.shutdownCtx, StageStop, StepBefore, cause); serr != nil {
 		return serr, nil
 	}
