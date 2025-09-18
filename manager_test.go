@@ -655,10 +655,7 @@ func TestManagerRunMultiple(t *testing.T) {
 
 func TestManagerNullTask(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		testcb := &testCallback{}
-
-		sinit := New(t.Context(),
-			WithGlobalTaskCallback(testcb))
+		sinit := New(t.Context())
 
 		stopTask1 := sinit.
 			StartTask(nil, WithTaskCallback(WaitStartTaskCallback())).
@@ -694,28 +691,7 @@ func TestManagerNullTask(t *testing.T) {
 		sinit.StopFuture(stopService)
 
 		err := sinit.Run()
-		assert.NilError(t, err)
-
-		testcb.m.Lock()
-		defer testcb.m.Unlock()
-		assert.DeepEqual(t, []testCallbackItem{
-			{2, StageStart, StepBefore, nil},
-			{2, StageStart, StepAfter, nil},
-			{3, StageStart, StepBefore, nil},
-			{3, StagePreStop, StepBefore, nil},
-			{3, StagePreStop, StepAfter, nil},
-			{3, StageStop, StepBefore, nil},
-			{3, StageStop, StepAfter, nil},
-			{3, StageStart, StepAfter, nil},
-		}, testcb.allTestTasks, cmpopts.SortSlices(testCallbackItemCompare))
-		assert.DeepEqual(t, map[testCount]int{
-			testCount{StageStart, StepBefore}:   4,
-			testCount{StageStart, StepAfter}:    4,
-			testCount{StagePreStop, StepBefore}: 3,
-			testCount{StagePreStop, StepAfter}:  3,
-			testCount{StageStop, StepBefore}:    4,
-			testCount{StageStop, StepAfter}:     4,
-		}, testcb.counts)
+		assert.ErrorIs(t, err, ErrNilTasks)
 	})
 }
 

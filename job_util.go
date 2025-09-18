@@ -4,14 +4,14 @@ import "slices"
 
 func (s *Manager) taskFromStopFuture(task StopFuture) taskWrapper {
 	if task == nil {
-		return newStopTaskWrapper(nil)
+		return s.newStopTaskWrapper(nil)
 	}
 	var optns []TaskOption
 	if ps, ok := task.(*pendingStopFuture); ok {
 		ps.setResolved()
 		optns = slices.Clone(ps.options)
 	}
-	return newStopTaskWrapper(task.stopTask(), optns...)
+	return s.newStopTaskWrapper(task.stopTask(), optns...)
 }
 
 type pendingItem interface {

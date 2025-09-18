@@ -14,6 +14,7 @@ var (
 	ErrPending         = errors.New("pending start or stop command")
 	ErrNoTask          = errors.New("no tasks available")
 	ErrAlreadyRunning  = errors.New("already running")
+	ErrNilTasks        = errors.New("nil tasks are not allowed")
 )
 
 // Manager schedules tasks to be run and stopped on service initialization.
@@ -45,6 +46,7 @@ type Manager struct {
 	// task finish wait group.
 	wg        sync.WaitGroup
 	isRunning atomic.Bool
+	isNilTask atomic.Bool
 	// options
 	managerCallbacks       []ManagerCallback
 	globalTaskCallbacks    []TaskCallback
@@ -57,6 +59,10 @@ type Manager struct {
 func (s *Manager) RunWithErrors() (cause error, cleanupErr error) {
 	if !s.isRunning.CompareAndSwap(false, true) {
 		return ErrAlreadyRunning, nil
+	}
+
+	if s.isNilTask.Load() {
+		return ErrNilTasks, nil
 	}
 
 	if err := s.checkPending(); err != nil {

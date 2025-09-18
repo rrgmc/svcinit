@@ -159,6 +159,17 @@ func (s *Manager) runCallbacks(ctx context.Context, stage Stage, step Step, caus
 	return eb.build()
 }
 
+func (s *Manager) newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {
+	if task == nil {
+		s.isNilTask.Store(true)
+	}
+	return newTaskWrapper(ctx, task, options...)
+}
+
+func (s *Manager) newStopTaskWrapper(task Task, options ...TaskOption) taskWrapper {
+	return s.newTaskWrapper(nil, task, options...)
+}
+
 func runTask(ctx context.Context, task Task, stage Stage, callbacks []TaskCallback) error {
 	if tcb, ok := task.(taskRunCallback); ok {
 		return tcb.runWithCallbacks(ctx, stage, callbacks...)
@@ -194,14 +205,10 @@ func (w *taskWrapper) run(ctx context.Context, stage Stage, callbacks []TaskCall
 func newTaskWrapper(ctx context.Context, task Task, options ...TaskOption) taskWrapper {
 	ret := taskWrapper{
 		ctx:  ctx,
-		task: CheckNullTask(task),
+		task: checkNilTask(task),
 	}
 	for _, option := range options {
 		option(&ret.options)
 	}
 	return ret
-}
-
-func newStopTaskWrapper(task Task, options ...TaskOption) taskWrapper {
-	return newTaskWrapper(nil, task, options...)
 }

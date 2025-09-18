@@ -179,3 +179,19 @@ func (s *WrappedServiceWithID) ServiceID() any {
 func (s *WrappedServiceWithID) RunService(ctx context.Context, stage Stage) error {
 	return s.svc.RunService(ctx, stage)
 }
+
+// checkNilTask returns errorTask if task is nil, otherwise return the task itself.
+func checkNilTask(task Task) Task {
+	if task == nil {
+		return &errorTask{err: ErrNilTasks}
+	}
+	return task
+}
+
+type errorTask struct {
+	err error
+}
+
+func (n *errorTask) Run(_ context.Context) error {
+	return n.err
+}

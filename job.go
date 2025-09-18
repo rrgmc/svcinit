@@ -5,7 +5,6 @@ import (
 )
 
 // ExecuteTask executes the passed task which don't need a stop task.
-// If task is nil, it will be replaced by NullTask.
 // The context passed to the task will be canceled on stop.
 // It is equivalent to "StartTask().AutoStop()".
 // The task is only executed at the Run call.
@@ -14,7 +13,6 @@ func (s *Manager) ExecuteTask(task Task, options ...TaskOption) {
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
-// If task is nil, it will be replaced by NullTask.
 // At least one method of StartTaskCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
 func (s *Manager) StartTask(task Task, options ...TaskOption) StartTaskCmd {
@@ -31,7 +29,6 @@ func (s *Manager) StartTask(task Task, options ...TaskOption) StartTaskCmd {
 
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with StartTask and StopTask methods.
-// If service is nil, its tasks will be replaced by NullTask.
 // At least one method of StartServiceCmd must be called, or Run will fail.
 // The task is only executed at the Run call.
 func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceCmd {
@@ -46,15 +43,13 @@ func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceC
 }
 
 // PreStopTask adds a pre-stop task. They will be called in parallel, before stop tasks starts.
-// If task is nil, it will be replaced by NullTask.
 func (s *Manager) PreStopTask(task Task, options ...TaskOption) {
-	s.preStopTasks = append(s.preStopTasks, newStopTaskWrapper(task, options...))
+	s.preStopTasks = append(s.preStopTasks, s.newStopTaskWrapper(task, options...))
 }
 
 // StopTask adds a shutdown task. The shutdown will be done in the order they are added.
-// If task is nil, it will be replaced by NullTask.
 func (s *Manager) StopTask(task Task, options ...TaskOption) {
-	s.stopTasksOrdered = append(s.stopTasksOrdered, newStopTaskWrapper(task, options...))
+	s.stopTasksOrdered = append(s.stopTasksOrdered, s.newStopTaskWrapper(task, options...))
 }
 
 // StopMultipleTasks adds a shutdown task. The shutdown will be done in the order they are added.
@@ -67,7 +62,7 @@ func (s *Manager) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 			multiTasks = append(multiTasks, s.taskFromStopFuture(task))
 		},
 		stop: func(task Task) {
-			multiTasks = append(multiTasks, newStopTaskWrapper(task))
+			multiTasks = append(multiTasks, s.newStopTaskWrapper(task))
 		},
 	}
 	f(mtb)
@@ -77,7 +72,6 @@ func (s *Manager) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 }
 
 // StopFuture adds a shutdown task. The shutdown will be done in the order they are added.
-// If task is nil, it will be replaced by NullTask.
 func (s *Manager) StopFuture(task StopFuture) {
 	s.stopTasksOrdered = append(s.stopTasksOrdered, s.taskFromStopFuture(task))
 }
@@ -94,9 +88,8 @@ func (s *Manager) StopFutureMultiple(tasks ...StopFuture) {
 }
 
 // AutoStopTask adds a shutdown task, when the shutdown order DOES NOT matter.
-// If task is nil, it will be replaced by NullTask.
 func (s *Manager) AutoStopTask(task Task, options ...TaskOption) {
-	s.stopTasks = append(s.stopTasks, newStopTaskWrapper(task, options...))
+	s.stopTasks = append(s.stopTasks, s.newStopTaskWrapper(task, options...))
 }
 
 type StartTaskCmd struct {
@@ -108,7 +101,6 @@ type StartTaskCmd struct {
 }
 
 // AutoStop schedules the task to be stopped when the shutdown order DOES NOT matter.
-// If stop is nil, it will be replaced by NullTask.
 // The context passed to the task will be canceled.
 func (s StartTaskCmd) AutoStop(stop Task) {
 	stopTask := s.createStopTask(s.s.unorderedCancelCtx, stop, WithCancelContext(true))
@@ -122,7 +114,6 @@ func (s StartTaskCmd) AutoStopContext() {
 }
 
 // PreStop adds a pre-stop task.
-// If preStop is nil, it will be replaced by NullTask.
 func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
 	s.preStop.Set(preStop)
 	return s
@@ -210,7 +201,7 @@ type StartServiceCmd struct {
 func (s StartServiceCmd) AutoStop() {
 	startTask, preStopTask, stopTask := jobServiceAsTasks(s.svc)
 	s.addStartTask(s.s.unorderedCancelCtx, startTask, preStopTask)
-	s.s.stopTasks = append(s.s.stopTasks, newStopTaskWrapper(stopTask, s.options...))
+	s.s.stopTasks = append(s.s.stopTasks, s.s.newStopTaskWrapper(stopTask, s.options...))
 }
 
 // FutureStop returns a StopFuture to be stopped when the order matters.
@@ -272,5 +263,5 @@ func (s StartServiceCmd) isResolved() bool {
 
 // addTask adds a task to be started.
 func (s *Manager) addTask(ctx context.Context, task Task, options ...TaskOption) {
-	s.tasks = append(s.tasks, newTaskWrapper(ctx, task, options...))
+	s.tasks = append(s.tasks, s.newTaskWrapper(ctx, task, options...))
 }
