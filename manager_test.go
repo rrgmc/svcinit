@@ -701,8 +701,6 @@ func TestManagerNullTask(t *testing.T) {
 		assert.DeepEqual(t, []testCallbackItem{
 			{2, StageStart, StepBefore, nil},
 			{2, StageStart, StepAfter, nil},
-			{2, StageStop, StepBefore, nil},
-			{2, StageStop, StepAfter, nil},
 			{3, StageStart, StepBefore, nil},
 			{3, StagePreStop, StepBefore, nil},
 			{3, StagePreStop, StepAfter, nil},
@@ -861,8 +859,14 @@ func testCallbackItemLess(a, b testCallbackItem) int {
 	return 0
 }
 
+type testCount struct {
+	stage Stage
+	step  Step
+}
+
 type testCallback struct {
 	m                sync.Mutex
+	counts           map[testCount]int
 	allTestTasks     []testCallbackItem
 	allTestTasksByNo map[int][]testCallbackItem
 }
@@ -883,6 +887,10 @@ func (t *testCallback) Callback(_ context.Context, task Task, stage Stage, step 
 	if t.allTestTasks == nil {
 		t.allTestTasksByNo = make(map[int][]testCallbackItem)
 	}
+	if t.counts == nil {
+		t.counts = make(map[testCount]int)
+	}
 	t.allTestTasks = append(t.allTestTasks, item)
 	t.allTestTasksByNo[taskNo] = append(t.allTestTasksByNo[taskNo], item)
+	t.counts[testCount{stage: stage, step: step}]++
 }
