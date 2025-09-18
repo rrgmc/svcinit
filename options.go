@@ -16,9 +16,9 @@ func (f ManagerCallbackFunc) Callback(ctx context.Context, stage Stage, step Ste
 
 type TaskOption func(options *taskOptions)
 
-func WithTaskCallback(callback TaskCallback) TaskOption {
+func WithTaskCallback(callbacks ...TaskCallback) TaskOption {
 	return func(options *taskOptions) {
-		options.callbacks = append(options.callbacks, callback)
+		options.callbacks = append(options.callbacks, callbacks...)
 	}
 }
 
