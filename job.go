@@ -222,6 +222,12 @@ func (s StartServiceCmd) FutureStop(options ...StopOption) StopFuture {
 	return s.s.addPendingStopTask(pendingStopTask, s.options...)
 }
 
+// FutureStopContext calls FutureStop with WithCancelContext(true).
+// It is a convenience to make it similar to the [Manager.StartTask] one.
+func (s StartServiceCmd) FutureStopContext(options ...StopOption) StopFuture {
+	return s.FutureStop(append(options, WithCancelContext(true))...)
+}
+
 func (s StartServiceCmd) addStartTask(ctx context.Context, startTask Task, preStopTask Task) {
 	s.resolved.setResolved()
 	s.s.addTask(ctx, startTask, s.options...)

@@ -521,7 +521,7 @@ func TestManagerOrder(t *testing.T) {
 
 		stopService := sinit.
 			StartService(svc, WithTaskCallback(waitTask3)).
-			FutureStop(WithCancelContext(true))
+			FutureStopContext()
 
 		sinit.StopFuture(stopTask1)
 		sinit.StopFuture(stopTask2)
@@ -549,11 +549,11 @@ func TestManagerOrder(t *testing.T) {
 			},
 			3: {
 				{3, StageStart, StepBefore, nil},
-				{3, StageStart, StepAfter, nil},
 				{3, StagePreStop, StepBefore, nil},
 				{3, StagePreStop, StepAfter, nil},
 				{3, StageStop, StepBefore, nil},
 				{3, StageStop, StepAfter, nil},
+				{3, StageStart, StepAfter, nil},
 			},
 		}, testcb.allTasksByNo)
 	})
