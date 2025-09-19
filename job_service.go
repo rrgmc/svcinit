@@ -8,6 +8,12 @@ type StartService interface {
 	FutureStopContext(options ...StopOption) StopFuture
 }
 
+type StartFutureService interface {
+	AutoStop() StartFuture
+	FutureStop(options ...StopOption) (StartFuture, StopFuture)
+	FutureStopContext(options ...StopOption) (StartFuture, StopFuture)
+}
+
 type StartServiceCmd struct {
 	s        *Manager
 	svc      Service

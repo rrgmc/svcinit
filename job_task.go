@@ -10,6 +10,14 @@ type StartTask interface {
 	FutureStopContext() StopFuture
 }
 
+type StartFutureTask interface {
+	AutoStop(stop Task) StartFuture
+	AutoStopContext() StartFuture
+	PreStop(preStop Task) StartTask
+	FutureStop(stop Task, stopOptions ...StopOption) (StartFuture, StopFuture)
+	FutureStopContext() (StartFuture, StopFuture)
+}
+
 type StartTaskCmd struct {
 	s        *Manager
 	start    Task
