@@ -141,6 +141,12 @@ func (s *Manager) addPendingStop(p pendingItem) {
 	s.pendingStops = append(s.pendingStops, p)
 }
 
+func (s *Manager) addPendingStartTask(task Task, options ...TaskOption) StartFuture {
+	st := newPendingStartFuture(task, options...)
+	s.pendingStarts = append(s.pendingStarts, st)
+	return st
+}
+
 func (s *Manager) addPendingStopTask(task Task, options ...TaskOption) StopFuture {
 	st := newPendingStopFuture(task, options...)
 	s.pendingStops = append(s.pendingStops, st)

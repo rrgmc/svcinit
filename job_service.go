@@ -2,6 +2,12 @@ package svcinit
 
 import "context"
 
+type StartService interface {
+	AutoStop()
+	FutureStop(options ...StopOption) StopFuture
+	FutureStopContext(options ...StopOption) StopFuture
+}
+
 type StartServiceCmd struct {
 	s        *Manager
 	svc      Service

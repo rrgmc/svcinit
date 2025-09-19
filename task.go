@@ -53,6 +53,11 @@ func (fn TaskFunc) Run(ctx context.Context) error {
 	return fn(ctx)
 }
 
+// StartFuture is a start task to be scheduled using [Manager.StartFuture].
+type StartFuture interface {
+	startTask() Task
+}
+
 // StopFuture is a stop task to be scheduled using [Manager.StopFuture].
 type StopFuture interface {
 	stopTask() Task

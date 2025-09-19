@@ -2,6 +2,18 @@ package svcinit
 
 import "slices"
 
+func (s *Manager) taskFromStartFuture(task StartFuture) taskWrapper {
+	if task == nil {
+		return s.newTaskWrapper(nil, nil)
+	}
+	var optns []TaskOption
+	if ps, ok := task.(*pendingStartFuture); ok {
+		ps.setResolved()
+		optns = slices.Clone(ps.options)
+	}
+	return s.newTaskWrapper(nil, task.startTask(), optns...)
+}
+
 func (s *Manager) taskFromStopFuture(task StopFuture) taskWrapper {
 	if task == nil {
 		return s.newStopTaskWrapper(nil)
@@ -16,6 +28,34 @@ func (s *Manager) taskFromStopFuture(task StopFuture) taskWrapper {
 
 type pendingItem interface {
 	isResolved() bool
+}
+
+type pendingStartFuture struct {
+	task     Task
+	options  []TaskOption
+	resolved resolved
+}
+
+var _ StartFuture = (*pendingStartFuture)(nil)
+
+func newPendingStartFuture(startTask Task, options ...TaskOption) *pendingStartFuture {
+	return &pendingStartFuture{
+		task:     startTask,
+		options:  options,
+		resolved: newResolved(),
+	}
+}
+
+func (p *pendingStartFuture) startTask() Task {
+	return p.task
+}
+
+func (p *pendingStartFuture) isResolved() bool {
+	return p.resolved.isResolved()
+}
+
+func (p *pendingStartFuture) setResolved() {
+	p.resolved.setResolved()
 }
 
 type pendingStopFuture struct {

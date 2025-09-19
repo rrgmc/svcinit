@@ -2,6 +2,14 @@ package svcinit
 
 import "context"
 
+type StartTask interface {
+	AutoStop(stop Task)
+	AutoStopContext()
+	PreStop(preStop Task) StartTask
+	FutureStop(stop Task, stopOptions ...StopOption) StopFuture
+	FutureStopContext() StopFuture
+}
+
 type StartTaskCmd struct {
 	s        *Manager
 	start    Task
@@ -24,7 +32,7 @@ func (s StartTaskCmd) AutoStopContext() {
 }
 
 // PreStop adds a pre-stop task.
-func (s StartTaskCmd) PreStop(preStop Task) StartTaskCmd {
+func (s StartTaskCmd) PreStop(preStop Task) StartTask {
 	s.preStop.Set(preStop)
 	return s
 }

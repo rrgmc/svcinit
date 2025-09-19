@@ -66,6 +66,7 @@ func ExampleManager() {
 
 	// start health HTTP server as a service using manual stop ordering.
 	// it is only started on the Run call.
+	/*healthStart,*/
 	healthStop := sinit.
 		StartService(healthHTTPServer).
 		// stop the service using the [svcinit.Manager.FutureStop] call WITHOUT cancelling the start context.
@@ -113,6 +114,8 @@ func ExampleManager() {
 		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
 	// add manual stops. They will be stopped in the added order.
+
+	// sinit.StartFuture(healthStart)
 
 	// stop HTTP server before health server
 	sinit.StopFuture(httpStop)

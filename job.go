@@ -13,9 +13,9 @@ func (s *Manager) ExecuteTask(task Task, options ...TaskOption) {
 }
 
 // StartTask executes a task and allows the shutdown method to be customized.
-// At least one method of StartTaskCmd must be called, or Run will fail.
+// At least one method of StartTask must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *Manager) StartTask(task Task, options ...TaskOption) StartTaskCmd {
+func (s *Manager) StartTask(task Task, options ...TaskOption) StartTask {
 	cmd := StartTaskCmd{
 		s:        s,
 		start:    task,
@@ -29,9 +29,9 @@ func (s *Manager) StartTask(task Task, options ...TaskOption) StartTaskCmd {
 
 // StartService executes a service task and allows the shutdown method to be customized.
 // A service is a task with StartTask and StopTask methods.
-// At least one method of StartServiceCmd must be called, or Run will fail.
+// At least one method of StartService must be called, or Run will fail.
 // The task is only executed at the Run call.
-func (s *Manager) StartService(svc Service, options ...TaskOption) StartServiceCmd {
+func (s *Manager) StartService(svc Service, options ...TaskOption) StartService {
 	cmd := StartServiceCmd{
 		s:        s,
 		svc:      svc,
@@ -69,6 +69,10 @@ func (s *Manager) StopMultipleTasks(f func(MultipleTaskBuilder)) {
 	if len(multiTasks) > 0 {
 		s.StopTask(newMultipleTask(multiTasks...))
 	}
+}
+
+func (s *Manager) StartFuture(task StartFuture) {
+	s.tasksOrdered = append(s.tasksOrdered, s.taskFromStartFuture(task))
 }
 
 // StopFuture adds a shutdown task. The shutdown will be done in the order they are added.
