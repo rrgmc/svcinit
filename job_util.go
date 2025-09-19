@@ -1,6 +1,9 @@
 package svcinit
 
-import "slices"
+import (
+	"context"
+	"slices"
+)
 
 func (s *Manager) taskFromStartFuture(task StartFuture) taskWrapper {
 	if task == nil {
@@ -31,6 +34,7 @@ type pendingItem interface {
 }
 
 type pendingStartFuture struct {
+	ctx      context.Context
 	task     Task
 	options  []TaskOption
 	resolved resolved
@@ -38,8 +42,9 @@ type pendingStartFuture struct {
 
 var _ StartFuture = (*pendingStartFuture)(nil)
 
-func newPendingStartFuture(startTask Task, options ...TaskOption) *pendingStartFuture {
+func newPendingStartFuture(ctx context.Context, startTask Task, options ...TaskOption) *pendingStartFuture {
 	return &pendingStartFuture{
+		ctx:      ctx,
 		task:     startTask,
 		options:  options,
 		resolved: newResolved(),

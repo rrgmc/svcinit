@@ -16,13 +16,14 @@ func (s *Manager) ExecuteTask(task Task, options ...TaskOption) {
 // At least one method of StartTask must be called, or Run will fail.
 // The task is only executed at the Run call.
 func (s *Manager) StartTask(task Task, options ...TaskOption) StartTask {
-	cmd := StartTaskCmd{
-		s:        s,
-		start:    task,
-		options:  options,
-		preStop:  newValuePtr[Task](),
-		resolved: newResolved(),
-	}
+	cmd := s.newStartTaskCmd(task, options...)
+	// cmd := StartTaskCmd{
+	// 	s:        s,
+	// 	start:    task,
+	// 	options:  options,
+	// 	preStop:  newValuePtr[Task](),
+	// 	resolved: newResolved(),
+	// }
 	s.addPendingStart(cmd)
 	return cmd
 }
