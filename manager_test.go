@@ -383,6 +383,27 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 	})
 }
 
+type testTask = TaskWithID[int]
+
+func newTestTask(id int, t Task) *testTask {
+	return NewTaskWithID(id, t)
+}
+
+func getTestTaskNo(task Task) (int, bool) {
+	if tt, ok := task.(*testTask); ok {
+		return tt.TaskID(), true
+	}
+	return -1, false
+}
+
+func assertTestTask(t *testing.T, task Task, stage string, step Step, callbackStep CallbackStep) bool {
+	if _, ok := task.(*testTask); !ok {
+		return assert.Check(t, false, "task is not of the expected type but %T (stage:%s)(step:%s)(callbackStep:%s)",
+			task, stage, step, callbackStep)
+	}
+	return true
+}
+
 type testTaskNoError struct {
 	taskNo int
 }
