@@ -16,7 +16,7 @@ func (t TaskFunc) Run(ctx context.Context, step Step) error {
 }
 
 func (t TaskFunc) String() string {
-	return fmt.Sprintf("TaskFunc(%T)", t)
+	return fmt.Sprintf("%T", t)
 }
 
 type TaskHandler func(ctx context.Context, task Task, step Step) error
