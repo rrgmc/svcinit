@@ -25,7 +25,7 @@ func NewWrappedTask(task Task, options ...WrapTaskOption) *WrappedTask {
 type WrapTaskOption func(task *WrappedTask)
 
 // WithWrapTaskHandler sets an optional handler for the task.
-func WithWrapTaskHandler(handler func(ctx context.Context, task Task) error) WrapTaskOption {
+func WithWrapTaskHandler(handler TaskHandler) WrapTaskOption {
 	return func(task *WrappedTask) {
 		task.handler = handler
 	}
@@ -54,7 +54,7 @@ func UnwrapTask(task Task) Task {
 
 type WrappedTask struct {
 	task        Task
-	handler     func(ctx context.Context, task Task) error
+	handler     TaskHandler
 	description string
 }
 

@@ -19,6 +19,8 @@ func (t TaskFunc) String() string {
 	return fmt.Sprintf("TaskFunc(%T)", t)
 }
 
+type TaskHandler func(ctx context.Context, task Task) error
+
 // TaskSteps sets the steps that the task implements. They will be the only ones called.
 type TaskSteps interface {
 	TaskSteps() []Step
