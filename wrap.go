@@ -8,8 +8,8 @@ type TaskWithWrapped interface {
 	WrappedTask() Task
 }
 
-// WrapTask wraps a task in a TaskWithWrapped, allowing the handler to be customized.
-func WrapTask(task Task, options ...WrapTaskOption) *WrappedTask {
+// NewWrappedTask wraps a task in a TaskWithWrapped, allowing the handler to be customized.
+func NewWrappedTask(task Task, options ...WrapTaskOption) *WrappedTask {
 	ret := &WrappedTask{
 		task: task,
 	}

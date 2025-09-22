@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 )
@@ -13,6 +14,12 @@ func BuildTask(options ...TaskBuildOption) Task {
 }
 
 type TaskBuildOption func(*taskBuild)
+
+func WithDescription(descxription string) TaskBuildOption {
+	return func(build *taskBuild) {
+		build.taskDesc = descxription
+	}
+}
 
 func WithStep(step Step, f TaskBuildFunc) TaskBuildOption {
 	return func(build *taskBuild) {
@@ -46,6 +53,7 @@ type taskBuild struct {
 	stepFunc map[Step]TaskBuildFunc
 	steps    []Step
 	options  []TaskInstanceOption
+	taskDesc string
 }
 
 var _ Task = (*taskBuild)(nil)
@@ -79,6 +87,13 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 		return fn(ctx)
 	}
 	return newInvalidTaskStep(step)
+}
+
+func (t *taskBuild) String() string {
+	if t.taskDesc != "" {
+		return t.taskDesc
+	}
+	return fmt.Sprintf("%T", t)
 }
 
 func (t *taskBuild) isEmpty() bool {

@@ -44,7 +44,7 @@ func TestWrapTask(t *testing.T) {
 			}),
 		))
 
-		sm.AddTask(WrapTask(task1))
+		sm.AddTask(NewWrappedTask(task1))
 
 		err = sm.Run(t.Context())
 		assert.NilError(t, err)
@@ -104,7 +104,7 @@ func TestWrapTaskImplements(t *testing.T) {
 			},
 		}
 
-		sm.AddTask(WrapTask(task1))
+		sm.AddTask(NewWrappedTask(task1))
 
 		err = sm.Run(t.Context())
 		assert.NilError(t, err)
