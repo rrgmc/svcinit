@@ -24,14 +24,11 @@ func TestCallback(t *testing.T) {
 		errCancelTask1 := errors.New("test context cancel 1")
 		errCancelTask2 := errors.New("test context cancel 2")
 
-		// mc, tc := testCallbacksPrint()
-		logger := defaultLogger(t.Output())
+		// logger := defaultLogger(t.Output())
 
 		sinit, err := New(
-			WithLogger(logger),
+			// WithLogger(logger),
 			WithStages("s1", "s2"),
-			// WithManagerCallback(mc),
-			// WithTaskCallback(tc),
 			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
 				switch step {
 				case StepStart:
