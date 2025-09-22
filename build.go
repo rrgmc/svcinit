@@ -15,9 +15,9 @@ func BuildTask(options ...TaskBuildOption) Task {
 
 type TaskBuildOption func(*taskBuild)
 
-func WithDescription(descxription string) TaskBuildOption {
+func WithDescription(description string) TaskBuildOption {
 	return func(build *taskBuild) {
-		build.description = descxription
+		build.description = description
 	}
 }
 
