@@ -55,8 +55,6 @@ func TestManager(t *testing.T) {
 }
 
 func TestManagerWorkflows(t *testing.T) {
-	isDebug := false
-
 	for _, test := range []struct {
 		name            string
 		cancelFn        func() []int
@@ -119,34 +117,13 @@ func TestManagerWorkflows(t *testing.T) {
 						case StepStart:
 							defer stCancel()
 
-							if isDebug {
-								fmt.Printf("Task %d running\n", taskNo)
-								defer func() {
-									fmt.Printf("Task %d finished\n", taskNo)
-								}()
-							}
-
 							select {
 							case <-dtCtx.Done():
-								if isDebug {
-									fmt.Printf("Task %d dtCtx done [err:%v]\n", taskNo, context.Cause(dtCtx))
-								}
 								return context.Cause(dtCtx)
 							case <-ctx.Done():
-								if isDebug {
-									fmt.Printf("Task %d ctx done [err:%v]\n", taskNo, context.Cause(ctx))
-								}
 								return context.Cause(ctx)
 							}
-						case StepPreStop:
-							if isDebug {
-								fmt.Printf("PreStopping task %d\n", taskNo)
-							}
 						case StepStop:
-							if isDebug {
-								fmt.Printf("Stopping task %d\n", taskNo)
-							}
-
 							dtCancel(ErrExit)
 							select {
 							case <-stCtx.Done():
