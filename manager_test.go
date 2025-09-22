@@ -362,7 +362,7 @@ func TestManagerErrorReturns(t *testing.T) {
 	var (
 		err1 = errors.New("err1")
 		err2 = errors.New("err2")
-		// err3 = errors.New("err3")
+		err3 = errors.New("err3")
 	)
 
 	for _, test := range []struct {
@@ -417,6 +417,35 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 					WithPreStop(func(ctx context.Context) error {
 						return err2
+					}),
+				)))
+			},
+		}, {
+			name:            "return error from stop and pre-stop steps",
+			expectedStopErr: []error{err2, err3},
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepStart, CallbackStepBefore}:   1,
+				testCount{"s1", StepStart, CallbackStepAfter}:    1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
+				testCount{"s1", StepStop, CallbackStepBefore}:    1,
+				testCount{"s1", StepStop, CallbackStepAfter}:     1,
+			},
+			setupFn: func(m *Manager) {
+				m.AddTask(newTestTask(1, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}),
+					WithStop(func(ctx context.Context) error {
+						return err2
+					}),
+					WithPreStop(func(ctx context.Context) error {
+						return err3
 					}),
 				)))
 			},
