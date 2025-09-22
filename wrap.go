@@ -8,7 +8,7 @@ import (
 // TaskWithWrapped is a task which was wrapped from another Task.
 type TaskWithWrapped interface {
 	Task
-	WrappedTask() Task
+	TaskWrapped() Task
 }
 
 // NewWrappedTask wraps a task in a TaskWithWrapped, allowing the handler to be customized.
@@ -44,8 +44,8 @@ func UnwrapTask(task Task) Task {
 		return nil
 	}
 	for {
-		if tc, ok := task.(TaskWithWrapped); ok && tc.WrappedTask() != nil {
-			task = tc.WrappedTask()
+		if tc, ok := task.(TaskWithWrapped); ok && tc.TaskWrapped() != nil {
+			task = tc.TaskWrapped()
 		} else {
 			return task
 		}
@@ -84,7 +84,7 @@ func (t *WrappedTask) TaskSteps() []Step {
 	return DefaultTaskSteps()
 }
 
-func (t *WrappedTask) WrappedTask() Task {
+func (t *WrappedTask) TaskWrapped() Task {
 	return t.task
 }
 

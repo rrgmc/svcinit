@@ -573,15 +573,38 @@ func TestManagerErrorReturns(t *testing.T) {
 	}
 }
 
-type testTask = TaskWithID[int]
+type testTask struct {
+	taskNo int
+	task   Task
+}
 
-func newTestTask(id int, t Task) *testTask {
-	return NewTaskWithID(id, t)
+var _ TaskSteps = (*testTask)(nil)
+
+func newTestTask(taskNo int, task Task) *testTask {
+	return &testTask{
+		taskNo: taskNo,
+		task:   task,
+	}
+}
+
+func (t *testTask) TaskNo() int {
+	return t.taskNo
+}
+
+func (t *testTask) TaskSteps() []Step {
+	if tt, ok := t.task.(TaskSteps); ok {
+		return tt.TaskSteps()
+	}
+	return allSteps
+}
+
+func (t *testTask) Run(ctx context.Context, step Step) error {
+	return t.task.Run(ctx, step)
 }
 
 func getTestTaskNo(task Task) (int, bool) {
 	if tt, ok := task.(*testTask); ok {
-		return tt.TaskID(), true
+		return tt.TaskNo(), true
 	}
 	return -1, false
 }

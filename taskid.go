@@ -8,6 +8,8 @@ type TaskWithID[T any] struct {
 	*WrappedTask
 }
 
+var _ TaskWithWrapped = (*TaskWithID[string])(nil)
+
 func NewTaskWithID[T any](id T, task Task, options ...WrapTaskOption) *TaskWithID[T] {
 	return &TaskWithID[T]{
 		WrappedTask: NewWrappedTask(task, options...),
