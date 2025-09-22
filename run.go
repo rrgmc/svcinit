@@ -141,6 +141,9 @@ func (m *Manager) start(ctx context.Context) error {
 			})
 			return nil
 		})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -209,6 +212,9 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 			}
 			return nil
 		})
+	if err != nil {
+		return err, nil
+	}
 
 	// wait for all goroutines to finish
 	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to finish", shutdownAttr...)

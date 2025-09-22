@@ -368,7 +368,6 @@ func TestManagerErrorReturns(t *testing.T) {
 	for _, test := range []struct {
 		name            string
 		setupFn         func(*Manager)
-		managerCallback ManagerCallbackFunc
 		expectedErr     error
 		expectedStopErr []error
 		expectedCounts  map[testCount]int
@@ -501,10 +500,60 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 				)))
 			},
-		}, {
-			name:        "return error from setup manager callback",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx := t.Context()
+
+				testcb := &testCallback{}
+
+				sopts := []Option{
+					WithStages("s1", "s2"),
+					WithTaskCallback(testcb),
+				}
+
+				sinit, err := New(sopts...)
+				assert.NilError(t, err)
+
+				test.setupFn(sinit)
+
+				err, stopErr := sinit.RunWithStopErrors(ctx)
+				if test.expectedErr == nil {
+					assert.NilError(t, err)
+				} else {
+					assert.ErrorIs(t, err, test.expectedErr)
+				}
+				for _, serr := range test.expectedStopErr {
+					assert.ErrorIs(t, stopErr, serr)
+				}
+				assert.DeepEqual(t, test.expectedCounts, testcb.counts)
+			})
+		})
+	}
+}
+
+func TestManagerManagerErrorReturns(t *testing.T) {
+	var (
+		err1 = errors.New("err1")
+		err2 = errors.New("err2")
+		// err3 = errors.New("err3")
+	)
+
+	for _, test := range []struct {
+		name            string
+		managerCallback ManagerCallbackFunc
+		expectedErr     error
+		expectedStopErr []error
+		expectedCounts  map[testCount]int
+	}{
+		{
+			name:        "return error from before setup callback",
 			expectedErr: err2,
 			managerCallback: func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+				if callbackStep != CallbackStepBefore {
+					return nil
+				}
 				switch step {
 				case StepSetup:
 					return err2
@@ -512,8 +561,87 @@ func TestManagerErrorReturns(t *testing.T) {
 				}
 				return nil
 			},
-			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+		}, {
+			name:        "return error from after setup callback",
+			expectedErr: err1,
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepSetup, CallbackStepBefore}: 1,
+				testCount{"s1", StepSetup, CallbackStepAfter}:  1,
+			},
+			managerCallback: func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+				if callbackStep != CallbackStepAfter {
+					return nil
+				}
+				switch step {
+				case StepSetup:
+					return err1
+				default:
+				}
+				return nil
+			},
+		}, {
+			name:        "return error from before start callback",
+			expectedErr: err2,
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepSetup, CallbackStepBefore}: 1,
+				testCount{"s1", StepSetup, CallbackStepAfter}:  1,
+			},
+			managerCallback: func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+				if callbackStep != CallbackStepBefore {
+					return nil
+				}
+				switch step {
+				case StepStart:
+					return err2
+				default:
+				}
+				return nil
+			},
+		}, {
+			name:        "return error from after start callback",
+			expectedErr: err1,
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepSetup, CallbackStepBefore}:   1,
+				testCount{"s1", StepSetup, CallbackStepAfter}:    1,
+				testCount{"s1", StepStart, CallbackStepBefore}:   1,
+				testCount{"s1", StepStart, CallbackStepAfter}:    1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
+				testCount{"s1", StepStop, CallbackStepBefore}:    1,
+				testCount{"s1", StepStop, CallbackStepAfter}:     1,
+			},
+			managerCallback: func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+				if callbackStep != CallbackStepAfter {
+					return nil
+				}
+				switch step {
+				case StepStart:
+					return err1
+				default:
+				}
+				return nil
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx := t.Context()
+
+				testcb := &testCallback{}
+
+				sopts := []Option{
+					WithStages("s1", "s2"),
+					WithTaskCallback(testcb),
+					WithManagerCallback(test.managerCallback),
+				}
+
+				sinit, err := New(sopts...)
+				assert.NilError(t, err)
+
+				sinit.AddTask(newTestTask(1, BuildTask(
+					WithSetup(func(ctx context.Context) error {
+						return nil
+					}),
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -529,27 +657,6 @@ func TestManagerErrorReturns(t *testing.T) {
 						return nil
 					}),
 				)))
-			},
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				ctx := t.Context()
-
-				testcb := &testCallback{}
-
-				sopts := []Option{
-					WithStages("s1", "s2"),
-					WithTaskCallback(testcb),
-				}
-				if test.managerCallback != nil {
-					sopts = append(sopts, WithManagerCallback(test.managerCallback))
-				}
-
-				sinit, err := New(sopts...)
-				assert.NilError(t, err)
-
-				test.setupFn(sinit)
 
 				err, stopErr := sinit.RunWithStopErrors(ctx)
 				if test.expectedErr == nil {
