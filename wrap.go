@@ -67,7 +67,7 @@ func (t *WrappedTask) Run(ctx context.Context, step Step) error {
 	if t.handler == nil {
 		return t.task.Run(ctx, step)
 	}
-	return t.handler(ctx, t.task)
+	return t.handler(ctx, t.task, step)
 }
 
 func (t *WrappedTask) TaskOptions() []TaskInstanceOption {

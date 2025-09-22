@@ -36,9 +36,13 @@ func (m *Manager) newTaskWrapper(task Task, options ...TaskOption) *taskWrapper 
 	return ret
 }
 
-func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) error {
+func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
-	err := t.task.Run(ctx, step)
+	if t.options.handler != nil {
+		err = t.options.handler(ctx, t.task, step)
+	} else {
+		err = t.task.Run(ctx, step)
+	}
 	t.runCallbacks(ctx, stage, step, CallbackStepAfter, err, callbacks)
 	return err
 }

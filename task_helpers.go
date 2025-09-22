@@ -51,6 +51,7 @@ type taskOptions struct {
 	cancelContext    bool
 	startStepManager bool
 	callbacks        []TaskCallback
+	handler          TaskHandler
 }
 
 type taskOptionFunc func(*taskOptions)

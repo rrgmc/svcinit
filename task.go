@@ -19,7 +19,7 @@ func (t TaskFunc) String() string {
 	return fmt.Sprintf("TaskFunc(%T)", t)
 }
 
-type TaskHandler func(ctx context.Context, task Task) error
+type TaskHandler func(ctx context.Context, task Task, step Step) error
 
 // TaskSteps sets the steps that the task implements. They will be the only ones called.
 type TaskSteps interface {
@@ -58,6 +58,13 @@ func WithCancelContext(cancelContext bool) TaskAndInstanceOption {
 func WithStartStepManager() TaskAndInstanceOption {
 	return taskGlobalOptionFunc(func(options *taskOptions) {
 		options.startStepManager = true
+	})
+}
+
+// WithHandler adds a task handler.
+func WithHandler(handler TaskHandler) TaskOption {
+	return taskOptionFunc(func(options *taskOptions) {
+		options.handler = handler
 	})
 }
 
