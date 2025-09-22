@@ -357,6 +357,47 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 	})
 }
 
+func TestManagerTaskHandler(t *testing.T) {
+	var (
+		err1 = errors.New("err1")
+		err2 = errors.New("err2")
+	)
+
+	synctest.Test(t, func(t *testing.T) {
+		sinit, err := New()
+		assert.NilError(t, err)
+
+		sinit.
+			AddTask(BuildTask(
+				WithStart(func(ctx context.Context) error {
+					select {
+					case <-time.After(1 * time.Second):
+						return err1
+					case <-ctx.Done():
+					}
+					return nil
+				}),
+				WithStop(func(ctx context.Context) error {
+					return nil
+				}),
+			), WithHandler(func(ctx context.Context, task Task, step Step) error {
+				switch step {
+				case StepStart:
+					select {
+					case <-time.After(1 * time.Second):
+						return err2
+					case <-ctx.Done():
+					}
+				default:
+				}
+				return nil
+			}))
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, err2)
+	})
+}
+
 func TestManagerErrorReturns(t *testing.T) {
 	var (
 		err1 = errors.New("err1")
