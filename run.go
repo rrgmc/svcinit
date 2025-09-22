@@ -97,12 +97,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 func (m *Manager) start(ctx context.Context) error {
 	// run setup tasks
 	err := m.runStep(ctx, m.taskDoneCtx, StepSetup,
-		func(logger *slog.Logger, serr error) error {
-			return serr
-		}, func(logger *slog.Logger, serr error) error {
-			m.startupCancel(newInitializationError(serr))
-			return serr
-		}, func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
+		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
 			var setupWG sync.WaitGroup
 
 			m.runStage(ctx, cancelCtx, stage, step, &setupWG, func(serr error) {
@@ -125,13 +120,7 @@ func (m *Manager) start(ctx context.Context) error {
 
 	// run start tasks
 	err = m.runStep(ctx, m.taskDoneCtx, StepStart,
-		func(logger *slog.Logger, serr error) error {
-			m.startupCancel(serr.(error))
-			return serr
-		}, func(logger *slog.Logger, serr error) error {
-			m.startupCancel(serr.(error))
-			return nil
-		}, func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
+		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
 			m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, func(serr error) {
 				if serr != nil {
 					m.startupCancel(serr)
@@ -164,11 +153,7 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 
 	// run pre-stop tasks in reverse stage order
 	err = m.runStep(ctx, ctx, StepPreStop,
-		func(logger *slog.Logger, serr error) error {
-			return serr
-		}, func(logger *slog.Logger, serr error) error {
-			return serr
-		}, func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
+		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
 			var preStopWG sync.WaitGroup
 
 			m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, func(serr error) {
@@ -191,12 +176,7 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 
 	// run stop tasks in reverse stage order
 	err = m.runStep(ctx, ctx, StepStop,
-		func(logger *slog.Logger, serr error) error {
-			return serr
-		}, func(logger *slog.Logger, serr error) error {
-			eb.add(serr)
-			return nil
-		}, func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
+		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
 			var stopWG sync.WaitGroup
 
 			m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, func(serr error) {
@@ -242,7 +222,6 @@ func (m *Manager) addInitError(err error) {
 }
 
 func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
-	onErrorBefore func(logger *slog.Logger, serr error) error, onErrorAfter func(logger *slog.Logger, serr error) error,
 	onStage func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error) error {
 	// run start tasks
 	loggerStep := m.logger.With("step", step.String())
