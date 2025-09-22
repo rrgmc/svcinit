@@ -29,7 +29,7 @@ func TestCallback(t *testing.T) {
 		sinit, err := New(
 			// WithLogger(logger),
 			WithStages("s1", "s2"),
-			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 				switch step {
 				case StepStart:
 					runStarted.Add(1)
@@ -37,7 +37,6 @@ func TestCallback(t *testing.T) {
 					runStopped.Add(1)
 				default:
 				}
-				return nil
 			})),
 			WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
 				assertTestTask(t, task, stage, step, callbackStep)
@@ -256,11 +255,10 @@ func testCallbacksPrint() (ManagerCallback, TaskCallback) {
 	startTime := time.Now()
 
 	var m sync.Mutex
-	return ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+	return ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 			m.Lock()
 			defer m.Unlock()
 			printManagerCallback(startTime, ctx, stage, step, callbackStep)
-			return nil
 		}),
 		TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
 			m.Lock()

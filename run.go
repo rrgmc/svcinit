@@ -248,41 +248,25 @@ func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
 	loggerStep := m.logger.With("step", step.String())
 	loggerStep.InfoContext(ctx, "running step tasks")
 
-	if serr := m.runManagerCallbacks(cancelCtx, "", step, CallbackStepBefore); serr != nil {
-		if cerr := onErrorBefore(loggerStep, serr); cerr != nil {
-			return cerr
-		}
-	}
+	m.runManagerCallbacks(cancelCtx, "", step, CallbackStepBefore)
 
 	for stage := range stepStagesIter(step, m.stages) {
 		loggerStage := loggerStep.With("stage", stage)
 		loggerStage.InfoContext(ctx, "running step stage tasks")
 
-		if serr := m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore); serr != nil {
-			if cerr := onErrorBefore(loggerStage, serr); cerr != nil {
-				return cerr
-			}
-		}
+		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
 
 		err := onStage(ctx, cancelCtx, loggerStep, stage, step)
 		if err != nil {
 			return err
 		}
 
-		if serr := m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter); serr != nil {
-			if cerr := onErrorAfter(loggerStage, serr); cerr != nil {
-				return cerr
-			}
-		}
+		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
 
 		loggerStage.InfoContext(ctx, "finished running step stage tasks")
 	}
 
-	if serr := m.runManagerCallbacks(cancelCtx, "", step, CallbackStepAfter); serr != nil {
-		if cerr := onErrorAfter(loggerStep, serr); cerr != nil {
-			return cerr
-		}
-	}
+	m.runManagerCallbacks(cancelCtx, "", step, CallbackStepAfter)
 
 	loggerStep.InfoContext(ctx, "finished running step tasks")
 
@@ -374,18 +358,14 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 	loggerStage.Log(ctx, slog2.LevelTrace, "all task step goroutines started")
 }
 
-func (m *Manager) runManagerCallbacks(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+func (m *Manager) runManagerCallbacks(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 	ctx = context.WithoutCancel(ctx)
 
-	eb := newMultiErrorBuilder()
 	if m.managerCallbacks != nil {
 		for _, scallback := range m.managerCallbacks {
-			if serr := scallback.Callback(ctx, stage, step, callbackStep); serr != nil {
-				eb.add(serr)
-			}
+			scallback.Callback(ctx, stage, step, callbackStep)
 		}
 	}
-	return eb.build()
 }
 
 type runOptions struct {

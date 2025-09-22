@@ -7,13 +7,13 @@ import (
 // ManagerCallback is a callback for manager events.
 // A cause may be set in the context. Use CauseFromContext to check.
 type ManagerCallback interface {
-	Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error
+	Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep)
 }
 
-type ManagerCallbackFunc func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error
+type ManagerCallbackFunc func(ctx context.Context, stage string, step Step, callbackStep CallbackStep)
 
-func (f ManagerCallbackFunc) Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
-	return f(ctx, stage, step, callbackStep)
+func (f ManagerCallbackFunc) Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
+	f(ctx, stage, step, callbackStep)
 }
 
 // TaskCallback is a callback for task events.
