@@ -75,5 +75,5 @@ func newInvalidTaskStep(step Step) error {
 }
 
 func newInitializationError(err error) error {
-	return fmt.Errorf("%w: %s", ErrInitialization, err)
+	return fmt.Errorf("%w: %w", ErrInitialization, err)
 }
