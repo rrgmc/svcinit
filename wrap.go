@@ -64,10 +64,10 @@ var _ TaskWithOptions = (*WrappedTask)(nil)
 var _ TaskWithWrapped = (*WrappedTask)(nil)
 
 func (t *WrappedTask) Run(ctx context.Context, step Step) error {
-	if t.handler == nil {
-		return t.task.Run(ctx, step)
+	if t.handler != nil {
+		return t.handler(ctx, t.task, step)
 	}
-	return t.handler(ctx, t.task, step)
+	return t.task.Run(ctx, step)
 }
 
 func (t *WrappedTask) TaskOptions() []TaskInstanceOption {
