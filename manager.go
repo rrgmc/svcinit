@@ -76,6 +76,14 @@ func (m *Manager) AddTask(task Task, options ...TaskOption) {
 	m.tasks.add(tw)
 }
 
+func (m *Manager) AddTaskFunc(f TaskFunc, options ...TaskOption) {
+	m.AddTask(f, options...)
+}
+
+func (m *Manager) AddService(service Service, options ...TaskOption) {
+	m.AddTask(ServiceAsTask(service), options...)
+}
+
 func (m *Manager) Run(ctx context.Context, options ...RunOption) error {
 	cause, _ := m.RunWithStopErrors(ctx, options...)
 	return cause
