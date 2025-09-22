@@ -50,6 +50,10 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		option(&roptns)
 	}
 
+	if len(m.initData) > 0 {
+		ctx = contextWithInitData(ctx, m.initData)
+	}
+
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
 	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)

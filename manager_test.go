@@ -398,6 +398,31 @@ func TestManagerTaskHandler(t *testing.T) {
 	})
 }
 
+// func TestManagerInitData(t *testing.T) {
+// 	synctest.Test(t, func(t *testing.T) {
+// 		sinit, err := New(
+// 			WithInitData("service"),
+// 		)
+// 		assert.NilError(t, err)
+//
+// 		sinit.
+// 			AddTask(BuildTask(
+// 				WithStart(func(ctx context.Context) error {
+// 					select {
+// 					case <-ctx.Done():
+// 					}
+// 					return nil
+// 				}),
+// 				WithStop(func(ctx context.Context) error {
+// 					return nil
+// 				}),
+// 			))
+//
+// 		err = sinit.Run(t.Context())
+// 		assert.NilError(t, err)
+// 	})
+// }
+
 func TestManagerErrorReturns(t *testing.T) {
 	var (
 		err1 = errors.New("err1")

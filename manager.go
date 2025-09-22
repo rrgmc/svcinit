@@ -19,6 +19,7 @@ type Manager struct {
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
 	defaultStage           string
+	initData               []string
 	logger                 *slog.Logger
 
 	isRunning                     atomic.Bool
@@ -153,6 +154,12 @@ func WithManagerCallback(callbacks ...ManagerCallback) Option {
 func WithTaskCallback(callbacks ...TaskCallback) Option {
 	return func(s *Manager) {
 		s.taskCallbacks = append(s.taskCallbacks, callbacks...)
+	}
+}
+
+func WithInitData(name string) Option {
+	return func(s *Manager) {
+		s.initData = append(s.initData, name)
 	}
 }
 
