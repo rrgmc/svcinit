@@ -28,6 +28,7 @@ const (
 	StepStart
 	StepPreStop
 	StepStop
+	StepTeardown
 )
 
 func (s Step) String() string {
@@ -40,6 +41,8 @@ func (s Step) String() string {
 		return "stop"
 	case StepPreStop:
 		return "pre-stop"
+	case StepTeardown:
+		return "teardown"
 	default:
 		return "unknown-step"
 	}

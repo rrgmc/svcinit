@@ -50,6 +50,14 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		option(&roptns)
 	}
 
+	stopErrBuilder := newMultiErrorBuilder()
+
+	defer func() {
+		m.teardown(ctx, stopErrBuilder)
+		stopErr = stopErrBuilder.build()
+		m.logger.InfoContext(ctx, "execution finished", "cause", cause)
+	}()
+
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
 	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
@@ -60,7 +68,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	// run setup and start steps.
 	err := m.start(ctx)
 	if err != nil {
-		return err, nil
+		cause = err
+		return
 	}
 
 	m.logger.InfoContext(ctx, "waiting for one start task to return")
@@ -78,17 +87,18 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	// run pre-stop and stop steps.
 	var shutdownErr error
-	shutdownErr, stopErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause))
+	shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
 	if shutdownErr != nil {
 		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
-		return shutdownErr, nil
+		cause = shutdownErr
+		return
 	}
 
 	if errors.Is(cause, ErrExit) {
 		cause = nil
 	}
 
-	m.logger.InfoContext(ctx, "execution finished", "cause", cause)
+	// m.logger.InfoContext(ctx, "execution finished", "cause", cause)
 
 	return
 }
@@ -138,9 +148,7 @@ func (m *Manager) start(ctx context.Context) error {
 }
 
 // shutdown runs the pre-stop and stop steps.
-func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
-	eb := newMultiErrorBuilder()
-
+func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err error) {
 	var shutdownAttr []slog.Attr
 	if m.shutdownTimeout > 0 {
 		var cancel context.CancelFunc
@@ -171,7 +179,7 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 			return nil
 		})
 	if err != nil {
-		return err, nil
+		return err
 	}
 
 	// run stop tasks in reverse stage order
@@ -193,7 +201,7 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 			return nil
 		})
 	if err != nil {
-		return err, nil
+		return err
 	}
 
 	// wait for all goroutines to finish
@@ -214,7 +222,27 @@ func (m *Manager) shutdown(ctx context.Context) (err error, stopErr error) {
 		m.logger.ErrorContext(ctx, "shutdown context error", slog2.ErrorKey, ctxCause)
 	}
 
-	return nil, eb.build()
+	return nil
+}
+
+// start runs the setup and start steps.
+func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
+	// run teardown tasks
+	err := m.runStep(ctx, ctx, StepTeardown,
+		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
+			var teardownWG sync.WaitGroup
+
+			m.runStage(ctx, cancelCtx, stage, step, &teardownWG, func(serr error) {
+				eb.add(serr)
+			})
+
+			logger.Log(ctx, slog.LevelDebug, "waiting for step stage tasks to finish")
+			teardownWG.Wait()
+			return nil
+		})
+	if err != nil {
+		eb.add(err)
+	}
 }
 
 func (m *Manager) addInitError(err error) {

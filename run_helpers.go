@@ -118,7 +118,7 @@ func waitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
 // stepStagesIter returns an interator to a list of stages.
 // For the pre-stop and stop steps, it returns a reverse iterator.
 func stepStagesIter(step Step, stages []string) iter.Seq[string] {
-	if step == StepPreStop || step == StepStop {
+	if step == StepPreStop || step == StepStop || step == StepTeardown {
 		return reversedSlice(stages)
 	} else {
 		return slices.Values(stages)
