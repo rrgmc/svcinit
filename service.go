@@ -1,6 +1,9 @@
 package svcinit
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Service is an abstraction of Task as an interface, for convenience.
 // Use ServiceAsTask do the wrapping.
@@ -73,4 +76,8 @@ func (t *serviceTask) TaskSteps() []Step {
 
 func (t *serviceTask) Service() Service {
 	return t.service
+}
+
+func (t *serviceTask) String() string {
+	return fmt.Sprintf("%v", t.service)
 }

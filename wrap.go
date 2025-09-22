@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// TaskWithWrapped is a task which was wrapped from one Task.
+// TaskWithWrapped is a task which was wrapped from another Task.
 type TaskWithWrapped interface {
 	Task
 	WrappedTask() Task

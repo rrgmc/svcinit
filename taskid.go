@@ -2,6 +2,7 @@ package svcinit
 
 import "fmt"
 
+// TaskWithID wraps a task with an ID for easier debugging.
 type TaskWithID[T any] struct {
 	id T
 	*WrappedTask

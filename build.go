@@ -17,7 +17,7 @@ type TaskBuildOption func(*taskBuild)
 
 func WithDescription(descxription string) TaskBuildOption {
 	return func(build *taskBuild) {
-		build.taskDesc = descxription
+		build.description = descxription
 	}
 }
 
@@ -50,10 +50,10 @@ func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 }
 
 type taskBuild struct {
-	stepFunc map[Step]TaskBuildFunc
-	steps    []Step
-	options  []TaskInstanceOption
-	taskDesc string
+	stepFunc    map[Step]TaskBuildFunc
+	steps       []Step
+	options     []TaskInstanceOption
+	description string
 }
 
 var _ Task = (*taskBuild)(nil)
@@ -90,8 +90,8 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 }
 
 func (t *taskBuild) String() string {
-	if t.taskDesc != "" {
-		return t.taskDesc
+	if t.description != "" {
+		return t.description
 	}
 	return fmt.Sprintf("%T", t)
 }
