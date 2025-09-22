@@ -5,10 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -98,87 +96,87 @@ func TestManagerWorkflows(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			ctx := context.Background()
+			synctest.Test(t, func(t *testing.T) {
+				ctx := t.Context()
 
-			type testService struct {
-				svc    Task
-				cancel context.CancelFunc
-			}
+				type testService struct {
+					svc    Task
+					cancel context.CancelFunc
+				}
 
-			defaultTaskSvc := func(taskNo int) testService {
-				dtCtx, dtCancel := context.WithCancelCause(ctx)
-				stCtx, stCancel := context.WithCancel(ctx)
-				return testService{
-					cancel: func() {
-						dtCancel(testTaskNoError{taskNo: taskNo})
-					},
-					svc: TaskFunc(func(ctx context.Context, step Step) error {
-						switch step {
-						case StepStart:
-							defer stCancel()
+				defaultTaskSvc := func(taskNo int) testService {
+					dtCtx, dtCancel := context.WithCancelCause(ctx)
+					stCtx, stCancel := context.WithCancel(ctx)
+					return testService{
+						cancel: func() {
+							dtCancel(testTaskNoError{taskNo: taskNo})
+						},
+						svc: TaskFunc(func(ctx context.Context, step Step) error {
+							switch step {
+							case StepStart:
+								defer stCancel()
 
-							select {
-							case <-dtCtx.Done():
-								return context.Cause(dtCtx)
-							case <-ctx.Done():
-								return context.Cause(ctx)
+								select {
+								case <-dtCtx.Done():
+									return context.Cause(dtCtx)
+								case <-ctx.Done():
+									return context.Cause(ctx)
+								}
+							case StepStop:
+								dtCancel(ErrExit)
+								select {
+								case <-stCtx.Done():
+								case <-ctx.Done():
+								}
+							default:
 							}
-						case StepStop:
-							dtCancel(ErrExit)
-							select {
-							case <-stCtx.Done():
-							case <-ctx.Done():
-							}
-						default:
+							return nil
+						}),
+					}
+				}
+
+				tasks := make([]testService, 5)
+				for i := range 5 {
+					tasks[i] = defaultTaskSvc(i + 1)
+				}
+
+				sinit, err := New(
+					WithStages("default", "s2", "s3", "s4"),
+					WithDefaultStage("default"),
+					WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+						if step != StepStart || callbackStep != CallbackStepAfter {
+							return nil
+						}
+						for _, taskNo := range test.cancelFn() {
+							tasks[taskNo-1].cancel()
 						}
 						return nil
-					}),
-				}
-			}
-
-			tasks := make([]testService, 5)
-			for i := range 5 {
-				tasks[i] = defaultTaskSvc(i + 1)
-			}
-
-			sinit, err := New(
-				WithStages("default", "s2", "s3", "s4"),
-				WithDefaultStage("default"),
-				WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
-					if step != StepStart || callbackStep != CallbackStepAfter {
-						return nil
-					}
-					for _, taskNo := range test.cancelFn() {
-						tasks[taskNo-1].cancel()
-					}
-					return nil
-				})),
-			)
-			assert.NilError(t, err)
-
-			sinit.AddTask(tasks[0].svc)
-
-			sinit.AddTask(tasks[1].svc, WithStage("s2"))
-
-			sinit.AddTask(tasks[2].svc,
-				WithStage("s3"),
-				WithCancelContext(true))
-
-			sinit.AddTask(tasks[3].svc, WithStage("s4"))
-
-			sinit.AddTask(tasks[4].svc,
-				WithCancelContext(true))
-
-			sinit.AddTask(SignalTask(os.Interrupt, syscall.SIGTERM))
-
-			err = sinit.Run(ctx)
-			if test.expectedErr != nil {
-				assert.ErrorIs(t, err, test.expectedErr)
-			} else if test.expectedTaskErr > 0 {
-				checkTestTaskError(t, err, test.expectedTaskErr)
-			} else {
+					})),
+				)
 				assert.NilError(t, err)
-			}
+
+				sinit.AddTask(tasks[0].svc)
+
+				sinit.AddTask(tasks[1].svc, WithStage("s2"))
+
+				sinit.AddTask(tasks[2].svc,
+					WithStage("s3"),
+					WithCancelContext(true))
+
+				sinit.AddTask(tasks[3].svc, WithStage("s4"))
+
+				sinit.AddTask(tasks[4].svc,
+					WithCancelContext(true))
+
+				err = sinit.Run(ctx)
+				if test.expectedErr != nil {
+					assert.ErrorIs(t, err, test.expectedErr)
+				} else if test.expectedTaskErr > 0 {
+					checkTestTaskError(t, err, test.expectedTaskErr)
+				} else {
+					assert.NilError(t, err)
+				}
+			})
 		})
 	}
 }
@@ -358,6 +356,99 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 		assert.Equal(t, isStart.Load(), true)
 		assert.Equal(t, isStop.Load(), true)
 	})
+}
+
+func TestManagerErrorReturns(t *testing.T) {
+	var (
+		err1 = errors.New("err1")
+		err2 = errors.New("err2")
+		// err3 = errors.New("err3")
+	)
+
+	for _, test := range []struct {
+		name            string
+		setupFn         func(*Manager)
+		expectedErr     error
+		expectedStopErr []error
+		expectedCounts  map[testCount]int
+	}{
+		{
+			name:            "return error from stop step",
+			expectedStopErr: []error{err1},
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepStart, CallbackStepBefore}: 1,
+				testCount{"s1", StepStart, CallbackStepAfter}:  1,
+				testCount{"s1", StepStop, CallbackStepBefore}:  1,
+				testCount{"s1", StepStop, CallbackStepAfter}:   1,
+			},
+			setupFn: func(m *Manager) {
+				m.AddTask(newTestTask(2, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}),
+					WithStop(func(ctx context.Context) error {
+						return err1
+					}),
+				)))
+			},
+		}, {
+			name:            "return error from pre-stop step",
+			expectedStopErr: []error{err2},
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepStart, CallbackStepBefore}:   1,
+				testCount{"s1", StepStart, CallbackStepAfter}:    1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
+			},
+			setupFn: func(m *Manager) {
+				m.AddTask(newTestTask(1, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}),
+					WithPreStop(func(ctx context.Context) error {
+						return err2
+					}),
+				)))
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx := t.Context()
+
+				testcb := &testCallback{}
+
+				sinit, err := New(
+					WithStages("s1", "s2"),
+					WithTaskCallback(testcb),
+				)
+				assert.NilError(t, err)
+
+				test.setupFn(sinit)
+
+				err, stopErr := sinit.RunWithStopErrors(ctx)
+				if test.expectedErr == nil {
+					assert.NilError(t, err)
+				} else {
+					assert.ErrorIs(t, err, test.expectedErr)
+				}
+				for _, serr := range test.expectedStopErr {
+					assert.ErrorIs(t, stopErr, serr)
+				}
+				assert.DeepEqual(t, test.expectedCounts, testcb.counts)
+			})
+		})
+	}
 }
 
 type testTask = TaskWithID[int]
