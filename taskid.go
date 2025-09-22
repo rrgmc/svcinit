@@ -14,7 +14,7 @@ func NewTaskWithID[T any](id T, task Task, options ...WrapTaskOption) *TaskWithI
 	}
 }
 
-func (t *TaskWithID[T]) ID() T {
+func (t *TaskWithID[T]) TaskID() T {
 	return t.id
 }
 

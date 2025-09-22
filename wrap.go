@@ -1,6 +1,9 @@
 package svcinit
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // TaskWithWrapped is a task which was wrapped from one Task.
 type TaskWithWrapped interface {
@@ -28,6 +31,13 @@ func WithWrapTaskHandler(handler func(ctx context.Context, task Task) error) Wra
 	}
 }
 
+// WithWrapDescription sets the task description.
+func WithWrapDescription(description string) WrapTaskOption {
+	return func(task *WrappedTask) {
+		task.description = description
+	}
+}
+
 // UnwrapTask unwraps TaskWithWrapped from tasks.
 func UnwrapTask(task Task) Task {
 	if task == nil {
@@ -43,8 +53,9 @@ func UnwrapTask(task Task) Task {
 }
 
 type WrappedTask struct {
-	task    Task
-	handler func(ctx context.Context, task Task) error
+	task        Task
+	handler     func(ctx context.Context, task Task) error
+	description string
 }
 
 var _ Task = (*WrappedTask)(nil)
@@ -75,4 +86,11 @@ func (t *WrappedTask) TaskSteps() []Step {
 
 func (t *WrappedTask) WrappedTask() Task {
 	return t.task
+}
+
+func (t *WrappedTask) String() string {
+	if t.description != "" {
+		return t.description
+	}
+	return fmt.Sprintf("WrappedTask(%v)", t.task)
 }

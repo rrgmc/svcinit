@@ -1,6 +1,9 @@
 package svcinit
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type Task interface {
 	Run(ctx context.Context, step Step) error
@@ -12,16 +15,55 @@ func (t TaskFunc) Run(ctx context.Context, step Step) error {
 	return t(ctx, step)
 }
 
+func (t TaskFunc) String() string {
+	return fmt.Sprintf("TaskFunc(%T)", t)
+}
+
+// TaskSteps sets the steps that the task implements. They will be the only ones called.
 type TaskSteps interface {
 	TaskSteps() []Step
 }
 
+// DefaultTaskSteps returns the default value for [TaskSteps.TaskSteps], which is the list of all steps.
 func DefaultTaskSteps() []Step {
 	return allSteps
 }
 
+// TaskWithOptions allows the task to set some of the task options. They have priority over options set via
+// [Manager.AddTask].
 type TaskWithOptions interface {
 	TaskOptions() []TaskInstanceOption
+}
+
+// WithStage sets the stage where the task will run.
+// If not set, the default one will be used.
+func WithStage(stage string) TaskOption {
+	return taskOptionFunc(func(options *taskOptions) {
+		options.stage = stage
+	})
+}
+
+// WithCancelContext sets whether to automatically cancel the task start step context when the first task finishes.
+// The default is false, meaning that the stop step should handle to stop the task.
+func WithCancelContext(cancelContext bool) TaskAndInstanceOption {
+	return taskGlobalOptionFunc(func(options *taskOptions) {
+		options.cancelContext = cancelContext
+	})
+}
+
+// WithStartStepManager sets whether to add a StartStepManager to the stop step context.
+// This allows the stop step to cancel the start step context and/or wait for its completion.
+func WithStartStepManager() TaskAndInstanceOption {
+	return taskGlobalOptionFunc(func(options *taskOptions) {
+		options.startStepManager = true
+	})
+}
+
+// WithCallback adds callbacks for the task.
+func WithCallback(callbacks ...TaskCallback) TaskOption {
+	return taskOptionFunc(func(options *taskOptions) {
+		options.callbacks = append(options.callbacks, callbacks...)
+	})
 }
 
 type TaskOption interface {
@@ -35,28 +77,4 @@ type TaskInstanceOption interface {
 type TaskAndInstanceOption interface {
 	TaskOption
 	TaskInstanceOption
-}
-
-func WithStage(stage string) TaskOption {
-	return taskOptionFunc(func(options *taskOptions) {
-		options.stage = stage
-	})
-}
-
-func WithCancelContext(cancelContext bool) TaskAndInstanceOption {
-	return taskGlobalOptionFunc(func(options *taskOptions) {
-		options.cancelContext = cancelContext
-	})
-}
-
-func WithStartStepManager() TaskAndInstanceOption {
-	return taskGlobalOptionFunc(func(options *taskOptions) {
-		options.startStepManager = true
-	})
-}
-
-func WithCallback(callbacks ...TaskCallback) TaskOption {
-	return taskOptionFunc(func(options *taskOptions) {
-		options.callbacks = append(options.callbacks, callbacks...)
-	})
 }

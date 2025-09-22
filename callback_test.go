@@ -151,38 +151,15 @@ func TestCallback(t *testing.T) {
 	})
 }
 
-type testTask struct {
-	taskNo int
-	task   Task
-}
+type testTask = TaskWithID[int]
 
-var _ TaskSteps = (*testTask)(nil)
-
-func newTestTask(taskNo int, task Task) *testTask {
-	return &testTask{
-		taskNo: taskNo,
-		task:   task,
-	}
-}
-
-func (t *testTask) TaskNo() int {
-	return t.taskNo
-}
-
-func (t *testTask) TaskSteps() []Step {
-	if tt, ok := t.task.(TaskSteps); ok {
-		return tt.TaskSteps()
-	}
-	return allSteps
-}
-
-func (t *testTask) Run(ctx context.Context, step Step) error {
-	return t.task.Run(ctx, step)
+func newTestTask(id int, t Task) *testTask {
+	return NewTaskWithID(id, t)
 }
 
 func getTestTaskNo(task Task) (int, bool) {
 	if tt, ok := task.(*testTask); ok {
-		return tt.TaskNo(), true
+		return tt.TaskID(), true
 	}
 	return -1, false
 }
