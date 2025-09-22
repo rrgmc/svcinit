@@ -368,6 +368,7 @@ func TestManagerErrorReturns(t *testing.T) {
 	for _, test := range []struct {
 		name            string
 		setupFn         func(*Manager)
+		managerCallback ManagerCallbackFunc
 		expectedErr     error
 		expectedStopErr []error
 		expectedCounts  map[testCount]int
@@ -500,6 +501,35 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 				)))
 			},
+		}, {
+			name:        "return error from setup manager callback",
+			expectedErr: err2,
+			managerCallback: func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) error {
+				switch step {
+				case StepSetup:
+					return err2
+				default:
+				}
+				return nil
+			},
+			setupFn: func(m *Manager) {
+				m.AddTask(newTestTask(1, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}),
+					WithStop(func(ctx context.Context) error {
+						return nil
+					}),
+					WithPreStop(func(ctx context.Context) error {
+						return nil
+					}),
+				)))
+			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -508,10 +538,15 @@ func TestManagerErrorReturns(t *testing.T) {
 
 				testcb := &testCallback{}
 
-				sinit, err := New(
+				sopts := []Option{
 					WithStages("s1", "s2"),
 					WithTaskCallback(testcb),
-				)
+				}
+				if test.managerCallback != nil {
+					sopts = append(sopts, WithManagerCallback(test.managerCallback))
+				}
+
+				sinit, err := New(sopts...)
 				assert.NilError(t, err)
 
 				test.setupFn(sinit)
