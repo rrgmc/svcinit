@@ -67,9 +67,7 @@ func ExampleManager() {
     sinit, err := svcinit.New(
         // initialization in 2 stages. Initialization is done in stage order, and shutdown in reverse stage order.
         // all tasks added to the same stage are started/stopped in parallel.
-        svcinit.WithStages("manage", "service"),
-        // default stage if the task don't set one.
-        svcinit.WithDefaultStage("manage"),
+        svcinit.WithStages(svcinit.StageDefault, "manage", "service"),
         // use a context with a 10-second cancellation in the stop tasks.
         svcinit.WithShutdownTimeout(10*time.Second),
         // some tasks may not check context cancellation, set enforce to true to give up waiting after the shutdown timeout.
@@ -82,11 +80,11 @@ func ExampleManager() {
     }
 
     // add a task to start health HTTP server before the service, and stop it after.
-    sinit.AddTask(healthHTTPServer)
+    sinit.AddTask("manage", healthHTTPServer)
 
     // add a task to start the core HTTP server.
     sinit.
-        AddTask(svcinit.BuildTask(
+        AddTask("service", svcinit.BuildTask(
             svcinit.WithSetup(func(ctx context.Context) error {
                 // initialize the service in the setup step.
                 // as this may take some time in bigger services, initializing here allows other tasks to setup
@@ -113,15 +111,14 @@ func ExampleManager() {
                 return httpServer.Shutdown(ctx)
             }),
         ),
-            svcinit.WithStage("service"), // will run in the "service" stage.
-            // svcinit.WithCancelContext(true), // would cancel the "WithStart" context before calling "WithStop".
+        // svcinit.WithCancelContext(true), // would cancel the "WithStart" context before calling "WithStop".
         )
 
     // shutdown on OS signal.
-    sinit.AddTask(svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+    sinit.AddTask(svcinit.StageDefault, svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
-    // sleep 1 second and shutdown.
-    sinit.AddTask(svcinit.TimeoutTask(1*time.Second,
+    // sleep 100ms and shutdown.
+    sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(100*time.Millisecond,
         svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
     err = sinit.Run(ctx)
