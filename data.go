@@ -95,12 +95,24 @@ func (d *DataWithResolved) DoneResolved() <-chan struct{} {
 	return d.resolvedChan
 }
 
-func (d *DataWithResolved) SetResolved(resolvedFunc func()) {
+func (d *DataWithResolved) SetResolved(options ...DataWithResolvedSetOption) {
+	var optns dataWithResolvedSetOptions
+	for _, opt := range options {
+		opt(&optns)
+	}
 	if d.isResolved.CompareAndSwap(false, true) {
-		if resolvedFunc != nil {
-			resolvedFunc()
+		if optns.resolvedFunc != nil {
+			optns.resolvedFunc()
 		}
 		close(d.resolvedChan)
+	}
+}
+
+type DataWithResolvedSetOption func(*dataWithResolvedSetOptions)
+
+func WithResolvedFunc(resolvedFunc func()) DataWithResolvedSetOption {
+	return func(opts *dataWithResolvedSetOptions) {
+		opts.resolvedFunc = resolvedFunc
 	}
 }
 
@@ -119,9 +131,10 @@ func NewDataIWithResolved[T any]() *DataIWithResolved[T] {
 }
 
 func (d *DataIWithResolved[T]) SetResolved(data T) {
-	d.dataWithResolvedPrivate.SetResolved(func() {
-		d.Data = data
-	})
+	d.dataWithResolvedPrivate.SetResolved(
+		WithResolvedFunc(func() {
+			d.Data = data
+		}))
 }
 
 func InitDataFromContext(ctx context.Context, name string) (any, error) {
@@ -191,6 +204,10 @@ func initDataFromContext(ctx context.Context) (*initData, error) {
 		}
 	}
 	return nil, fmt.Errorf("%w: %w", ErrInitData, ErrNotInitialized)
+}
+
+type dataWithResolvedSetOptions struct {
+	resolvedFunc func()
 }
 
 type initDataKey struct{}
