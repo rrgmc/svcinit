@@ -415,7 +415,7 @@ func TestManagerInitData(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(BuildDataTask(func(ctx context.Context) (*idata1, error) {
+			AddTask("init", BuildDataTask(func(ctx context.Context) (*idata1, error) {
 				items.add("i1setup")
 				ivalue := idata1{
 					value1: "test33",
@@ -424,10 +424,10 @@ func TestManagerInitData(t *testing.T) {
 				return &ivalue, nil
 			},
 				WithInitDataSet[*idata1]("idata1"),
-			), WithStage("init"))
+			))
 
 		sinit.
-			AddTask(BuildTask(
+			AddTask("init", BuildTask(
 				WithSetup(func(ctx context.Context) error {
 					items.add("i2setup")
 					ivalue := idata2{
@@ -436,10 +436,10 @@ func TestManagerInitData(t *testing.T) {
 					}
 					return InitDataSet(ctx, "idata2", &ivalue)
 				}),
-			), WithStage("init"))
+			))
 
 		sinit.
-			AddTask(BuildTask(
+			AddTask("service", BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("sstart")
 					i1, ok := InitDataTypeFromContext[*idata1](ctx, "idata1")
@@ -465,7 +465,7 @@ func TestManagerInitData(t *testing.T) {
 				WithStop(func(ctx context.Context) error {
 					return nil
 				}),
-			), WithStage("service"))
+			))
 
 		err = sinit.Run(t.Context())
 		assert.NilError(t, err)
