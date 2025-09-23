@@ -418,15 +418,15 @@ func TestManagerInitData(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(BuildTask(
-				WithSetup(func(ctx context.Context) error {
-					items.add("i1setup")
-					ivalue := idata1{
-						value1: "test33",
-						value2: 33,
-					}
-					return InitDataSet(ctx, "idata1", &ivalue)
-				}),
+			AddTask(BuildDataTask(func(ctx context.Context) (*idata1, error) {
+				items.add("i1setup")
+				ivalue := idata1{
+					value1: "test33",
+					value2: 33,
+				}
+				return &ivalue, nil
+			},
+				WithInitDataSet[*idata1]("idata1"),
 			), WithStage("init"))
 
 		sinit.

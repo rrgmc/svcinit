@@ -39,6 +39,12 @@ func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepTeardown, f)
 }
 
+func WithInitDataSet[T any](name string) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
+		build.initDataSet = name
+	}
+}
+
 func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.options = append(build.options, options...)
@@ -52,6 +58,7 @@ type taskBuildData[T any] struct {
 	steps       []Step
 	options     []TaskInstanceOption
 	description string
+	initDataSet string
 }
 
 var _ Task = (*taskBuildData[int])(nil)
@@ -68,9 +75,6 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 		opt(ret)
 	}
 	ret.init()
-	if ret.isEmpty() {
-		return nil
-	}
 	return ret
 }
 
@@ -93,6 +97,9 @@ func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
 			return err
 		}
 		t.data = &data
+		if t.initDataSet != "" {
+			return InitDataSet(ctx, t.initDataSet, data)
+		}
 		return nil
 	default:
 		if t.data == nil {
@@ -110,18 +117,6 @@ func (t *taskBuildData[T]) String() string {
 		return t.description
 	}
 	return fmt.Sprintf("%T", t)
-}
-
-func (t *taskBuildData[T]) isEmpty() bool {
-	if len(t.stepFunc) == 0 {
-		return true
-	}
-	for _, sf := range t.stepFunc {
-		if sf == nil {
-			return true
-		}
-	}
-	return false
 }
 
 func (t *taskBuildData[T]) init() {
