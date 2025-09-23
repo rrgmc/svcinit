@@ -37,6 +37,11 @@ type TaskWithOptions interface {
 	TaskOptions() []TaskInstanceOption
 }
 
+// TaskWithInitError allows a task to report an initialization error. The error might be nil.
+type TaskWithInitError interface {
+	TaskInitError() error
+}
+
 // WithCancelContext sets whether to automatically cancel the task start step context when the first task finishes.
 // The default is false, meaning that the stop step should handle to stop the task.
 func WithCancelContext(cancelContext bool) TaskAndInstanceOption {

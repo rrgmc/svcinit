@@ -17,6 +17,7 @@ var (
 	ErrShutdownTimeout    = errors.New("shutdown timeout")
 	ErrAlreadyInitialized = errors.New("already initialized")
 	ErrNotInitialized     = errors.New("not initialized")
+	ErrDuplicateStep      = errors.New("duplicate step")
 )
 
 const (

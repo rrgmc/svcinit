@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 )
 
 type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
@@ -39,6 +40,12 @@ func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepTeardown, f)
 }
 
+func WithDataParent[T any](parent Task) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
+		build.parent = parent
+	}
+}
+
 func WithInitDataSet[T any](name string) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.initDataSet = name
@@ -55,8 +62,10 @@ type taskBuildData[T any] struct {
 	data        *T
 	setupFunc   TaskBuildDataSetupFunc[T]
 	stepFunc    map[Step]TaskBuildDataFunc[T]
+	parent      Task
 	steps       []Step
 	options     []TaskInstanceOption
+	initError   error
 	description string
 	initDataSet string
 }
@@ -64,6 +73,7 @@ type taskBuildData[T any] struct {
 var _ Task = (*taskBuildData[int])(nil)
 var _ TaskSteps = (*taskBuildData[int])(nil)
 var _ TaskWithOptions = (*taskBuildData[int])(nil)
+var _ TaskWithInitError = (*taskBuildData[int])(nil)
 
 func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
 	ret := &taskBuildData[T]{
@@ -86,11 +96,23 @@ func (t *taskBuildData[T]) TaskOptions() []TaskInstanceOption {
 	return t.options
 }
 
+func (t *taskBuildData[T]) TaskInitError() error {
+	return t.initError
+}
+
 func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
+	var parentHasStep bool
+	if t.parent != nil {
+		parentHasStep = taskHasStep(step, t.parent)
+	}
+
 	switch step {
 	case StepSetup:
 		if t.data != nil {
 			return ErrAlreadyInitialized
+		}
+		if parentHasStep {
+			return fmt.Errorf("%w: build data task parent already has 'setup' step", ErrDuplicateStep)
 		}
 		data, err := t.setupFunc(ctx)
 		if err != nil {
@@ -106,7 +128,13 @@ func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
 			return ErrNotInitialized
 		}
 		if fn, ok := t.stepFunc[step]; ok {
+			if parentHasStep {
+				return fmt.Errorf("%w: build data task parent already has '%s' step", ErrDuplicateStep, step.String())
+			}
 			return fn(ctx, *t.data)
+		}
+		if parentHasStep {
+			return t.parent.Run(ctx, step)
 		}
 		return newInvalidTaskStep(step)
 	}
@@ -120,7 +148,25 @@ func (t *taskBuildData[T]) String() string {
 }
 
 func (t *taskBuildData[T]) init() {
+	var duplicatedSteps []Step
+
 	t.steps = slices.Concat(t.steps, slices.Collect(maps.Keys(t.stepFunc)))
+	if t.parent != nil {
+		for _, step := range taskSteps(t.parent) {
+			if !slices.Contains(t.steps, step) {
+				t.steps = append(t.steps, step)
+			} else {
+				duplicatedSteps = append(duplicatedSteps, step)
+			}
+		}
+	}
+
+	if len(duplicatedSteps) > 0 {
+		t.initError = fmt.Errorf("%w: build data task parent already has '%s' step(s)", ErrDuplicateStep,
+			strings.Join(sliceMap(duplicatedSteps, func(i int, e Step) string {
+				return e.String()
+			}), ","))
+	}
 }
 
 func withDataStep[T any](step Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
