@@ -238,7 +238,10 @@ func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 	}
 }
 
-func (m *Manager) addInitError(err error) {
+func (m *Manager) AddInitError(err error) {
+	if m.isRunning.Load() {
+		return
+	}
 	m.initErrors = append(m.initErrors, err)
 }
 

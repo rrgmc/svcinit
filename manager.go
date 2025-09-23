@@ -63,18 +63,18 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if task == nil {
-		m.addInitError(ErrNilTask)
+		m.AddInitError(ErrNilTask)
 		return
 	}
 	if te, ok := task.(TaskWithInitError); ok {
 		if te.TaskInitError() != nil {
-			m.addInitError(te.TaskInitError())
+			m.AddInitError(te.TaskInitError())
 			return
 		}
 	}
 	tw := m.newTaskWrapper(stage, task, options...)
 	if !slices.Contains(m.stages, tw.stage) {
-		m.addInitError(newInvalidStage(tw.stage))
+		m.AddInitError(newInvalidStage(tw.stage))
 		return
 	}
 	m.tasks.add(tw)

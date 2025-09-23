@@ -4,7 +4,129 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
+
+type ResolvedData interface {
+	IsResolved() bool
+	DoneResolved() <-chan struct{}
+	// SetResolved()
+}
+
+type TaskWithResolved interface {
+	Task
+	ResolvedData
+}
+
+type TaskAndResolved struct {
+	*wrappedTask
+	*DataWithResolved
+}
+
+func NewTaskAndResolved(task Task) TaskWithResolved {
+	return &TaskAndResolved{
+		wrappedTask: &wrappedTask{
+			task: checkNilTask(task),
+		},
+		DataWithResolved: NewDataWithResolved(),
+	}
+}
+
+var _ TaskWithResolved = (*TaskAndResolved)(nil)
+var _ TaskSteps = (*TaskAndResolved)(nil)
+var _ TaskWithOptions = (*TaskAndResolved)(nil)
+
+func (t *TaskAndResolved) Run(ctx context.Context, step Step) error {
+	err := t.task.Run(ctx, step)
+	switch step {
+	case StepSetup:
+		if err != nil {
+			t.SetResolved()
+		}
+	default:
+	}
+	return err
+}
+
+type TaskWithResolvedData[T any] struct {
+	*wrappedTask
+	*DataIWithResolved[T]
+}
+
+func NewTaskAndResolvedData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) *TaskWithResolvedData[T] {
+	dr := NewDataIWithResolved[T]()
+	return &TaskWithResolvedData[T]{
+		wrappedTask: &wrappedTask{task: BuildDataTask[T](func(ctx context.Context) (T, error) {
+			data, err := setupFunc(ctx)
+			if err != nil {
+				var empty T
+				return empty, err
+			}
+			dr.SetResolved(data)
+			return data, nil
+		}, options...)},
+		DataIWithResolved: dr,
+	}
+}
+
+var _ TaskWithResolved = (*TaskWithResolvedData[int])(nil)
+var _ TaskSteps = (*TaskWithResolvedData[int])(nil)
+var _ TaskWithOptions = (*TaskWithResolvedData[int])(nil)
+
+type DataWithResolved struct {
+	isResolved   atomic.Bool
+	resolvedChan chan struct{}
+}
+
+var _ ResolvedData = (*DataWithResolved)(nil)
+
+func NewDataWithResolved() *DataWithResolved {
+	return &DataWithResolved{
+		resolvedChan: make(chan struct{}),
+	}
+}
+
+func (d *DataWithResolved) IsResolved() bool {
+	return d.isResolved.Load()
+}
+
+func (d *DataWithResolved) DoneResolved() <-chan struct{} {
+	return d.resolvedChan
+}
+
+func (d *DataWithResolved) SetResolved() {
+	if d.isResolved.CompareAndSwap(false, true) {
+		close(d.resolvedChan)
+	}
+}
+
+type DataIWithResolved[T any] struct {
+	Data T
+
+	isResolved   atomic.Bool
+	resolvedChan chan struct{}
+}
+
+func NewDataIWithResolved[T any]() *DataIWithResolved[T] {
+	return &DataIWithResolved[T]{
+		resolvedChan: make(chan struct{}),
+	}
+}
+
+func (d *DataIWithResolved[T]) IsResolved() bool {
+	return d.isResolved.Load()
+}
+
+func (d *DataIWithResolved[T]) DoneResolved() <-chan struct{} {
+	return d.resolvedChan
+}
+
+func (d *DataIWithResolved[T]) SetResolved(data T) {
+	if d.isResolved.CompareAndSwap(false, true) {
+		d.Data = data
+		close(d.resolvedChan)
+	}
+}
 
 func InitDataFromContext(ctx context.Context, name string) (any, error) {
 	id, err := initDataFromContext(ctx)
