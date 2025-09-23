@@ -6,15 +6,17 @@ import (
 )
 
 var (
-	ErrExit            = errors.New("normal exit")
-	ErrInvalidStage    = errors.New("invalid stage")
-	ErrInvalidTaskStep = errors.New("invalid step for task")
-	ErrAlreadyRunning  = errors.New("already running")
-	ErrInitialization  = errors.New("initialization error")
-	ErrNoStartTask     = errors.New("no start tasks available")
-	ErrNilTask         = errors.New("nil task")
-	ErrNoStage         = errors.New("no stages available")
-	ErrShutdownTimeout = errors.New("shutdown timeout")
+	ErrExit               = errors.New("normal exit")
+	ErrInvalidStage       = errors.New("invalid stage")
+	ErrInvalidTaskStep    = errors.New("invalid step for task")
+	ErrAlreadyRunning     = errors.New("already running")
+	ErrInitialization     = errors.New("initialization error")
+	ErrNoStartTask        = errors.New("no start tasks available")
+	ErrNilTask            = errors.New("nil task")
+	ErrNoStage            = errors.New("no stages available")
+	ErrShutdownTimeout    = errors.New("shutdown timeout")
+	ErrAlreadyInitialized = errors.New("already initialized")
+	ErrNotInitialized     = errors.New("not initialized")
 )
 
 const (

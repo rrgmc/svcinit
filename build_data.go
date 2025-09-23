@@ -7,66 +7,68 @@ import (
 	"slices"
 )
 
-type TaskBuildDataFunc func(ctx context.Context) error
+type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
 
-func BuildDataTask(options ...TaskBuildDataOption) Task {
-	return newTaskBuildData(options...)
+type TaskBuildDataSetupFunc[T any] func(ctx context.Context) (T, error)
+
+func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
+	return newTaskBuildData[T](setupFunc, options...)
 }
 
-type TaskBuildDataOption func(*taskBuildData)
+type TaskBuildDataOption[T any] func(*taskBuildData[T])
 
-func WithDataDescription(description string) TaskBuildDataOption {
-	return func(build *taskBuildData) {
+func WithDataDescription[T any](description string) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
 		build.description = description
 	}
 }
 
-func WithDataStep(step Step, f TaskBuildDataFunc) TaskBuildDataOption {
-	return func(build *taskBuildData) {
+func withDataStep[T any](step Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
 		build.stepFunc[step] = f
 	}
 }
 
-func WithDataSetup(f TaskBuildDataFunc) TaskBuildDataOption {
-	return WithDataStep(StepSetup, f)
+func WithDataStart[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return withDataStep(StepStart, f)
 }
 
-func WithDataStart(f TaskBuildDataFunc) TaskBuildDataOption {
-	return WithDataStep(StepStart, f)
+func WithDataPreStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return withDataStep(StepPreStop, f)
 }
 
-func WithDataPreStop(f TaskBuildDataFunc) TaskBuildDataOption {
-	return WithDataStep(StepPreStop, f)
+func WithDataStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return withDataStep(StepStop, f)
 }
 
-func WithDataStop(f TaskBuildDataFunc) TaskBuildDataOption {
-	return WithDataStep(StepStop, f)
+func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return withDataStep(StepTeardown, f)
 }
 
-func WithDataTeardown(f TaskBuildDataFunc) TaskBuildDataOption {
-	return WithDataStep(StepTeardown, f)
-}
-
-func WithDataTaskOptions(options ...TaskInstanceOption) TaskBuildDataOption {
-	return func(build *taskBuildData) {
+func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
 		build.options = append(build.options, options...)
 	}
 }
 
-type taskBuildData struct {
-	stepFunc    map[Step]TaskBuildDataFunc
+type taskBuildData[T any] struct {
+	data        *T
+	setupFunc   TaskBuildDataSetupFunc[T]
+	stepFunc    map[Step]TaskBuildDataFunc[T]
 	steps       []Step
 	options     []TaskInstanceOption
 	description string
 }
 
-var _ Task = (*taskBuildData)(nil)
-var _ TaskSteps = (*taskBuildData)(nil)
-var _ TaskWithOptions = (*taskBuildData)(nil)
+var _ Task = (*taskBuildData[int])(nil)
+var _ TaskSteps = (*taskBuildData[int])(nil)
+var _ TaskWithOptions = (*taskBuildData[int])(nil)
 
-func newTaskBuildData(options ...TaskBuildDataOption) Task {
-	ret := &taskBuildData{
-		stepFunc: make(map[Step]TaskBuildDataFunc),
+func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
+	ret := &taskBuildData[T]{
+		setupFunc: setupFunc,
+		stepFunc:  make(map[Step]TaskBuildDataFunc[T]),
+		steps:     []Step{StepSetup},
 	}
 	for _, opt := range options {
 		opt(ret)
@@ -78,29 +80,45 @@ func newTaskBuildData(options ...TaskBuildDataOption) Task {
 	return ret
 }
 
-func (t *taskBuildData) TaskSteps() []Step {
+func (t *taskBuildData[T]) TaskSteps() []Step {
 	return t.steps
 }
 
-func (t *taskBuildData) TaskOptions() []TaskInstanceOption {
+func (t *taskBuildData[T]) TaskOptions() []TaskInstanceOption {
 	return t.options
 }
 
-func (t *taskBuildData) Run(ctx context.Context, step Step) error {
-	if fn, ok := t.stepFunc[step]; ok {
-		return fn(ctx)
+func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
+	switch step {
+	case StepSetup:
+		if t.data != nil {
+			return ErrAlreadyInitialized
+		}
+		data, err := t.setupFunc(ctx)
+		if err != nil {
+			return err
+		}
+		t.data = &data
+		return nil
+	default:
+		if t.data == nil {
+			return ErrNotInitialized
+		}
+		if fn, ok := t.stepFunc[step]; ok {
+			return fn(ctx, *t.data)
+		}
+		return newInvalidTaskStep(step)
 	}
-	return newInvalidTaskStep(step)
 }
 
-func (t *taskBuildData) String() string {
+func (t *taskBuildData[T]) String() string {
 	if t.description != "" {
 		return t.description
 	}
 	return fmt.Sprintf("%T", t)
 }
 
-func (t *taskBuildData) isEmpty() bool {
+func (t *taskBuildData[T]) isEmpty() bool {
 	if len(t.stepFunc) == 0 {
 		return true
 	}
@@ -112,6 +130,6 @@ func (t *taskBuildData) isEmpty() bool {
 	return false
 }
 
-func (t *taskBuildData) init() {
-	t.steps = slices.Collect(maps.Keys(t.stepFunc))
+func (t *taskBuildData[T]) init() {
+	t.steps = slices.Concat(t.steps, slices.Collect(maps.Keys(t.stepFunc)))
 }
