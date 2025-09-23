@@ -81,5 +81,5 @@ func contextWithInitData(ctx context.Context, names []string) context.Context {
 	for _, name := range names {
 		id.data[name] = &initDataItem{}
 	}
-	return context.WithValue(ctx, causeKey{}, &id)
+	return context.WithValue(ctx, initDataKey{}, &id)
 }

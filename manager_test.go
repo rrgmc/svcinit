@@ -398,30 +398,83 @@ func TestManagerTaskHandler(t *testing.T) {
 	})
 }
 
-// func TestManagerInitData(t *testing.T) {
-// 	synctest.Test(t, func(t *testing.T) {
-// 		sinit, err := New(
-// 			WithInitData("service"),
-// 		)
-// 		assert.NilError(t, err)
-//
-// 		sinit.
-// 			AddTask(BuildTask(
-// 				WithStart(func(ctx context.Context) error {
-// 					select {
-// 					case <-ctx.Done():
-// 					}
-// 					return nil
-// 				}),
-// 				WithStop(func(ctx context.Context) error {
-// 					return nil
-// 				}),
-// 			))
-//
-// 		err = sinit.Run(t.Context())
-// 		assert.NilError(t, err)
-// 	})
-// }
+func TestManagerInitData(t *testing.T) {
+	type idata1 struct {
+		value1 string
+		value2 int
+	}
+	type idata2 struct {
+		value3 int
+		value4 string
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
+		sinit, err := New(
+			WithStages("init", "service"),
+			WithInitData("idata1", "idata2"),
+		)
+		assert.NilError(t, err)
+
+		sinit.
+			AddTask(BuildTask(
+				WithSetup(func(ctx context.Context) error {
+					items.add("i1setup")
+					ivalue := idata1{
+						value1: "test33",
+						value2: 33,
+					}
+					return InitDataSet(ctx, "idata1", &ivalue)
+				}),
+			), WithStage("init"))
+
+		sinit.
+			AddTask(BuildTask(
+				WithSetup(func(ctx context.Context) error {
+					items.add("i2setup")
+					ivalue := idata2{
+						value3: 88,
+						value4: "test88",
+					}
+					return InitDataSet(ctx, "idata2", &ivalue)
+				}),
+			), WithStage("init"))
+
+		sinit.
+			AddTask(BuildTask(
+				WithStart(func(ctx context.Context) error {
+					items.add("sstart")
+					i1, ok := InitDataTypeFromContext[*idata1](ctx, "idata1")
+					if !ok {
+						return fmt.Errorf("idata1 not initialized")
+					}
+					i2, ok := InitDataTypeFromContext[*idata2](ctx, "idata2")
+					if !ok {
+						return fmt.Errorf("idata2 not initialized")
+					}
+
+					assert.Check(t, cmp2.Equal(i1.value1, "test33"))
+					assert.Check(t, cmp2.Equal(i1.value2, 33))
+					assert.Check(t, cmp2.Equal(i2.value3, 88))
+					assert.Check(t, cmp2.Equal(i2.value4, "test88"))
+
+					select {
+					case <-time.After(1 * time.Second):
+					case <-ctx.Done():
+					}
+					return nil
+				}),
+				WithStop(func(ctx context.Context) error {
+					return nil
+				}),
+			), WithStage("service"))
+
+		err = sinit.Run(t.Context())
+		assert.NilError(t, err)
+		assert.DeepEqual(t, []string{"i1setup", "i2setup", "sstart"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+	})
+}
 
 func TestManagerErrorReturns(t *testing.T) {
 	var (

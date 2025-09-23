@@ -157,9 +157,9 @@ func WithTaskCallback(callbacks ...TaskCallback) Option {
 	}
 }
 
-func WithInitData(name string) Option {
+func WithInitData(names ...string) Option {
 	return func(s *Manager) {
-		s.initData = append(s.initData, name)
+		s.initData = append(s.initData, names...)
 	}
 }
 
