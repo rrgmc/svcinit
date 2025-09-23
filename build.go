@@ -43,6 +43,10 @@ func WithStop(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepStop, f)
 }
 
+func WithTeardown(f TaskBuildFunc) TaskBuildOption {
+	return WithStep(StepTeardown, f)
+}
+
 func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 	return func(build *taskBuild) {
 		build.options = append(build.options, options...)

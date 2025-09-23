@@ -20,6 +20,7 @@ type ServiceWithPreStop interface {
 // ServiceWithSetup is a Service which has a Setup step.
 type ServiceWithSetup interface {
 	Setup(ctx context.Context) error
+	Teardown(ctx context.Context) error
 }
 
 // ServiceTask allows getting the source Service of the Task.
@@ -35,7 +36,7 @@ func ServiceAsTask(service Service) ServiceTask {
 		steps:   []Step{StepStart, StepStop},
 	}
 	if _, ok := t.service.(ServiceWithSetup); ok {
-		t.steps = append(t.steps, StepSetup)
+		t.steps = append(t.steps, StepSetup, StepTeardown)
 	}
 	if _, ok := t.service.(ServiceWithPreStop); ok {
 		t.steps = append(t.steps, StepPreStop)
@@ -66,6 +67,11 @@ func (t *serviceTask) Run(ctx context.Context, step Step) error {
 		}
 	case StepStop:
 		return t.service.Stop(ctx)
+	case StepTeardown:
+		if tt, ok := t.service.(ServiceWithSetup); ok {
+			return tt.Teardown(ctx)
+		}
+	default:
 	}
 	return nil
 }

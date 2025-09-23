@@ -441,10 +441,12 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:            "return error from stop step",
 			expectedStopErr: []error{err1},
 			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}: 1,
-				testCount{"s1", StepStart, CallbackStepAfter}:  1,
-				testCount{"s1", StepStop, CallbackStepBefore}:  1,
-				testCount{"s1", StepStop, CallbackStepAfter}:   1,
+				testCount{"s1", StepStart, CallbackStepBefore}:    1,
+				testCount{"s1", StepStart, CallbackStepAfter}:     1,
+				testCount{"s1", StepStop, CallbackStepBefore}:     1,
+				testCount{"s1", StepStop, CallbackStepAfter}:      1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask(newTestTask(2, BuildTask(
@@ -459,18 +461,23 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithStop(func(ctx context.Context) error {
 						return err1
 					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
+					}),
 				)))
 			},
 		}, {
 			name:        "return error from start step",
 			expectedErr: err1,
 			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:   1,
-				testCount{"s1", StepStart, CallbackStepAfter}:    1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
-				testCount{"s1", StepStop, CallbackStepBefore}:    1,
-				testCount{"s1", StepStop, CallbackStepAfter}:     1,
+				testCount{"s1", StepStart, CallbackStepBefore}:    1,
+				testCount{"s1", StepStart, CallbackStepAfter}:     1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
+				testCount{"s1", StepStop, CallbackStepBefore}:     1,
+				testCount{"s1", StepStop, CallbackStepAfter}:      1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask(newTestTask(1, BuildTask(
@@ -488,16 +495,21 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithPreStop(func(ctx context.Context) error {
 						return nil
 					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
+					}),
 				)))
 			},
 		}, {
 			name:            "return error from pre-stop step",
 			expectedStopErr: []error{err2},
 			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:   1,
-				testCount{"s1", StepStart, CallbackStepAfter}:    1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
+				testCount{"s1", StepStart, CallbackStepBefore}:    1,
+				testCount{"s1", StepStart, CallbackStepAfter}:     1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask(newTestTask(1, BuildTask(
@@ -512,14 +524,19 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithPreStop(func(ctx context.Context) error {
 						return err2
 					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
+					}),
 				)))
 			},
 		}, {
 			name:        "return error from setup step",
 			expectedErr: err2,
 			expectedCounts: map[testCount]int{
-				testCount{"s1", StepSetup, CallbackStepBefore}: 1,
-				testCount{"s1", StepSetup, CallbackStepAfter}:  1,
+				testCount{"s1", StepSetup, CallbackStepBefore}:    1,
+				testCount{"s1", StepSetup, CallbackStepAfter}:     1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask(newTestTask(1, BuildTask(
@@ -534,18 +551,52 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithSetup(func(ctx context.Context) error {
 						return err2
 					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
+					}),
+				)))
+			},
+		}, {
+			name:            "return error from teardown step",
+			expectedStopErr: []error{err2},
+			expectedCounts: map[testCount]int{
+				testCount{"s1", StepSetup, CallbackStepBefore}:    1,
+				testCount{"s1", StepSetup, CallbackStepAfter}:     1,
+				testCount{"s1", StepStart, CallbackStepBefore}:    1,
+				testCount{"s1", StepStart, CallbackStepAfter}:     1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+			},
+			setupFn: func(m *Manager) {
+				m.AddTask(newTestTask(1, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						select {
+						case <-time.After(1 * time.Second):
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}),
+					WithSetup(func(ctx context.Context) error {
+						return nil
+					}),
+					WithTeardown(func(ctx context.Context) error {
+						return err2
+					}),
 				)))
 			},
 		}, {
 			name:            "return error from stop and pre-stop steps",
 			expectedStopErr: []error{err2, err3},
 			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:   1,
-				testCount{"s1", StepStart, CallbackStepAfter}:    1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}: 1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:  1,
-				testCount{"s1", StepStop, CallbackStepBefore}:    1,
-				testCount{"s1", StepStop, CallbackStepAfter}:     1,
+				testCount{"s1", StepStart, CallbackStepBefore}:    1,
+				testCount{"s1", StepStart, CallbackStepAfter}:     1,
+				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
+				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
+				testCount{"s1", StepStop, CallbackStepBefore}:     1,
+				testCount{"s1", StepStop, CallbackStepAfter}:      1,
+				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask(newTestTask(1, BuildTask(
@@ -562,6 +613,9 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 					WithPreStop(func(ctx context.Context) error {
 						return err3
+					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
 					}),
 				)))
 			},
