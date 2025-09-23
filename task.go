@@ -37,14 +37,6 @@ type TaskWithOptions interface {
 	TaskOptions() []TaskInstanceOption
 }
 
-// WithStage sets the stage where the task will run.
-// If not set, the default one will be used.
-func WithStage(stage string) TaskOption {
-	return taskOptionFunc(func(options *taskOptions) {
-		options.stage = stage
-	})
-}
-
 // WithCancelContext sets whether to automatically cancel the task start step context when the first task finishes.
 // The default is false, meaning that the stop step should handle to stop the task.
 func WithCancelContext(cancelContext bool) TaskAndInstanceOption {

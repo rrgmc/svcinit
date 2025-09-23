@@ -20,15 +20,6 @@ func (m *Manager) init() error {
 		return fmt.Errorf("%w: blank stage not allowed", ErrInvalidStage)
 	}
 
-	if m.defaultStage == "" && slices.Contains(m.stages, StageDefault) {
-		m.defaultStage = StageDefault
-	} else if m.defaultStage != "" && !slices.Contains(m.stages, m.defaultStage) {
-		return fmt.Errorf("%w: default stage '%s'", ErrInvalidStage, m.defaultStage)
-	}
-	if m.defaultStage == "" {
-		m.defaultStage = m.stages[0]
-	}
-
 	return nil
 }
 

@@ -24,10 +24,9 @@ func TestManager(t *testing.T) {
 
 		sm, err := New(
 			WithStages("health", "service"),
-			WithDefaultStage("health"),
 		)
 
-		sm.AddTask(BuildTask(
+		sm.AddTask("health", BuildTask(
 			WithStart(func(ctx context.Context) error {
 				started.add("task1")
 				return nil
@@ -141,8 +140,7 @@ func TestManagerWorkflows(t *testing.T) {
 				}
 
 				sinit, err := New(
-					WithStages("default", "s2", "s3", "s4"),
-					WithDefaultStage("default"),
+					WithStages(StageDefault, "s2", "s3", "s4"),
 					WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 						if step != StepStart || callbackStep != CallbackStepAfter {
 							return
@@ -154,17 +152,16 @@ func TestManagerWorkflows(t *testing.T) {
 				)
 				assert.NilError(t, err)
 
-				sinit.AddTask(tasks[0].svc)
+				sinit.AddTask(StageDefault, tasks[0].svc)
 
-				sinit.AddTask(tasks[1].svc, WithStage("s2"))
+				sinit.AddTask("s2", tasks[1].svc)
 
-				sinit.AddTask(tasks[2].svc,
-					WithStage("s3"),
+				sinit.AddTask("s3", tasks[2].svc,
 					WithCancelContext(true))
 
-				sinit.AddTask(tasks[3].svc, WithStage("s4"))
+				sinit.AddTask("s4", tasks[3].svc)
 
-				sinit.AddTask(tasks[4].svc,
+				sinit.AddTask(StageDefault, tasks[4].svc,
 					WithCancelContext(true))
 
 				err = sinit.Run(ctx)
@@ -196,7 +193,7 @@ func TestManagerShutdownOptions(t *testing.T) {
 		sinit, err := New()
 		assert.NilError(t, err)
 
-		sinit.AddTask(BuildTask(
+		sinit.AddTask(StageDefault, BuildTask(
 			WithStart(func(ctx context.Context) error {
 				assert.Check(t, !cmp2.Equal(5, ctx.Value("test-shutdown")), "not expected context value")
 				return nil
@@ -219,7 +216,7 @@ func TestManagerShutdownTimeout(t *testing.T) {
 			sinit, err := New(WithShutdownTimeout(30 * time.Second))
 			assert.NilError(t, err)
 
-			sinit.AddTask(BuildTask(
+			sinit.AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
 					return nil
 				}),
@@ -250,13 +247,13 @@ func TestManagerNilTask(t *testing.T) {
 		{
 			name: "nil execute",
 			fn: func(sinit *Manager) {
-				sinit.AddTask(nil) // wait
+				sinit.AddTask(StageDefault, nil) // wait
 			},
 		},
 		{
 			name: "nil task start, prestop and stop",
 			fn: func(sinit *Manager) {
-				sinit.AddTask(BuildTask(
+				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
 					WithPreStop(nil),
 					WithStop(nil)),
@@ -266,7 +263,7 @@ func TestManagerNilTask(t *testing.T) {
 		{
 			name: "nil task stop",
 			fn: func(sinit *Manager) {
-				sinit.AddTask(BuildTask(
+				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						return sleepContext(ctx, time.Second)
 					}),
@@ -279,7 +276,7 @@ func TestManagerNilTask(t *testing.T) {
 		{
 			name: "nil task prestop",
 			fn: func(sinit *Manager) {
-				sinit.AddTask(BuildTask(
+				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						return sleepContext(ctx, time.Second)
 					}),
@@ -295,12 +292,12 @@ func TestManagerNilTask(t *testing.T) {
 		{
 			name: "nil task multiple",
 			fn: func(sinit *Manager) {
-				sinit.AddTask(BuildTask(
+				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
 					WithPreStop(nil),
 					WithStop(nil)),
 					WithCancelContext(true))
-				sinit.AddTask(BuildTask(
+				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
 					WithPreStop(nil),
 					WithStop(nil)),
@@ -330,7 +327,7 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(BuildTask(
+			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
 					select {
 					case <-ctx.Done():
@@ -368,7 +365,7 @@ func TestManagerTaskHandler(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(BuildTask(
+			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
 					select {
 					case <-time.After(1 * time.Second):
@@ -424,7 +421,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(2, BuildTask(
+				m.AddTask("s1", newTestTask(2, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -455,7 +452,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -487,7 +484,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -514,7 +511,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -543,7 +540,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):
@@ -574,7 +571,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask(newTestTask(1, BuildTask(
+				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
 						select {
 						case <-time.After(1 * time.Second):

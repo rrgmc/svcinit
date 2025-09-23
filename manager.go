@@ -18,7 +18,6 @@ type Manager struct {
 	enforceShutdownTimeout bool
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
-	defaultStage           string
 	logger                 *slog.Logger
 
 	isRunning                     atomic.Bool
@@ -34,7 +33,6 @@ func New(options ...Option) (*Manager, error) {
 		tasks:                  newStageTasks(),
 		shutdownTimeout:        10 * time.Second,
 		enforceShutdownTimeout: true,
-		defaultStage:           StageDefault,
 		logger:                 slog.New(slog.DiscardHandler),
 	}
 	for _, option := range options {
@@ -55,7 +53,7 @@ func (m *Manager) IsRunning() bool {
 	return m.isRunning.Load()
 }
 
-func (m *Manager) AddTask(task Task, options ...TaskOption) {
+func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	if m.isRunning.Load() {
 		if m.startupCancel != nil {
 			m.startupCancel(fmt.Errorf("%w: cannot add task", ErrAlreadyRunning))
@@ -68,7 +66,7 @@ func (m *Manager) AddTask(task Task, options ...TaskOption) {
 		m.addInitError(ErrNilTask)
 		return
 	}
-	tw := m.newTaskWrapper(task, options...)
+	tw := m.newTaskWrapper(stage, task, options...)
 	if !slices.Contains(m.stages, tw.options.stage) {
 		m.addInitError(newInvalidStage(tw.options.stage))
 		return
@@ -76,12 +74,12 @@ func (m *Manager) AddTask(task Task, options ...TaskOption) {
 	m.tasks.add(tw)
 }
 
-func (m *Manager) AddTaskFunc(f TaskFunc, options ...TaskOption) {
-	m.AddTask(f, options...)
+func (m *Manager) AddTaskFunc(stage string, f TaskFunc, options ...TaskOption) {
+	m.AddTask(stage, f, options...)
 }
 
-func (m *Manager) AddService(service Service, options ...TaskOption) {
-	m.AddTask(ServiceAsTask(service), options...)
+func (m *Manager) AddService(stage string, service Service, options ...TaskOption) {
+	m.AddTask(stage, ServiceAsTask(service), options...)
 }
 
 func (m *Manager) Run(ctx context.Context, options ...RunOption) error {
@@ -111,19 +109,6 @@ func WithLogger(logger *slog.Logger) Option {
 func WithStages(stages ...string) Option {
 	return func(m *Manager) {
 		m.stages = stages
-		if m.defaultStage != "" && !slices.Contains(m.stages, m.defaultStage) {
-			if len(m.stages) == 0 {
-				m.defaultStage = ""
-			} else {
-				m.defaultStage = m.stages[0]
-			}
-		}
-	}
-}
-
-func WithDefaultStage(stage string) Option {
-	return func(m *Manager) {
-		m.defaultStage = stage
 	}
 }
 

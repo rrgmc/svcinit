@@ -18,11 +18,11 @@ type taskWrapper struct {
 	finishCtx   context.Context
 }
 
-func (m *Manager) newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
+func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper {
 	ret := &taskWrapper{
 		task: task,
 		options: taskOptions{
-			stage: m.defaultStage,
+			stage: stage,
 		},
 	}
 	for _, option := range options {
