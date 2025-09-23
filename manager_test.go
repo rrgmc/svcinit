@@ -410,7 +410,6 @@ func TestManagerInitData(t *testing.T) {
 
 		sinit, err := New(
 			WithStages("init", "service"),
-			WithInitData("idata1", "idata2"),
 		)
 		assert.NilError(t, err)
 
@@ -442,13 +441,13 @@ func TestManagerInitData(t *testing.T) {
 			AddTask("service", BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("sstart")
-					i1, ok := InitDataTypeFromContext[*idata1](ctx, "idata1")
-					if !ok {
-						return fmt.Errorf("idata1 not initialized")
+					i1, err := InitDataTypeFromContext[*idata1](ctx, "idata1")
+					if err != nil {
+						return err
 					}
-					i2, ok := InitDataTypeFromContext[*idata2](ctx, "idata2")
-					if !ok {
-						return fmt.Errorf("idata2 not initialized")
+					i2, err := InitDataTypeFromContext[*idata2](ctx, "idata2")
+					if err != nil {
+						return err
 					}
 
 					assert.Check(t, cmp2.Equal(i1.value1, "test33"))

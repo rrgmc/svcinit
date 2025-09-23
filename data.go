@@ -6,60 +6,73 @@ import (
 	"sync"
 )
 
-func InitDataFromContext(ctx context.Context, name string) (any, bool) {
-	id, ok := initDataFromContext(ctx)
-	if !ok {
-		return nil, false
+func InitDataFromContext(ctx context.Context, name string) (any, error) {
+	id, err := initDataFromContext(ctx)
+	if err != nil {
+		return nil, err
 	}
 	id.mu.Lock()
 	defer id.mu.Unlock()
 	dt, ok := id.data[name]
-	if !ok {
-		return nil, false
+	if !ok || !dt.isSet {
+		return nil, fmt.Errorf("%w: '%s' not set", ErrInitData, name)
 	}
-	if !dt.isSet {
-		return nil, false
-	}
-	return dt.value, true
+	return dt.value, nil
 }
 
-func InitDataTypeFromContext[T any](ctx context.Context, name string) (T, bool) {
-	id, ok := InitDataFromContext(ctx, name)
-	if ok {
+func InitDataTypeFromContext[T any](ctx context.Context, name string) (T, error) {
+	id, err := InitDataFromContext(ctx, name)
+	if err == nil {
 		if v, ok := id.(T); ok {
-			return v, true
+			return v, nil
+		} else {
+			err = fmt.Errorf("%w: unexpected type %T", ErrInitData, id)
 		}
 	}
 	var empty T
-	return empty, false
+	return empty, err
 }
 
 func InitDataSet[T any](ctx context.Context, name string, data T) error {
-	id, ok := initDataFromContext(ctx)
-	if !ok {
-		return fmt.Errorf("InitDataSet: no data found in context")
+	id, err := initDataFromContext(ctx)
+	if err != nil {
+		return err
 	}
 	id.mu.Lock()
 	defer id.mu.Unlock()
 	dt, ok := id.data[name]
-	if !ok {
-		return fmt.Errorf("InitDataSet: unknown data %s", name)
+	if ok {
+		if dt.isSet {
+			return fmt.Errorf("%w: '%s' already set", ErrInitData, name)
+		}
 	}
-	if dt.isSet {
-		return fmt.Errorf("InitDataSet: data %s already set", name)
+	id.data[name] = &initDataItem{
+		isSet: true,
+		value: data,
 	}
-	dt.isSet = true
-	dt.value = data
 	return nil
 }
 
-func initDataFromContext(ctx context.Context) (*initData, bool) {
+func InitDataClear(ctx context.Context, name string) error {
+	id, err := initDataFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	id.mu.Lock()
+	defer id.mu.Unlock()
+	if _, ok := id.data[name]; ok {
+		delete(id.data, name)
+	}
+	return nil
+}
+
+func initDataFromContext(ctx context.Context) (*initData, error) {
 	if val := ctx.Value(initDataKey{}); val != nil {
 		if id, ok := val.(*initData); ok {
-			return id, true
+			return id, nil
 		}
 	}
-	return nil, false
+	return nil, fmt.Errorf("%w: %w", ErrInitData, ErrNotInitialized)
 }
 
 type initDataKey struct{}
@@ -74,12 +87,9 @@ type initDataItem struct {
 	value any
 }
 
-func contextWithInitData(ctx context.Context, names []string) context.Context {
+func contextWithInitData(ctx context.Context) context.Context {
 	id := initData{
-		data: make(map[string]*initDataItem, len(names)),
-	}
-	for _, name := range names {
-		id.data[name] = &initDataItem{}
+		data: make(map[string]*initDataItem),
 	}
 	return context.WithValue(ctx, initDataKey{}, &id)
 }

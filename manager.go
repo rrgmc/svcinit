@@ -18,7 +18,6 @@ type Manager struct {
 	enforceShutdownTimeout bool
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
-	initData               []string
 	logger                 *slog.Logger
 
 	isRunning                     atomic.Bool
@@ -145,12 +144,6 @@ func WithManagerCallback(callbacks ...ManagerCallback) Option {
 func WithTaskCallback(callbacks ...TaskCallback) Option {
 	return func(s *Manager) {
 		s.taskCallbacks = append(s.taskCallbacks, callbacks...)
-	}
-}
-
-func WithInitData(names ...string) Option {
-	return func(s *Manager) {
-		s.initData = append(s.initData, names...)
 	}
 }
 
