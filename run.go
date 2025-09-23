@@ -41,7 +41,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		option(&roptns)
 	}
 
-	ctx = contextWithInitData(ctx)
+	// ctx = contextWithInitData(ctx)
 
 	stopErrBuilder := newMultiErrorBuilder()
 

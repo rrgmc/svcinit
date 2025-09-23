@@ -52,11 +52,11 @@ func WithDataParentFromSetup[T any](parentFromSetup bool) TaskBuildDataOption[T]
 	}
 }
 
-func WithInitDataSet[T any](name string) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
-		build.initDataSet = name
-	}
-}
+// func WithInitDataSet[T any](name string) TaskBuildDataOption[T] {
+// 	return func(build *taskBuildData[T]) {
+// 		build.initDataSet = name
+// 	}
+// }
 
 func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
@@ -74,7 +74,7 @@ type taskBuildData[T any] struct {
 	options         []TaskInstanceOption
 	initError       error
 	description     string
-	initDataSet     string
+	// initDataSet     string
 }
 
 var _ Task = (*taskBuildData[int])(nil)
@@ -129,9 +129,9 @@ func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
 			return err
 		}
 		t.data = &data
-		if t.initDataSet != "" {
-			return InitDataSet(ctx, t.initDataSet, data)
-		}
+		// if t.initDataSet != "" {
+		// 	return InitDataSet(ctx, t.initDataSet, data)
+		// }
 		if t.parentFromSetup {
 			if tt, ok := any(data).(Task); ok {
 				t.parent = tt
