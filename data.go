@@ -10,7 +10,6 @@ import (
 type ResolvedData interface {
 	IsResolved() bool
 	DoneResolved() <-chan struct{}
-	// SetResolved()
 }
 
 type TaskWithResolved interface {
@@ -19,14 +18,14 @@ type TaskWithResolved interface {
 }
 
 type TaskAndResolved struct {
-	*wrappedTask
+	*baseWrappedTaskPrivate
 	*DataWithResolved
 }
 
 func NewTaskAndResolved(task Task) TaskWithResolved {
 	return &TaskAndResolved{
-		wrappedTask:      newWrappedTask(task),
-		DataWithResolved: NewDataWithResolved(),
+		baseWrappedTaskPrivate: NewBaseWrappedTask(task),
+		DataWithResolved:       NewDataWithResolved(),
 	}
 }
 
@@ -39,7 +38,7 @@ func (t *TaskAndResolved) Run(ctx context.Context, step Step) error {
 	switch step {
 	case StepSetup:
 		if err != nil {
-			t.SetResolved()
+			t.SetResolved(nil)
 		}
 	default:
 	}
@@ -47,14 +46,14 @@ func (t *TaskAndResolved) Run(ctx context.Context, step Step) error {
 }
 
 type TaskWithResolvedData[T any] struct {
-	*baseWrappedTaskPrivate
+	*baseOverloadedTaskPrivate
 	*DataIWithResolved[T]
 }
 
 func NewTaskAndResolvedData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) *TaskWithResolvedData[T] {
 	dr := NewDataIWithResolved[T]()
 	return &TaskWithResolvedData[T]{
-		baseWrappedTaskPrivate: &baseWrappedTaskPrivate{BuildDataTask[T](func(ctx context.Context) (T, error) {
+		baseOverloadedTaskPrivate: &baseOverloadedTaskPrivate{BuildDataTask[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				var empty T
@@ -96,8 +95,11 @@ func (d *DataWithResolved) DoneResolved() <-chan struct{} {
 	return d.resolvedChan
 }
 
-func (d *DataWithResolved) SetResolved() {
+func (d *DataWithResolved) SetResolved(resolvedFunc func()) {
 	if d.isResolved.CompareAndSwap(false, true) {
+		if resolvedFunc != nil {
+			resolvedFunc()
+		}
 		close(d.resolvedChan)
 	}
 }
@@ -105,29 +107,21 @@ func (d *DataWithResolved) SetResolved() {
 type DataIWithResolved[T any] struct {
 	Data T
 
-	isResolved   atomic.Bool
-	resolvedChan chan struct{}
+	*dataWithResolvedPrivate
 }
+
+var _ ResolvedData = (*DataIWithResolved[int])(nil)
 
 func NewDataIWithResolved[T any]() *DataIWithResolved[T] {
 	return &DataIWithResolved[T]{
-		resolvedChan: make(chan struct{}),
+		dataWithResolvedPrivate: NewDataWithResolved(),
 	}
-}
-
-func (d *DataIWithResolved[T]) IsResolved() bool {
-	return d.isResolved.Load()
-}
-
-func (d *DataIWithResolved[T]) DoneResolved() <-chan struct{} {
-	return d.resolvedChan
 }
 
 func (d *DataIWithResolved[T]) SetResolved(data T) {
-	if d.isResolved.CompareAndSwap(false, true) {
+	d.dataWithResolvedPrivate.SetResolved(func() {
 		d.Data = data
-		close(d.resolvedChan)
-	}
+	})
 }
 
 func InitDataFromContext(ctx context.Context, name string) (any, error) {
@@ -217,3 +211,5 @@ func contextWithInitData(ctx context.Context) context.Context {
 	}
 	return context.WithValue(ctx, initDataKey{}, &id)
 }
+
+type dataWithResolvedPrivate = DataWithResolved

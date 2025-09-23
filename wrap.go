@@ -59,9 +59,7 @@ var _ TaskWithWrapped = (*wrappedTask)(nil)
 
 func newWrappedTask(task Task, options ...WrapTaskOption) *wrappedTask {
 	ret := &wrappedTask{
-		baseWrappedTaskPrivate: &baseWrappedTaskPrivate{
-			Task: task,
-		},
+		baseWrappedTaskPrivate: NewBaseWrappedTask(task),
 	}
 	for _, option := range options {
 		option(ret)
@@ -74,24 +72,6 @@ func (t *wrappedTask) Run(ctx context.Context, step Step) error {
 		return t.handler(ctx, t.Task, step)
 	}
 	return t.Task.Run(ctx, step)
-}
-
-// func (t *wrappedTask) TaskOptions() []TaskInstanceOption {
-// 	if tt, ok := t.Task.(TaskWithOptions); ok {
-// 		return tt.TaskOptions()
-// 	}
-// 	return nil
-// }
-//
-// func (t *wrappedTask) TaskSteps() []Step {
-// 	if tt, ok := t.Task.(TaskSteps); ok {
-// 		return tt.TaskSteps()
-// 	}
-// 	return DefaultTaskSteps()
-// }
-
-func (t *wrappedTask) WrappedTask() Task {
-	return t.Task
 }
 
 func (t *wrappedTask) String() string {
