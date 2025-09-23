@@ -46,7 +46,7 @@ func TestCallback(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(newTestTask(1, BuildTask(
+			AddTask("s1", newTestTask(1, BuildTask(
 				WithStart(func(ctx context.Context) (err error) {
 					testruncb.add(1, "s1", StepStart, CallbackStepBefore, nil)
 					defer func() {
@@ -72,12 +72,11 @@ func TestCallback(t *testing.T) {
 					return nil
 				}),
 			)),
-				WithStage("s1"),
 				// WithCancelContext(),
 				WithStartStepManager(),
 				WithCallback(testtaskcb))
 
-		sinit.AddTask(newTestTask(2, BuildTask(
+		sinit.AddTask("s2", newTestTask(2, BuildTask(
 			WithStart(func(ctx context.Context) (err error) {
 				testruncb.add(2, "s2", StepStart, CallbackStepBefore, nil)
 				defer func() {
@@ -111,7 +110,6 @@ func TestCallback(t *testing.T) {
 				return nil
 			}),
 		)),
-			WithStage("s2"),
 			// WithCancelContext(),
 			WithStartStepManager(),
 			WithCallback(testtaskcb))

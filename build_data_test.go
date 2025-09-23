@@ -21,7 +21,7 @@ func TestBuildDataTask(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(BuildDataTask(func(ctx context.Context) (*data, error) {
+			AddTask(StageDefault, BuildDataTask(func(ctx context.Context) (*data, error) {
 				return &data{
 					value1: "test",
 					value2: 13,
