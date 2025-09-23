@@ -47,7 +47,6 @@ func taskDescription(task Task) string {
 // task options
 
 type taskOptions struct {
-	stage            string
 	cancelContext    bool
 	startStepManager bool
 	callbacks        []TaskCallback
