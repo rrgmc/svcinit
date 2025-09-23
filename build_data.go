@@ -162,6 +162,9 @@ func (t *taskBuildData[T]) String() string {
 	if t.description != "" {
 		return t.description
 	}
+	if t.parent != nil {
+		return taskDescription(t.parent)
+	}
 	return fmt.Sprintf("%T", t)
 }
 
