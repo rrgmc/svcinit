@@ -342,13 +342,17 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 			default:
 			}
 			if taskHasStep(step, tw.task) {
-				loggerTask.InfoContext(ctx, "running task step", logAttrs...)
+				if loggerTask.Enabled(ctx, slog.LevelInfo) {
+					loggerTask.InfoContext(ctx, "running task step", logAttrs...)
+				}
 				err := tw.run(taskCtx, stage, step, m.taskCallbacks)
-				if err != nil {
-					loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished with error",
-						slog2.ErrorKey, err)
-				} else {
-					loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished")
+				if loggerTask.Enabled(ctx, slog.LevelInfo) {
+					if err != nil {
+						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished with error",
+							slog2.ErrorKey, err)
+					} else {
+						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished")
+					}
 				}
 				onError(err)
 			}
