@@ -23,12 +23,6 @@ func WithDataDescription[T any](description string) TaskBuildDataOption[T] {
 	}
 }
 
-func withDataStep[T any](step Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
-		build.stepFunc[step] = f
-	}
-}
-
 func WithDataStart[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepStart, f)
 }
@@ -132,4 +126,10 @@ func (t *taskBuildData[T]) isEmpty() bool {
 
 func (t *taskBuildData[T]) init() {
 	t.steps = slices.Concat(t.steps, slices.Collect(maps.Keys(t.stepFunc)))
+}
+
+func withDataStep[T any](step Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
+	return func(build *taskBuildData[T]) {
+		build.stepFunc[step] = f
+	}
 }
