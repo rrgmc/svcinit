@@ -25,9 +25,7 @@ type TaskAndResolved struct {
 
 func NewTaskAndResolved(task Task) TaskWithResolved {
 	return &TaskAndResolved{
-		wrappedTask: &wrappedTask{
-			task: checkNilTask(task),
-		},
+		wrappedTask:      newWrappedTask(task),
 		DataWithResolved: NewDataWithResolved(),
 	}
 }
@@ -37,7 +35,7 @@ var _ TaskSteps = (*TaskAndResolved)(nil)
 var _ TaskWithOptions = (*TaskAndResolved)(nil)
 
 func (t *TaskAndResolved) Run(ctx context.Context, step Step) error {
-	err := t.task.Run(ctx, step)
+	err := t.Task.Run(ctx, step)
 	switch step {
 	case StepSetup:
 		if err != nil {
@@ -49,14 +47,14 @@ func (t *TaskAndResolved) Run(ctx context.Context, step Step) error {
 }
 
 type TaskWithResolvedData[T any] struct {
-	*wrappedTask
+	*baseWrappedTaskPrivate
 	*DataIWithResolved[T]
 }
 
 func NewTaskAndResolvedData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) *TaskWithResolvedData[T] {
 	dr := NewDataIWithResolved[T]()
 	return &TaskWithResolvedData[T]{
-		wrappedTask: &wrappedTask{task: BuildDataTask[T](func(ctx context.Context) (T, error) {
+		baseWrappedTaskPrivate: &baseWrappedTaskPrivate{BuildDataTask[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				var empty T
@@ -72,6 +70,10 @@ func NewTaskAndResolvedData[T any](setupFunc TaskBuildDataSetupFunc[T], options 
 var _ TaskWithResolved = (*TaskWithResolvedData[int])(nil)
 var _ TaskSteps = (*TaskWithResolvedData[int])(nil)
 var _ TaskWithOptions = (*TaskWithResolvedData[int])(nil)
+
+func (t *TaskWithResolvedData[T]) Run(ctx context.Context, step Step) error {
+	return t.Task.Run(ctx, step)
+}
 
 type DataWithResolved struct {
 	isResolved   atomic.Bool

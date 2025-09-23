@@ -13,13 +13,7 @@ type TaskWithWrapped interface {
 
 // WrapTask wraps a task in a TaskWithWrapped, allowing the handler to be customized.
 func WrapTask(task Task, options ...WrapTaskOption) TaskWithWrapped {
-	ret := &wrappedTask{
-		task: task,
-	}
-	for _, option := range options {
-		option(ret)
-	}
-	return ret
+	return newWrappedTask(task, options...)
 }
 
 type WrapTaskOption func(task *wrappedTask)
@@ -53,7 +47,7 @@ func UnwrapTask(task Task) Task {
 }
 
 type wrappedTask struct {
-	task        Task
+	*baseWrappedTaskPrivate
 	handler     TaskHandler
 	description string
 }
@@ -63,34 +57,46 @@ var _ TaskSteps = (*wrappedTask)(nil)
 var _ TaskWithOptions = (*wrappedTask)(nil)
 var _ TaskWithWrapped = (*wrappedTask)(nil)
 
+func newWrappedTask(task Task, options ...WrapTaskOption) *wrappedTask {
+	ret := &wrappedTask{
+		baseWrappedTaskPrivate: &baseWrappedTaskPrivate{
+			Task: task,
+		},
+	}
+	for _, option := range options {
+		option(ret)
+	}
+	return ret
+}
+
 func (t *wrappedTask) Run(ctx context.Context, step Step) error {
 	if t.handler != nil {
-		return t.handler(ctx, t.task, step)
+		return t.handler(ctx, t.Task, step)
 	}
-	return t.task.Run(ctx, step)
+	return t.Task.Run(ctx, step)
 }
 
-func (t *wrappedTask) TaskOptions() []TaskInstanceOption {
-	if tt, ok := t.task.(TaskWithOptions); ok {
-		return tt.TaskOptions()
-	}
-	return nil
-}
-
-func (t *wrappedTask) TaskSteps() []Step {
-	if tt, ok := t.task.(TaskSteps); ok {
-		return tt.TaskSteps()
-	}
-	return DefaultTaskSteps()
-}
+// func (t *wrappedTask) TaskOptions() []TaskInstanceOption {
+// 	if tt, ok := t.Task.(TaskWithOptions); ok {
+// 		return tt.TaskOptions()
+// 	}
+// 	return nil
+// }
+//
+// func (t *wrappedTask) TaskSteps() []Step {
+// 	if tt, ok := t.Task.(TaskSteps); ok {
+// 		return tt.TaskSteps()
+// 	}
+// 	return DefaultTaskSteps()
+// }
 
 func (t *wrappedTask) WrappedTask() Task {
-	return t.task
+	return t.Task
 }
 
 func (t *wrappedTask) String() string {
 	if t.description != "" {
 		return t.description
 	}
-	return fmt.Sprintf("wrappedTask(%v)", t.task)
+	return fmt.Sprintf("wrappedTask(%v)", t.Task)
 }
