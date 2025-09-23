@@ -4,6 +4,8 @@ import (
 	"context"
 )
 
+// BaseOverloadedTask wraps and task and forwards TaskOptions and TaskSteps.
+// It doesn't implement TaskWithWrapped.
 type BaseOverloadedTask struct {
 	Task Task
 }
@@ -25,6 +27,8 @@ func (t *BaseOverloadedTask) TaskSteps() []Step {
 	return DefaultTaskSteps()
 }
 
+// BaseWrappedTask wraps and task and forwards TaskOptions and TaskSteps.
+// It implements TaskWithWrapped.
 type BaseWrappedTask struct {
 	*BaseOverloadedTask
 }
