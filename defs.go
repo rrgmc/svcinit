@@ -18,7 +18,7 @@ var (
 	ErrAlreadyInitialized = errors.New("already initialized")
 	ErrNotInitialized     = errors.New("not initialized")
 	ErrDuplicateStep      = errors.New("duplicate step")
-	ErrInitData           = errors.New("init data error")
+	// ErrInitData           = errors.New("init data error")
 )
 
 const (
