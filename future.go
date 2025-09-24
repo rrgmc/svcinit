@@ -25,16 +25,16 @@ type FutureResolver[T any] interface {
 	ResolveError(err error)
 }
 
-type future[T any] struct {
-	l   latch
-	v   T
-	err error
-}
-
 var _ FutureResolver[int] = (*future[int])(nil)
 
 func NewFuture[T any]() FutureResolver[T] {
 	return &future[T]{}
+}
+
+type future[T any] struct {
+	l   latch
+	v   T
+	err error
 }
 
 func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
