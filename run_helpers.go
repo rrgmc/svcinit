@@ -3,6 +3,7 @@ package svcinit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"iter"
 	"slices"
 	"sync"
@@ -37,11 +38,13 @@ func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption)
 }
 
 func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
+	if !taskHasStep(step, t.task) {
+		return fatalError{fmt.Errorf("task '%s' not have step '%s'", taskDescription(t.task), step.String())}
+	}
 	err = t.checkStep(step)
 	if err != nil {
-		return err
+		return fatalError{err}
 	}
-
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
 	if t.options.handler != nil {
 		err = t.options.handler(ctx, t.task, step)
@@ -65,6 +68,8 @@ func (t *taskWrapper) checkStep(step Step) error {
 	err := checkTaskStepOrder(t.executeSteps, step)
 	if err == nil {
 		t.executeSteps = append(t.executeSteps, step)
+	} else {
+		err = fmt.Errorf("task '%s' error: %w", taskDescription(t.task), err)
 	}
 	return err
 }

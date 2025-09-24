@@ -46,6 +46,15 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	defer func() {
 		m.teardown(ctx, stopErrBuilder)
 		stopErr = stopErrBuilder.build()
+		var ferr fatalError
+		if errors.As(stopErr, &ferr) {
+			if cause == nil {
+				cause = ferr.err
+			} else {
+				cause = errors.Join(cause, ferr.err)
+			}
+		}
+		cause = unwrapInternalErrors(cause)
 		m.logger.InfoContext(ctx, "execution finished", "cause", cause)
 	}()
 

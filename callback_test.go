@@ -62,8 +62,8 @@ func TestCallback(t *testing.T) {
 					}()
 
 					ssm := StartStepManagerFromContext(ctx)
-					fmt.Printf("t1 stop ctx: (cancancel:%t)(canfinished:%t)\n",
-						ssm.CanContextCancel(), ssm.CanFinished())
+					// fmt.Printf("t1 stop ctx: (cancancel:%t)(canfinished:%t)\n",
+					// 	ssm.CanContextCancel(), ssm.CanFinished())
 					ssm.ContextCancel(errCancelTask1)
 					select {
 					case <-ctx.Done():
@@ -99,8 +99,8 @@ func TestCallback(t *testing.T) {
 				}()
 
 				ssm := StartStepManagerFromContext(ctx)
-				fmt.Printf("t2 stop ctx: (cancancel:%t)(canfinished:%t)\n",
-					ssm.CanContextCancel(), ssm.CanFinished())
+				// fmt.Printf("t2 stop ctx: (cancancel:%t)(canfinished:%t)\n",
+				// 	ssm.CanContextCancel(), ssm.CanFinished())
 				ssm.ContextCancel(errCancelTask2)
 				select {
 				case <-ctx.Done():

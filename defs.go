@@ -84,3 +84,28 @@ func newInvalidTaskStep(step Step) error {
 func newInitializationError(err error) error {
 	return fmt.Errorf("%w: %w", ErrInitialization, err)
 }
+
+// fatalError is an internal error signaling that a fatal error happened and must be reported in the Run cause.
+type fatalError struct {
+	err error
+}
+
+func (f fatalError) Error() string {
+	return f.err.Error()
+}
+
+// unwrapInternalErrors unwraps fatalError from the error, if any.
+func unwrapInternalErrors(err error) error {
+	for {
+		if err == nil {
+			break
+		}
+		var ferr fatalError
+		if errors.As(err, &ferr) {
+			err = ferr.err
+			continue
+		}
+		break
+	}
+	return err
+}
