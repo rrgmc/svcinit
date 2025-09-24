@@ -72,7 +72,7 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 			return
 		}
 	}
-	tw := m.newTaskWrapper(stage, task, options...)
+	tw := newTaskWrapper(stage, task, options...)
 	if !slices.Contains(m.stages, tw.stage) {
 		m.AddInitError(newInvalidStage(tw.stage))
 		return

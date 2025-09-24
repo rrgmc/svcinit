@@ -21,7 +21,7 @@ type taskWrapper struct {
 	finishCtx    context.Context
 }
 
-func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper {
+func newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper {
 	ret := &taskWrapper{
 		stage: stage,
 		task:  task,
@@ -39,7 +39,8 @@ func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption)
 
 func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
 	if !taskHasStep(step, t.task) {
-		return fatalError{fmt.Errorf("task '%s' not have step '%s'", taskDescription(t.task), step.String())}
+		return fatalError{fmt.Errorf("%w: task '%s' don't have step '%s'",
+			ErrInvalidTaskStep, taskDescription(t.task), step.String())}
 	}
 	err = t.checkStep(step)
 	if err != nil {

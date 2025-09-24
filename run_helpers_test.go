@@ -1,54 +1,68 @@
 package svcinit
 
 import (
-	"cmp"
 	"context"
 	"testing"
 	"testing/synctest"
 	"time"
 
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 )
 
-func TestTaskWrapper_executeOrder(t *testing.T) {
+func TestTaskWrapper_invalidStep(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		items := &testList[string]{}
+		ctx := t.Context()
 
-		sinit, err := New()
-		assert.NilError(t, err)
-
-		sinit.AddTask(StageDefault, BuildTask(
+		testTask := BuildTask(
 			WithSetup(func(ctx context.Context) error {
-				items.add("setup")
 				return nil
 			}),
 			WithStart(func(ctx context.Context) error {
-				items.add("start")
-				select {
-				case <-ctx.Done():
-					return nil
-				case <-time.After(time.Second):
-					return nil
-				}
+				return sleepContext(ctx, time.Second)
+			}),
+			WithStop(func(ctx context.Context) error {
+				return nil
+			}),
+		)
+
+		tw := newTaskWrapper(StageDefault, testTask)
+
+		err := tw.run(ctx, StageDefault, StepPreStop, nil)
+		assert.ErrorIs(t, err, ErrInvalidTaskStep)
+	})
+}
+
+func TestTaskWrapper_executeOrder(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx := t.Context()
+
+		testTask := BuildTask(
+			WithSetup(func(ctx context.Context) error {
+				return nil
+			}),
+			WithStart(func(ctx context.Context) error {
+				return sleepContext(ctx, time.Second)
 			}),
 			WithPreStop(func(ctx context.Context) error {
-				items.add("pre-stop")
 				return nil
 			}),
 			WithStop(func(ctx context.Context) error {
-				items.add("stop")
 				return nil
 			}),
-		), WithCallback(
-			TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
+		)
 
-			}),
-		))
+		tw := newTaskWrapper(StageDefault, testTask)
 
-		err = sinit.Run(t.Context())
+		err := tw.run(ctx, StageDefault, StepSetup, nil)
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"setup", "start", "stop", "pre-stop"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+		err = tw.run(ctx, StageDefault, StepStart, nil)
+		assert.NilError(t, err)
+
+		err = tw.run(ctx, StageDefault, StepStop, nil)
+		assert.NilError(t, err)
+
+		err = tw.run(ctx, StageDefault, StepPreStop, nil)
+		assert.ErrorIs(t, err, ErrInvalidStepOrder)
 	})
 }

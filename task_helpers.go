@@ -58,8 +58,8 @@ func checkTaskStepOrder(steps []Step, currentStep Step) error {
 		}
 	}
 	if lastStepIdx == -1 || currentStepIdx == -1 {
-		return fmt.Errorf("%w: unknown step(s), cannot check task execute order (%d -- %d)", ErrInvalidStepOrder,
-			lastStepIdx, currentStepIdx)
+		return fmt.Errorf("%w: internal error: unknown step(s), cannot check task execute order (%v)(%v)", ErrInvalidStepOrder,
+			steps, currentStep)
 	}
 	if currentStepIdx <= lastStepIdx {
 		return fmt.Errorf("%w: cannot execute step '%s' after '%s'", ErrInvalidStepOrder,

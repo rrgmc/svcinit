@@ -94,6 +94,10 @@ func (f fatalError) Error() string {
 	return f.err.Error()
 }
 
+func (f fatalError) Unwrap() error {
+	return f.err
+}
+
 // unwrapInternalErrors unwraps fatalError from the error, if any.
 func unwrapInternalErrors(err error) error {
 	for {
