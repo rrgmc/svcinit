@@ -6,10 +6,10 @@ import (
 )
 
 type taskBuildData[T any] struct {
+	tb              *taskBuild
 	data            *T
 	setupFunc       TaskBuildDataSetupFunc[T]
 	stepFunc        map[Step]TaskBuildDataFunc[T]
-	tb              *taskBuild
 	parentFromSetup bool
 	tbOptions       []TaskBuildOption
 }
