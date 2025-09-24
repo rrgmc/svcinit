@@ -43,7 +43,7 @@ func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
 		option(&optns)
 	}
 
-	if optns.noWait {
+	if !optns.wait {
 		select {
 		case <-f.l.Done():
 			return f.v, f.err
@@ -91,15 +91,15 @@ func WithFutureCtx(ctx context.Context) FutureValueOption {
 	}
 }
 
-func WithFutureNoWait() FutureValueOption {
+func WithFutureWait() FutureValueOption {
 	return func(o *futureValueOptions) {
-		o.noWait = true
+		o.wait = true
 	}
 }
 
 type futureValueOptions struct {
-	ctx    context.Context
-	noWait bool
+	ctx  context.Context
+	wait bool
 }
 
 // closedchan is a reusable closed channel.

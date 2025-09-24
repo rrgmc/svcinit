@@ -441,11 +441,11 @@ func TestManagerInitData(t *testing.T) {
 			AddTask("service", BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("sstart")
-					initdata1, err := initTask1.Value(WithFutureNoWait())
+					initdata1, err := initTask1.Value()
 					if !assert.Check(t, cmp2.Equal(nil, err)) {
 						return err
 					}
-					initdata2, err := initTask2.Value(WithFutureNoWait())
+					initdata2, err := initTask2.Value()
 					if !assert.Check(t, cmp2.Equal(nil, err)) {
 						return err
 					}

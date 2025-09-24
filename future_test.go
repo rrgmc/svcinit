@@ -26,7 +26,7 @@ func TestFuture_alreadyResolved(t *testing.T) {
 func TestFuture_notResolved(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		fut := NewFuture[string]()
-		_, err := fut.Value(WithFutureNoWait())
+		_, err := fut.Value()
 		assert.ErrorIs(t, err, ErrNotResolved)
 	})
 }
@@ -48,7 +48,7 @@ func TestFuture_Value(t *testing.T) {
 					fut.Resolve(tt.v)
 				}
 
-				v, err := fut.Value()
+				v, err := fut.Value(WithFutureWait())
 				assert.Equal(t, tt.err, err)
 				assert.Equal(t, tt.v, v)
 			})
@@ -73,7 +73,7 @@ func TestFuture_ValueCtx(t *testing.T) {
 					fut.Resolve(tt.v)
 				}
 
-				v, err := fut.Value(WithFutureCtx(context.Background()))
+				v, err := fut.Value(WithFutureWait(), WithFutureCtx(context.Background()))
 				assert.Equal(t, tt.err, err)
 				assert.Equal(t, tt.v, v)
 			})
@@ -90,7 +90,7 @@ func TestFuture_ValueCtx(t *testing.T) {
 				cancel()
 
 				fut := NewFuture[string]()
-				_, err := fut.Value(WithFutureCtx(ctx))
+				_, err := fut.Value(WithFutureWait(), WithFutureCtx(ctx))
 				assert.ErrorIs(t, err, context.Canceled)
 
 				done <- true
