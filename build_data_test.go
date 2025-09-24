@@ -30,12 +30,7 @@ func TestBuildDataTask(t *testing.T) {
 				WithDataStart(func(ctx context.Context, data *data) error {
 					assert.Check(t, cmp.Equal("test", data.value1))
 					assert.Check(t, cmp.Equal(13, data.value2))
-					select {
-					case <-time.After(1 * time.Second):
-						return nil
-					case <-ctx.Done():
-					}
-					return nil
+					return sleepContext(ctx, time.Second)
 				}),
 				WithDataStop(func(ctx context.Context, data *data) error {
 					assert.Check(t, cmp.Equal("test", data.value1))
