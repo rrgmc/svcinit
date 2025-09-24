@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"gotest.tools/v3/assert"
@@ -22,6 +23,14 @@ func TestFuture_alreadyResolved(t *testing.T) {
 	fut.Resolve("Hello World!")
 }
 
+func TestFuture_notResolved(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		fut := NewFuture[string]()
+		_, err := fut.Value(WithFutureNoWait())
+		assert.ErrorIs(t, err, ErrNotResolved)
+	})
+}
+
 func TestFuture_Value(t *testing.T) {
 	for name, tt := range map[string]struct {
 		v   string
@@ -31,16 +40,18 @@ func TestFuture_Value(t *testing.T) {
 		"with error": {"", errors.New("error")},
 	} {
 		t.Run(name, func(t *testing.T) {
-			fut := NewFuture[string]()
-			if tt.err != nil {
-				fut.ResolveError(tt.err)
-			} else {
-				fut.Resolve(tt.v)
-			}
+			synctest.Test(t, func(t *testing.T) {
+				fut := NewFuture[string]()
+				if tt.err != nil {
+					fut.ResolveError(tt.err)
+				} else {
+					fut.Resolve(tt.v)
+				}
 
-			v, err := fut.Value()
-			assert.Equal(t, tt.err, err)
-			assert.Equal(t, tt.v, v)
+				v, err := fut.Value()
+				assert.Equal(t, tt.err, err)
+				assert.Equal(t, tt.v, v)
+			})
 		})
 	}
 }
@@ -54,39 +65,43 @@ func TestFuture_ValueCtx(t *testing.T) {
 		"with error": {"", errors.New("error")},
 	} {
 		t.Run(name, func(t *testing.T) {
-			fut := NewFuture[string]()
-			if tt.err != nil {
-				fut.ResolveError(tt.err)
-			} else {
-				fut.Resolve(tt.v)
-			}
+			synctest.Test(t, func(t *testing.T) {
+				fut := NewFuture[string]()
+				if tt.err != nil {
+					fut.ResolveError(tt.err)
+				} else {
+					fut.Resolve(tt.v)
+				}
 
-			v, err := fut.Value(WithFutureCtx(context.Background()))
-			assert.Equal(t, tt.err, err)
-			assert.Equal(t, tt.v, v)
+				v, err := fut.Value(WithFutureCtx(context.Background()))
+				assert.Equal(t, tt.err, err)
+				assert.Equal(t, tt.v, v)
+			})
 		})
 	}
 
 	t.Run("with canceled context", func(t *testing.T) {
-		timeout := time.After(time.Second)
-		done := make(chan bool)
+		synctest.Test(t, func(t *testing.T) {
+			timeout := time.After(time.Second)
+			done := make(chan bool)
 
-		go func() {
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
+			go func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
 
-			fut := NewFuture[string]()
-			_, err := fut.Value(WithFutureCtx(ctx))
-			assert.ErrorIs(t, err, context.Canceled)
+				fut := NewFuture[string]()
+				_, err := fut.Value(WithFutureCtx(ctx))
+				assert.ErrorIs(t, err, context.Canceled)
 
-			done <- true
-		}()
+				done <- true
+			}()
 
-		select {
-		case <-timeout:
-			t.Fatal("ValueCtx() future should not have blocked")
-		case <-done:
-		}
+			select {
+			case <-timeout:
+				t.Fatal("ValueCtx() future should not have blocked")
+			case <-done:
+			}
+		})
 	})
 }
 
