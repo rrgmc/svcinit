@@ -4,62 +4,47 @@ import (
 	"context"
 )
 
-type ResolvedData interface {
-	IsResolved() bool
-	DoneResolved() <-chan struct{}
-}
-
-type TaskWithResolved interface {
+// TaskFuture is a Task with data where the return of the setup step will resolve the Future.
+type TaskFuture[T any] interface {
 	Task
-	ResolvedData
+	Future[T]
 }
 
-type ResolvedDataTask[T any] struct {
-	*baseOverloadedTaskPrivate
-	*ResolvedDataType[T]
-}
-
-func NewResolvedDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) *ResolvedDataTask[T] {
-	dr := NewResolvedDataType[T]()
-	return &ResolvedDataTask[T]{
+func NewTaskFuture[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) TaskFuture[T] {
+	dr := NewFuture[T]()
+	return &taskFuture[T]{
 		baseOverloadedTaskPrivate: &baseOverloadedTaskPrivate{BuildDataTask[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
+				dr.ResolveError(err)
 				var empty T
 				return empty, err
 			}
-			dr.SetResolved(data)
+			dr.Resolve(data)
 			return data, nil
 		}, options...)},
-		ResolvedDataType: dr,
+		future: dr,
 	}
 }
 
-var _ TaskWithResolved = (*ResolvedDataTask[int])(nil)
-var _ TaskSteps = (*ResolvedDataTask[int])(nil)
-var _ TaskWithOptions = (*ResolvedDataTask[int])(nil)
+type taskFuture[T any] struct {
+	*baseOverloadedTaskPrivate
+	future FutureResolver[T]
+}
 
-func (t *ResolvedDataTask[T]) Run(ctx context.Context, step Step) error {
+var _ Future[int] = (*taskFuture[int])(nil)
+var _ Task = (*taskFuture[int])(nil)
+var _ TaskSteps = (*taskFuture[int])(nil)
+var _ TaskWithOptions = (*taskFuture[int])(nil)
+
+func (t *taskFuture[T]) Run(ctx context.Context, step Step) error {
 	return t.Task.Run(ctx, step)
 }
 
-type ResolvedDataType[T any] struct {
-	Data T
-
-	*baseResolvedDataPrivate
+func (t *taskFuture[T]) Value(options ...FutureValueOption) (T, error) {
+	return t.future.Value(options...)
 }
 
-var _ ResolvedData = (*ResolvedDataType[int])(nil)
-
-func NewResolvedDataType[T any]() *ResolvedDataType[T] {
-	return &ResolvedDataType[T]{
-		baseResolvedDataPrivate: NewBasedResolvedData(),
-	}
-}
-
-func (d *ResolvedDataType[T]) SetResolved(data T) {
-	d.baseResolvedDataPrivate.SetResolved(
-		WithResolvedFunc(func() {
-			d.Data = data
-		}))
+func (t *taskFuture[T]) Done() <-chan struct{} {
+	return t.future.Done()
 }

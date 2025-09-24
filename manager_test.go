@@ -413,7 +413,7 @@ func TestManagerInitData(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		initTask1 := NewResolvedDataTask[*idata1](
+		initTask1 := NewTaskFuture[*idata1](
 			func(ctx context.Context) (*idata1, error) {
 				items.add("i1setup")
 				ivalue := idata1{
@@ -425,7 +425,7 @@ func TestManagerInitData(t *testing.T) {
 		)
 		sinit.AddTask("init", initTask1)
 
-		initTask2 := NewResolvedDataTask[*idata2](
+		initTask2 := NewTaskFuture[*idata2](
 			func(ctx context.Context) (*idata2, error) {
 				items.add("i2setup")
 				ivalue := idata2{
@@ -441,17 +441,19 @@ func TestManagerInitData(t *testing.T) {
 			AddTask("service", BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("sstart")
-					if !initTask1.IsResolved() {
-						return errors.New("init task 1 not resolved")
+					initdata1, err := initTask1.Value(WithFutureNoWait())
+					if !assert.Check(t, cmp2.Equal(nil, err)) {
+						return err
 					}
-					if !initTask2.IsResolved() {
-						return errors.New("init task 2 not resolved")
+					initdata2, err := initTask2.Value(WithFutureNoWait())
+					if !assert.Check(t, cmp2.Equal(nil, err)) {
+						return err
 					}
 
-					assert.Check(t, cmp2.Equal(initTask1.Data.value1, "test33"))
-					assert.Check(t, cmp2.Equal(initTask1.Data.value2, 33))
-					assert.Check(t, cmp2.Equal(initTask2.Data.value3, 88))
-					assert.Check(t, cmp2.Equal(initTask2.Data.value4, "test88"))
+					assert.Check(t, cmp2.Equal(initdata1.value1, "test33"))
+					assert.Check(t, cmp2.Equal(initdata1.value2, 33))
+					assert.Check(t, cmp2.Equal(initdata2.value3, 88))
+					assert.Check(t, cmp2.Equal(initdata2.value4, "test88"))
 
 					select {
 					case <-time.After(1 * time.Second):
