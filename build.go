@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -74,7 +75,7 @@ var _ TaskSteps = (*taskBuild)(nil)
 var _ TaskWithOptions = (*taskBuild)(nil)
 var _ TaskWithInitError = (*taskBuild)(nil)
 
-func newTaskBuild(options ...TaskBuildOption) Task {
+func newTaskBuild(options ...TaskBuildOption) *taskBuild {
 	ret := &taskBuild{
 		stepFunc: make(map[Step]TaskBuildFunc),
 	}
@@ -86,7 +87,7 @@ func newTaskBuild(options ...TaskBuildOption) Task {
 		ret.initError = err
 	}
 	if ret.isEmpty() {
-		return nil
+		ret.initError = errors.Join(ret.initError, ErrNilTask)
 	}
 	return ret
 }
@@ -141,6 +142,11 @@ func (t *taskBuild) isEmpty() bool {
 		}
 	}
 	return false
+}
+
+func (t *taskBuild) setParent(parent Task) error {
+	t.parent = parent
+	return t.init()
 }
 
 func (t *taskBuild) init() error {

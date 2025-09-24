@@ -3,21 +3,15 @@ package svcinit
 import (
 	"context"
 	"fmt"
-	"maps"
-	"slices"
-	"strings"
 )
 
 type taskBuildData[T any] struct {
 	data            *T
 	setupFunc       TaskBuildDataSetupFunc[T]
 	stepFunc        map[Step]TaskBuildDataFunc[T]
-	parent          Task
+	tb              *taskBuild
 	parentFromSetup bool
-	steps           []Step
-	options         []TaskInstanceOption
-	initError       error
-	description     string
+	tbOptions       []TaskBuildOption
 }
 
 var _ Task = (*taskBuildData[int])(nil)
@@ -29,108 +23,78 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 	ret := &taskBuildData[T]{
 		setupFunc: setupFunc,
 		stepFunc:  make(map[Step]TaskBuildDataFunc[T]),
-		steps:     []Step{StepSetup},
 	}
 	for _, opt := range options {
 		opt(ret)
 	}
-	err := ret.init()
-	if err != nil {
-		ret.initError = err
+
+	ret.tbOptions = append(ret.tbOptions,
+		WithSetup(func(ctx context.Context) error {
+			return ret.runSetup(ctx)
+		}),
+	)
+	for step, stepFn := range ret.stepFunc {
+		ret.tbOptions = append(ret.tbOptions,
+			WithStep(step, func(ctx context.Context) error {
+				if ret.data == nil {
+					return ErrNotInitialized
+				}
+				return stepFn(ctx, *ret.data)
+			}))
 	}
+
+	ret.tb = newTaskBuild(ret.tbOptions...)
+
 	return ret
 }
 
 func (t *taskBuildData[T]) TaskSteps() []Step {
-	return t.steps
+	return t.tb.TaskSteps()
 }
 
 func (t *taskBuildData[T]) TaskOptions() []TaskInstanceOption {
-	return t.options
+	return t.tb.TaskOptions()
 }
 
 func (t *taskBuildData[T]) TaskInitError() error {
-	return t.initError
+	return t.tb.TaskInitError()
+}
+
+func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
+	if t.data != nil {
+		return ErrAlreadyInitialized
+	}
+	data, err := t.setupFunc(ctx)
+	if err != nil {
+		return err
+	}
+	t.data = &data
+	if t.parentFromSetup {
+		if tt, ok := any(data).(Task); ok {
+			err := t.tb.setParent(tt)
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("%w: setup does not implement Task", ErrInitialization)
+		}
+	}
+	return nil
+}
+
+func (t *taskBuildData[T]) runStep(ctx context.Context, step Step) error {
+	if fn, ok := t.stepFunc[step]; ok {
+		return fn(ctx, *t.data)
+	}
+	return newInvalidTaskStep(step)
 }
 
 func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
-	var parentHasStep bool
-	if t.parent != nil {
-		parentHasStep = taskHasStep(t.parent, step)
-	}
-
-	switch step {
-	case StepSetup:
-		if t.data != nil {
-			return ErrAlreadyInitialized
-		}
-		if parentHasStep {
-			return fmt.Errorf("%w: build data task parent already has 'setup' step", ErrDuplicateStep)
-		}
-		data, err := t.setupFunc(ctx)
-		if err != nil {
-			return err
-		}
-		t.data = &data
-		if t.parentFromSetup {
-			if tt, ok := any(data).(Task); ok {
-				t.parent = tt
-				return t.init()
-			} else {
-				return fmt.Errorf("%w: setup does not implement Task", ErrInitialization)
-			}
-		}
-		return nil
-	default:
-		if t.data == nil {
-			return ErrNotInitialized
-		}
-		if fn, ok := t.stepFunc[step]; ok {
-			if parentHasStep {
-				return fmt.Errorf("%w: build data task parent already has '%s' step", ErrDuplicateStep, step.String())
-			}
-			return fn(ctx, *t.data)
-		}
-		if parentHasStep {
-			return t.parent.Run(ctx, step)
-		}
-		return newInvalidTaskStep(step)
-	}
+	return t.tb.Run(ctx, step)
 }
 
 func (t *taskBuildData[T]) String() string {
-	if t.description != "" {
-		return t.description
-	}
-	if t.parent != nil {
-		return taskDescription(t.parent)
-	}
-	return fmt.Sprintf("%T", t)
-}
-
-func (t *taskBuildData[T]) init() error {
-	var duplicatedSteps []Step
-
-	t.steps = slices.Concat([]Step{StepSetup}, slices.Collect(maps.Keys(t.stepFunc)))
-
-	if t.parent != nil {
-		for _, step := range taskSteps(t.parent) {
-			if !slices.Contains(t.steps, step) {
-				t.steps = append(t.steps, step)
-			} else {
-				duplicatedSteps = append(duplicatedSteps, step)
-			}
-		}
-	}
-
-	if len(duplicatedSteps) > 0 {
-		return fmt.Errorf("%w: build data task parent already has '%s' step(s)", ErrDuplicateStep,
-			strings.Join(sliceMap(duplicatedSteps, func(i int, e Step) string {
-				return e.String()
-			}), ","))
-	}
-
-	return nil
+	return t.tb.String()
 }
 
 func withDataStep[T any](step Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {

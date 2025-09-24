@@ -16,7 +16,7 @@ type TaskBuildDataOption[T any] func(*taskBuildData[T])
 
 func WithDataDescription[T any](description string) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
-		build.description = description
+		build.tbOptions = append(build.tbOptions, WithDescription(description))
 	}
 }
 
@@ -38,7 +38,7 @@ func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 
 func WithDataParent[T any](parent Task) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
-		build.parent = parent
+		build.tbOptions = append(build.tbOptions, WithParent(parent))
 	}
 }
 
@@ -50,6 +50,6 @@ func WithDataParentFromSetup[T any](parentFromSetup bool) TaskBuildDataOption[T]
 
 func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
-		build.options = append(build.options, options...)
+		build.tbOptions = append(build.tbOptions, WithTaskOptions(options...))
 	}
 }
