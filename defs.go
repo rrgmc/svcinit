@@ -113,3 +113,7 @@ func unwrapInternalErrors(err error) error {
 	}
 	return err
 }
+
+const (
+	invalidStep Step = -1
+)

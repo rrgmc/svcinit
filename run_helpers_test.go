@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -60,9 +61,9 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 		assert.NilError(t, err)
 
 		err = tw.run(ctx, StageDefault, StepStop, nil)
-		assert.NilError(t, err)
+		assert.Check(t, errors.Is(err, ErrInvalidStepOrder))
 
 		err = tw.run(ctx, StageDefault, StepPreStop, nil)
-		assert.ErrorIs(t, err, ErrInvalidStepOrder)
+		assert.NilError(t, err)
 	})
 }

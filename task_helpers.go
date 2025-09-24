@@ -3,6 +3,7 @@ package svcinit
 import (
 	"context"
 	"fmt"
+	"iter"
 	"slices"
 )
 
@@ -33,37 +34,56 @@ func taskSteps(task Task) []Step {
 	return allSteps
 }
 
+func taskOrderedSteps(steps []Step) iter.Seq[Step] {
+	return func(yield func(Step) bool) {
+		if len(steps) == 0 {
+			return
+		}
+		for _, step := range allSteps {
+			if slices.Contains(steps, step) {
+				if !yield(step) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func taskHasStep(task Task, step Step) bool {
 	return slices.Contains(taskSteps(task), step)
 }
 
-func checkTaskStepOrder(steps []Step, currentStep Step) error {
-	if len(steps) == 0 {
-		return nil
-	}
-	lastStepIdx := -1
-	var lastStep Step
-	currentStepIdx := -1
-	for stepI, step := range allSteps {
-		hasStep := slices.Contains(steps, step)
-		if hasStep && stepI > lastStepIdx {
-			lastStepIdx = stepI
-			lastStep = step
-		}
-		if currentStep == step {
-			if hasStep {
-				return fmt.Errorf("%w: step '%s' already executed", ErrInvalidStepOrder, currentStep.String())
+func taskNextStep(task Task, doneSteps []Step) (Step, error) {
+	return nextStep(taskSteps(task), doneSteps)
+}
+
+func nextStep(taskSteps []Step, doneSteps []Step) (Step, error) {
+	nextStep := invalidStep
+	for step := range taskOrderedSteps(taskSteps) {
+		if nextStep == invalidStep {
+			if !slices.Contains(doneSteps, step) {
+				nextStep = step
 			}
-			currentStepIdx = stepI
+		} else if slices.Contains(doneSteps, step) {
+			return nextStep, fmt.Errorf("%w: task next step should be '%s' but following step '%s' already done",
+				ErrInvalidStepOrder, nextStep.String(), step.String())
 		}
 	}
-	if lastStepIdx == -1 || currentStepIdx == -1 {
-		return fmt.Errorf("%w: internal error: unknown step(s), cannot check task execute order (%v)(%v)", ErrInvalidStepOrder,
-			steps, currentStep)
+	return nextStep, nil
+}
+
+func checkTaskStepOrder(task Task, doneSteps []Step, currentStep Step) error {
+	next, err := taskNextStep(task, doneSteps)
+	if err != nil {
+		return err
 	}
-	if currentStepIdx <= lastStepIdx {
-		return fmt.Errorf("%w: cannot execute step '%s' after '%s'", ErrInvalidStepOrder,
-			currentStep.String(), lastStep.String())
+	if next != currentStep && currentStep != StepTeardown {
+		if next == invalidStep {
+			return fmt.Errorf("%w: task has no next step but trying to run '%s'",
+				ErrInvalidStepOrder, currentStep)
+		}
+		return fmt.Errorf("%w: task next step should be '%s' but trying to run '%s'",
+			ErrInvalidStepOrder, next, currentStep)
 	}
 	return nil
 }

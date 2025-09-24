@@ -66,7 +66,7 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 func (t *taskWrapper) checkStep(step Step) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	err := checkTaskStepOrder(t.executeSteps, step)
+	err := checkTaskStepOrder(t.task, t.executeSteps, step)
 	if err == nil {
 		t.executeSteps = append(t.executeSteps, step)
 	} else {
