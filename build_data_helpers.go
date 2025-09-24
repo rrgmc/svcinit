@@ -56,7 +56,7 @@ func (t *taskBuildData[T]) TaskInitError() error {
 func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
 	var parentHasStep bool
 	if t.parent != nil {
-		parentHasStep = taskHasStep(step, t.parent)
+		parentHasStep = taskHasStep(t.parent, step)
 	}
 
 	switch step {

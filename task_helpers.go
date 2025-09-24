@@ -33,7 +33,7 @@ func taskSteps(task Task) []Step {
 	return allSteps
 }
 
-func taskHasStep(step Step, task Task) bool {
+func taskHasStep(task Task, step Step) bool {
 	return slices.Contains(taskSteps(task), step)
 }
 

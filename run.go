@@ -349,7 +349,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 				}
 			default:
 			}
-			if taskHasStep(step, tw.task) {
+			if taskHasStep(tw.task, step) {
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					loggerTask.InfoContext(ctx, "running task step", logAttrs...)
 				}

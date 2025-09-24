@@ -38,7 +38,7 @@ func newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper
 }
 
 func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
-	if !taskHasStep(step, t.task) {
+	if !taskHasStep(t.task, step) {
 		return fatalError{fmt.Errorf("%w: task '%s' don't have step '%s'",
 			ErrInvalidTaskStep, taskDescription(t.task), step.String())}
 	}
@@ -76,7 +76,7 @@ func (t *taskWrapper) checkStep(step Step) error {
 }
 
 func (t *taskWrapper) hasStep(step Step) bool {
-	if taskHasStep(step, t.task) {
+	if taskHasStep(t.task, step) {
 		return true
 	}
 	if step == StepStop {
