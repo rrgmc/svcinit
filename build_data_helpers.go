@@ -88,7 +88,7 @@ func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
 				return err
 			}
 		} else {
-			return fmt.Errorf("%w: setup does not implement Task", ErrInitialization)
+			return fmt.Errorf("%w: data returned from setup doesn't implement Task to be set as parent", ErrInitialization)
 		}
 	}
 	return nil
