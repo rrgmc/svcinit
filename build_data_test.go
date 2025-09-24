@@ -12,6 +12,39 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+func TestBuildDataTaskEmpty(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		sinit, err := New()
+		assert.NilError(t, err)
+
+		sinit.AddTask(StageDefault, BuildDataTask[int](nil))
+
+		sinit.AddTask(StageDefault, TimeoutTask(time.Second))
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, ErrNilTask)
+	})
+}
+
+func TestBuildDataTaskEmptyNil(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		sinit, err := New()
+		assert.NilError(t, err)
+
+		sinit.AddTask(StageDefault, BuildDataTask[int](
+			func(ctx context.Context) (int, error) {
+				return 1, nil
+			},
+			WithDataStart[int](nil),
+		))
+
+		sinit.AddTask(StageDefault, TimeoutTask(time.Second))
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, ErrNilTask)
+	})
+}
+
 func TestBuildDataTask(t *testing.T) {
 	type data struct {
 		value1 string

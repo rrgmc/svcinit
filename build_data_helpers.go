@@ -28,19 +28,31 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 		opt(ret)
 	}
 
-	ret.tbOptions = append(ret.tbOptions,
-		WithSetup(func(ctx context.Context) error {
-			return ret.runSetup(ctx)
-		}),
-	)
-	for step, stepFn := range ret.stepFunc {
+	if ret.setupFunc != nil {
 		ret.tbOptions = append(ret.tbOptions,
-			WithStep(step, func(ctx context.Context) error {
-				if ret.data == nil {
-					return ErrNotInitialized
-				}
-				return stepFn(ctx, *ret.data)
-			}))
+			WithSetup(func(ctx context.Context) error {
+				return ret.runSetup(ctx)
+			}),
+		)
+	} else {
+		ret.tbOptions = append(ret.tbOptions,
+			WithSetup(nil),
+		)
+	}
+
+	for step, stepFn := range ret.stepFunc {
+		if stepFn != nil {
+			ret.tbOptions = append(ret.tbOptions,
+				WithStep(step, func(ctx context.Context) error {
+					if ret.data == nil {
+						return ErrNotInitialized
+					}
+					return stepFn(ctx, *ret.data)
+				}))
+		} else {
+			ret.tbOptions = append(ret.tbOptions,
+				WithStep(step, nil))
+		}
 	}
 
 	ret.tb = newTaskBuild(ret.tbOptions...)
