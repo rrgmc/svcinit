@@ -468,6 +468,7 @@ func TestManagerInitData(t *testing.T) {
 
 		err = sinit.Run(t.Context())
 		assert.NilError(t, err)
+
 		assert.DeepEqual(t, []string{"i1setup", "i2setup", "sstart"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
