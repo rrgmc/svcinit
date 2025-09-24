@@ -13,6 +13,7 @@ var (
 	ErrNotResolved     = errors.New("not resolved")
 )
 
+// Future is a proxy for a result that is initially unknown.
 type Future[T any] interface {
 	Value(options ...FutureValueOption) (T, error)
 	Done() <-chan struct{}
@@ -24,19 +25,19 @@ type FutureResolver[T any] interface {
 	ResolveError(err error)
 }
 
-type DefaultFuture[T any] struct {
+type future[T any] struct {
 	l   latch
 	v   T
 	err error
 }
 
-var _ FutureResolver[int] = (*DefaultFuture[int])(nil)
+var _ FutureResolver[int] = (*future[int])(nil)
 
-func NewFuture[T any]() *DefaultFuture[T] {
-	return &DefaultFuture[T]{}
+func NewFuture[T any]() FutureResolver[T] {
+	return &future[T]{}
 }
 
-func (f *DefaultFuture[T]) Value(options ...FutureValueOption) (T, error) {
+func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
 	var optns futureValueOptions
 	for _, option := range options {
 		option(&optns)
@@ -66,17 +67,17 @@ func (f *DefaultFuture[T]) Value(options ...FutureValueOption) (T, error) {
 	}
 }
 
-func (f *DefaultFuture[T]) Done() <-chan struct{} {
+func (f *future[T]) Done() <-chan struct{} {
 	return f.l.Done()
 }
 
-func (f *DefaultFuture[T]) Resolve(value T) {
+func (f *future[T]) Resolve(value T) {
 	f.l.resolve(func() {
 		f.v = value
 	})
 }
 
-func (f *DefaultFuture[T]) ResolveError(err error) {
+func (f *future[T]) ResolveError(err error) {
 	f.l.resolve(func() {
 		f.err = err
 	})
