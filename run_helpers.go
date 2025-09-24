@@ -14,9 +14,10 @@ type taskWrapper struct {
 	task    Task
 	options taskOptions
 
-	mu          sync.Mutex
-	startCancel context.CancelCauseFunc
-	finishCtx   context.Context
+	mu           sync.Mutex
+	executeSteps []Step
+	startCancel  context.CancelCauseFunc
+	finishCtx    context.Context
 }
 
 func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper {
@@ -36,6 +37,11 @@ func (m *Manager) newTaskWrapper(stage string, task Task, options ...TaskOption)
 }
 
 func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
+	err = t.checkStep(step)
+	if err != nil {
+		return err
+	}
+
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
 	if t.options.handler != nil {
 		err = t.options.handler(ctx, t.task, step)
@@ -51,6 +57,16 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 	for _, callback := range slices.Concat(callbacks, t.options.callbacks) {
 		callback.Callback(ctx, t.task, stage, step, callbackStep, err)
 	}
+}
+
+func (t *taskWrapper) checkStep(step Step) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	err := checkTaskStepOrder(t.executeSteps, step)
+	if err == nil {
+		t.executeSteps = append(t.executeSteps, step)
+	}
+	return err
 }
 
 func (t *taskWrapper) hasStep(step Step) bool {

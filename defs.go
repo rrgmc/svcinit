@@ -9,6 +9,7 @@ var (
 	ErrExit               = errors.New("normal exit")
 	ErrInvalidStage       = errors.New("invalid stage")
 	ErrInvalidTaskStep    = errors.New("invalid step for task")
+	ErrInvalidStepOrder   = errors.New("invalid step order")
 	ErrAlreadyRunning     = errors.New("already running")
 	ErrInitialization     = errors.New("initialization error")
 	ErrNoStartTask        = errors.New("no start tasks available")
