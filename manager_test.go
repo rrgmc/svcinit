@@ -367,12 +367,8 @@ func TestManagerTaskHandler(t *testing.T) {
 		sinit.
 			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
-					select {
-					case <-time.After(1 * time.Second):
-						return err1
-					case <-ctx.Done():
-					}
-					return nil
+					return sleepContext(ctx, time.Second,
+						withSleepContextTimeoutError(err1))
 				}),
 				WithStop(func(ctx context.Context) error {
 					return nil
@@ -380,11 +376,8 @@ func TestManagerTaskHandler(t *testing.T) {
 			), WithHandler(func(ctx context.Context, task Task, step Step) error {
 				switch step {
 				case StepStart:
-					select {
-					case <-time.After(1 * time.Second):
-						return err2
-					case <-ctx.Done():
-					}
+					return sleepContext(ctx, time.Second,
+						withSleepContextTimeoutError(err2))
 				default:
 				}
 				return nil
@@ -455,11 +448,7 @@ func TestManagerInitData(t *testing.T) {
 					assert.Check(t, cmp2.Equal(initdata2.value3, 88))
 					assert.Check(t, cmp2.Equal(initdata2.value4, "test88"))
 
-					select {
-					case <-time.After(1 * time.Second):
-					case <-ctx.Done():
-					}
-					return nil
+					return sleepContext(ctx, time.Second)
 				}),
 				WithStop(func(ctx context.Context) error {
 					return nil
@@ -501,12 +490,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(2, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return nil
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true))
 					}),
 					WithStop(func(ctx context.Context) error {
 						return err1
@@ -532,12 +517,9 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return err1
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true),
+							withSleepContextTimeoutError(err1))
 					}),
 					WithStop(func(ctx context.Context) error {
 						return nil
@@ -564,12 +546,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return nil
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true))
 					}),
 					WithPreStop(func(ctx context.Context) error {
 						return err2
@@ -591,12 +569,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return nil
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true))
 					}),
 					WithSetup(func(ctx context.Context) error {
 						return err2
@@ -620,12 +594,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return nil
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true))
 					}),
 					WithSetup(func(ctx context.Context) error {
 						return nil
@@ -651,12 +621,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						select {
-						case <-time.After(1 * time.Second):
-							return nil
-						case <-ctx.Done():
-							return ctx.Err()
-						}
+						return sleepContext(ctx, time.Second,
+							withSleepContextError(true))
 					}),
 					WithStop(func(ctx context.Context) error {
 						return err2

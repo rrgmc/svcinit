@@ -227,12 +227,38 @@ func buildMultiErrors(errs []error) error {
 }
 
 // sleepContext sleeps while checking for context cancellation.
-// Returns [context.Cause] of the context error, or nil if timed out.
-func sleepContext(ctx context.Context, duration time.Duration) error {
+// Returns nil for any option by default. These can be changed by options.
+func sleepContext(ctx context.Context, duration time.Duration, options ...sleepContextOption) error {
+	var optns sleepContextOptions
+	for _, opt := range options {
+		opt(&optns)
+	}
 	select {
 	case <-ctx.Done():
-		return context.Cause(ctx)
-	case <-time.After(duration):
+		if optns.contextError {
+			return context.Cause(ctx)
+		}
 		return nil
+	case <-time.After(duration):
+		return optns.timeoutErr
 	}
+}
+
+type sleepContextOption func(*sleepContextOptions)
+
+func withSleepContextError(contextError bool) sleepContextOption {
+	return func(opts *sleepContextOptions) {
+		opts.contextError = contextError
+	}
+}
+
+func withSleepContextTimeoutError(timeoutErr error) sleepContextOption {
+	return func(o *sleepContextOptions) {
+		o.timeoutErr = timeoutErr
+	}
+}
+
+type sleepContextOptions struct {
+	contextError bool
+	timeoutErr   error
 }
