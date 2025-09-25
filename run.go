@@ -136,7 +136,7 @@ func (m *Manager) start(ctx context.Context) error {
 			})
 
 			if taskCount > 0 {
-				logger.Log(ctx, slog.LevelDebug, "waiting for step stage to finish")
+				logger.Log(ctx, slog.LevelDebug, "waiting for stage to finish")
 			}
 			setupWG.Wait()
 			return nil
@@ -196,7 +196,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				})
 
 			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for step stage to finish")
+				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
 			}
 			if m.enforceShutdownTimeout {
 				_ = waitGroupWaitWithContext(ctx, &preStopWG)
@@ -225,7 +225,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			})
 
 			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for step stage to finish")
+				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
 			}
 			if m.enforceShutdownTimeout {
 				_ = waitGroupWaitWithContext(ctx, &stopWG)
@@ -233,7 +233,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				stopWG.Wait()
 			}
 			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for step stage to finish: finished")
+				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish: finished")
 			}
 			return nil
 		})
@@ -274,7 +274,7 @@ func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 			})
 
 			if taskCount > 0 {
-				logger.Log(ctx, slog.LevelDebug, "waiting for step stage to finish")
+				logger.Log(ctx, slog.LevelDebug, "waiting for stage to finish")
 			}
 			teardownWG.Wait()
 			return nil
@@ -311,7 +311,7 @@ func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
 		loggerStage := loggerStep.With("stage", stage)
 		var loggerStageOnce sync.Once
 		loggerStageFn := func() {
-			loggerStage.InfoContext(ctx, "running step stage")
+			loggerStage.InfoContext(ctx, "running stage")
 		}
 
 		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
@@ -329,7 +329,7 @@ func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
 		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
 
 		if stageTaskCount.Load() > 0 {
-			loggerStage.InfoContext(ctx, "running step stage: finished")
+			loggerStage.InfoContext(ctx, "running stage: finished")
 		}
 	}
 
