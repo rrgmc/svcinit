@@ -53,35 +53,35 @@ func TestManagerWorkflows(t *testing.T) {
 		expectedErr     error
 	}{
 		{
-			name: "stop 1: cancel execute unordered",
+			name: "stop 1: cancel task",
 			cancelFn: func() []int {
 				return []int{1}
 			},
 			expectedTaskErr: 1,
 		},
 		{
-			name: "stop 2: cancel task ordered",
+			name: "stop 2: cancel task",
 			cancelFn: func() []int {
 				return []int{2}
 			},
 			expectedTaskErr: 2,
 		},
 		{
-			name: "stop 3: cancel task context ordered",
+			name: "stop 3: cancel task context",
 			cancelFn: func() []int {
 				return []int{3}
 			},
 			expectedTaskErr: 3,
 		},
 		{
-			name: "stop 4: cancel service ordered",
+			name: "stop 4: cancel service",
 			cancelFn: func() []int {
 				return []int{4}
 			},
 			expectedTaskErr: 4,
 		},
 		{
-			name: "stop 5: cancel task auto",
+			name: "stop 5: cancel task context",
 			cancelFn: func() []int {
 				return []int{5}
 			},
