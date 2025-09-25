@@ -130,11 +130,11 @@ func (m *Manager) start(ctx context.Context) error {
 		// run setup tasks
 		setupErr := newMultiErrorBuilder()
 
-		err := m.runStep(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup,
+		err := m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 				var setupWG sync.WaitGroup
 
-				taskCount := m.runStage(ctx, cancelCtx, stage, step, &setupWG, onTask, func(serr error) {
+				taskCount := m.runStageStep(ctx, cancelCtx, stage, step, &setupWG, onTask, func(serr error) {
 					if serr != nil {
 						ierr := newInitializationError(serr)
 						setupErr.add(ierr)
@@ -157,9 +157,9 @@ func (m *Manager) start(ctx context.Context) error {
 		}
 
 		// run start tasks
-		err = m.runStep(ctx, m.taskDoneCtx, loggerStage, stage, StepStart,
+		err = m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepStart,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-				_ = m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, onTask, func(serr error) {
+				_ = m.runStageStep(ctx, cancelCtx, stage, step, &m.tasksRunning, onTask, func(serr error) {
 					if serr != nil {
 						m.startupCancel(serr)
 					} else {
@@ -197,11 +197,11 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		loggerStage.InfoContext(ctx, "stopping stage")
 
 		// run stop tasks
-		err = m.runStep(ctx, ctx, loggerStage, stage, StepStop,
+		err = m.runStage(ctx, ctx, loggerStage, stage, StepStop,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 				var stopWG sync.WaitGroup
 
-				taskCount := m.runStage(ctx, cancelCtx, stage, step, &stopWG, onTask, func(serr error) {
+				taskCount := m.runStageStep(ctx, cancelCtx, stage, step, &stopWG, onTask, func(serr error) {
 					if serr != nil {
 						logger.ErrorContext(ctx, "step error",
 							"step", step,
@@ -255,11 +255,11 @@ func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 		loggerStage.InfoContext(ctx, "running stage")
 
 		// run teardown tasks
-		err := m.runStep(ctx, ctx, loggerStage, stage, StepTeardown,
+		err := m.runStage(ctx, ctx, loggerStage, stage, StepTeardown,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 				var teardownWG sync.WaitGroup
 
-				taskCount := m.runStage(ctx, cancelCtx, stage, step, &teardownWG, onTask, func(serr error) {
+				taskCount := m.runStageStep(ctx, cancelCtx, stage, step, &teardownWG, onTask, func(serr error) {
 					eb.add(serr)
 				})
 
@@ -282,9 +282,9 @@ func (m *Manager) AddInitError(err error) {
 	m.initErrors = append(m.initErrors, err)
 }
 
-// runStep runs all stages and tasks for one step.
+// runStage runs all tasks for one step / stage.
 // An error is returned only if the onStage returns an error, otherwise it is always nil.
-func (m *Manager) runStep(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step,
+func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step,
 	onStage func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error) error {
 	// run start tasks
 	loggerStep := logger.With("step", step.String())
@@ -313,7 +313,7 @@ func (m *Manager) runStep(ctx, cancelCtx context.Context, logger *slog.Logger, s
 	return nil
 }
 
-func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
+func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
 	onTask func(), onError func(err error)) int {
 	loggerStage := m.logger.With(
 		"stage", stage,
