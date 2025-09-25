@@ -102,7 +102,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		roptns.shutdownCtx = context.WithoutCancel(ctx)
 	}
 
-	// run pre-stop and stop steps.
+	// run stop steps.
 	var shutdownErr error
 	shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
 	if shutdownErr != nil {
@@ -178,7 +178,7 @@ func (m *Manager) start(ctx context.Context) error {
 	return nil
 }
 
-// shutdown runs the pre-stop and stop steps.
+// shutdown runs the stop step.
 func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err error) {
 	var shutdownAttr []slog.Attr
 	if m.shutdownTimeout > 0 {
