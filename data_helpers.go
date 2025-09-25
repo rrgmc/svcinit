@@ -1,6 +1,9 @@
 package svcinit
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 type taskFuture[T any] struct {
 	*BaseOverloadedTask
@@ -17,7 +20,11 @@ func (t *taskFuture[T]) Run(ctx context.Context, step Step) error {
 }
 
 func (t *taskFuture[T]) Value(options ...FutureValueOption) (T, error) {
-	return t.future.Value(options...)
+	ret, err := t.future.Value(options...)
+	if err != nil {
+		return ret, fmt.Errorf("error resolving task data: %w", err)
+	}
+	return ret, nil
 }
 
 func (t *taskFuture[T]) Done() <-chan struct{} {

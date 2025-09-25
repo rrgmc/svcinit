@@ -45,7 +45,7 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 			ret.tbOptions = append(ret.tbOptions,
 				WithStep(step, func(ctx context.Context) error {
 					if ret.data == nil {
-						return ErrNotInitialized
+						return fmt.Errorf("%w: data not initialized", ErrNotInitialized)
 					}
 					return stepFn(ctx, *ret.data)
 				}))
