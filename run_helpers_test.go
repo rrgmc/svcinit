@@ -14,6 +14,8 @@ func TestTaskWrapper_invalidStep(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
 
+		logger := nullLogger()
+
 		testTask := BuildTask(
 			WithSetup(func(ctx context.Context) error {
 				return nil
@@ -28,7 +30,7 @@ func TestTaskWrapper_invalidStep(t *testing.T) {
 
 		tw := newTaskWrapper(StageDefault, testTask)
 
-		err := tw.run(ctx, StageDefault, StepPreStop, nil)
+		err := tw.run(ctx, logger, StageDefault, StepPreStop, nil)
 		assert.ErrorIs(t, err, ErrInvalidTaskStep)
 	})
 }
@@ -36,6 +38,8 @@ func TestTaskWrapper_invalidStep(t *testing.T) {
 func TestTaskWrapper_executeOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
+
+		logger := nullLogger()
 
 		testTask := BuildTask(
 			WithSetup(func(ctx context.Context) error {
@@ -54,16 +58,16 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 
 		tw := newTaskWrapper(StageDefault, testTask)
 
-		err := tw.run(ctx, StageDefault, StepSetup, nil)
+		err := tw.run(ctx, logger, StageDefault, StepSetup, nil)
 		assert.NilError(t, err)
 
-		err = tw.run(ctx, StageDefault, StepStart, nil)
+		err = tw.run(ctx, logger, StageDefault, StepStart, nil)
 		assert.NilError(t, err)
 
-		err = tw.run(ctx, StageDefault, StepStop, nil)
+		err = tw.run(ctx, logger, StageDefault, StepStop, nil)
 		assert.Check(t, errors.Is(err, ErrInvalidStepOrder))
 
-		err = tw.run(ctx, StageDefault, StepPreStop, nil)
+		err = tw.run(ctx, logger, StageDefault, StepPreStop, nil)
 		assert.NilError(t, err)
 	})
 }

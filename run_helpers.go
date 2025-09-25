@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -37,12 +38,12 @@ func newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper
 	return ret
 }
 
-func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback) (err error) {
+func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
 	if !taskHasStep(t.task, step) {
 		return fatalError{fmt.Errorf("%w: task '%s' don't have step '%s'",
 			ErrInvalidTaskStep, taskDescription(t.task), step.String())}
 	}
-	err = t.checkStep(step)
+	err = t.checkStep(ctx, logger, step)
 	if err != nil {
 		return fatalError{err}
 	}
@@ -63,10 +64,10 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 	}
 }
 
-func (t *taskWrapper) checkStep(step Step) error {
+func (t *taskWrapper) checkStep(ctx context.Context, logger *slog.Logger, step Step) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	err := checkTaskStepOrder(t.task, t.executeSteps, step)
+	err := checkTaskStepOrder(ctx, logger, t.task, t.executeSteps, step)
 	if err == nil {
 		t.executeSteps = append(t.executeSteps, step)
 	} else {

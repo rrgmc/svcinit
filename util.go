@@ -1,6 +1,10 @@
 package svcinit
 
-import "slices"
+import (
+	"fmt"
+	"iter"
+	"slices"
+)
 
 func sliceMap[S ~[]E, E, R any](slice S, mapper func(int, E) R) []R {
 	mappedSlice := make([]R, len(slice))
@@ -18,4 +22,20 @@ func sliceFilter[S ~[]E, E any](slice S, filter func(int, E) bool) []E {
 		}
 	}
 	return slices.Clip(filteredSlice)
+}
+
+func stringerList[T fmt.Stringer](s []T) []string {
+	ss := make([]string, len(s))
+	for i, v := range s {
+		ss[i] = v.String()
+	}
+	return ss
+}
+
+func stringerIter[T fmt.Stringer](s iter.Seq[T]) []string {
+	var ss []string
+	for v := range s {
+		ss = append(ss, v.String())
+	}
+	return ss
 }

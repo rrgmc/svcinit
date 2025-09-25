@@ -41,6 +41,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		option(&roptns)
 	}
 
+	ctx = slog2.LoggerToContext(ctx, m.logger)
+
 	stopErrBuilder := newMultiErrorBuilder()
 
 	defer func() {
@@ -72,11 +74,11 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		return
 	}
 
-	m.logger.InfoContext(ctx, "waiting for one start task to return")
+	m.logger.InfoContext(ctx, "waiting for first task to return")
 	<-m.startupCtx.Done()
 	// get the error returned by the first exiting task. It will be the cause of exit.
 	cause = context.Cause(m.startupCtx)
-	m.logger.InfoContext(ctx, "first start task returned", "cause", cause)
+	m.logger.InfoContext(ctx, "first task returned", "cause", cause)
 	m.logger.Log(ctx, slog2.LevelTrace, "cancelling start task context")
 	// cancel the context of all tasks with cancelContext = true
 	m.taskDoneCancel(cause)
@@ -165,7 +167,11 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			var preStopWG sync.WaitGroup
 
 			m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, func(serr error) {
-				logger.ErrorContext(ctx, "task error", slog2.ErrorKey, serr)
+				if serr != nil {
+					logger.ErrorContext(ctx, "step error",
+						"step", step,
+						slog2.ErrorKey, serr)
+				}
 				eb.add(serr)
 			})
 
@@ -188,7 +194,11 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			var stopWG sync.WaitGroup
 
 			m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, func(serr error) {
-				logger.ErrorContext(ctx, "task error", slog2.ErrorKey, serr)
+				if serr != nil {
+					logger.ErrorContext(ctx, "step error",
+						"step", step,
+						slog2.ErrorKey, serr)
+				}
 				eb.add(serr)
 			})
 
@@ -353,10 +363,10 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					loggerTask.InfoContext(ctx, "running task step", logAttrs...)
 				}
-				err := tw.run(taskCtx, stage, step, m.taskCallbacks)
+				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
-						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished with error",
+						loggerStage.With(logAttrs...).WarnContext(ctx, "task step finished with error",
 							slog2.ErrorKey, err)
 					} else {
 						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished")

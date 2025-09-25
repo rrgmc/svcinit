@@ -48,7 +48,7 @@ func (s Step) String() string {
 	case StepTeardown:
 		return "teardown"
 	default:
-		return "unknown-step"
+		return fmt.Sprintf("unknown-step(%d)", s)
 	}
 }
 
@@ -66,7 +66,7 @@ func (s CallbackStep) String() string {
 	case CallbackStepAfter:
 		return "after"
 	default:
-		return "unknown-callback-step"
+		return fmt.Sprintf("unknown-callback-step(%d)", s)
 	}
 }
 
