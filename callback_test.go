@@ -25,7 +25,7 @@ func TestCallback(t *testing.T) {
 		errCancelTask2 := errors.New("test context cancel 2")
 
 		sinit, err := New(
-			WithLogger(defaultLogger(t.Output())),
+			// WithLogger(defaultLogger(t.Output())),
 			WithStages("s1", "s2"),
 			WithManagerCallback(ManagerCallbackFunc(func(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 				switch step {
@@ -130,6 +130,18 @@ func TestCallback(t *testing.T) {
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 			},
 		}
+		expectedAll := []testCallbackItem{
+			{1, "s1", StepStart, CallbackStepBefore, nil},
+			{2, "s2", StepStart, CallbackStepBefore, nil},
+			{2, "s2", StepStart, CallbackStepAfter, nil},
+			{2, "s2", StepPreStop, CallbackStepBefore, nil},
+			{2, "s2", StepPreStop, CallbackStepAfter, nil},
+			{2, "s2", StepStop, CallbackStepBefore, nil},
+			{2, "s2", StepStop, CallbackStepAfter, nil},
+			{1, "s1", StepStop, CallbackStepBefore, nil},
+			{1, "s1", StepStart, CallbackStepAfter, errCancelTask1},
+			{1, "s1", StepStop, CallbackStepAfter, nil},
+		}
 
 		assert.Equal(t, int32(4), runStarted.Load())
 		assert.Equal(t, int32(4), runStopped.Load())
@@ -142,6 +154,7 @@ func TestCallback(t *testing.T) {
 		assert.DeepEqual(t, expected, testcb.allTestTasksByNo)
 		assert.DeepEqual(t, expected, testtaskcb.allTestTasksByNo)
 		assert.DeepEqual(t, expected, testruncb.allTestTasksByNo)
+		assert.DeepEqual(t, expectedAll, testcb.allTestTasks)
 	})
 }
 
