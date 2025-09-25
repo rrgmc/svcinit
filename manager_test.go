@@ -454,13 +454,15 @@ func TestManagerErrorReturns(t *testing.T) {
 		expectedCounts  map[testCount]int
 	}{
 		{
-			name:        "return error from setup step",
+			name:        "return error from s1 setup step",
 			expectedErr: err2,
 			expectedCounts: map[testCount]int{
 				testCount{"s1", StepSetup, CallbackStepBefore}:    1,
 				testCount{"s1", StepSetup, CallbackStepAfter}:     1,
 				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
 				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+				testCount{"s2", StepTeardown, CallbackStepBefore}: 1,
+				testCount{"s2", StepTeardown, CallbackStepAfter}:  1,
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
@@ -471,7 +473,22 @@ func TestManagerErrorReturns(t *testing.T) {
 						return sleepContext(ctx, time.Second,
 							withSleepContextError(true))
 					}),
+					WithStop(func(ctx context.Context) error {
+						return nil
+					}),
+					WithTeardown(func(ctx context.Context) error {
+						return nil
+					}),
+				)))
+				m.AddTask("s2", newTestTask(2, BuildTask(
+					WithSetup(func(ctx context.Context) error {
+						return nil
+					}),
 					WithStart(func(ctx context.Context) error {
+						return sleepContext(ctx, 2*time.Second,
+							withSleepContextError(true))
+					}),
+					WithStop(func(ctx context.Context) error {
 						return nil
 					}),
 					WithTeardown(func(ctx context.Context) error {
@@ -479,7 +496,8 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 				)))
 			},
-		}, {
+		},
+		{
 			name:        "return error from start step",
 			expectedErr: err1,
 			expectedCounts: map[testCount]int{
@@ -505,7 +523,8 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 				)))
 			},
-		}, {
+		},
+		{
 			name:            "return error from stop step",
 			expectedStopErr: []error{err1},
 			expectedCounts: map[testCount]int{
@@ -530,7 +549,8 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 				)))
 			},
-		}, {
+		},
+		{
 			name:            "return error from teardown step",
 			expectedStopErr: []error{err2},
 			expectedCounts: map[testCount]int{
@@ -543,19 +563,20 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
+					WithSetup(func(ctx context.Context) error {
+						return nil
+					}),
 					WithStart(func(ctx context.Context) error {
 						return sleepContext(ctx, time.Second,
 							withSleepContextError(true))
-					}),
-					WithSetup(func(ctx context.Context) error {
-						return nil
 					}),
 					WithTeardown(func(ctx context.Context) error {
 						return err2
 					}),
 				)))
 			},
-		}, {
+		},
+		{
 			name:            "return error from stop and teardown steps",
 			expectedStopErr: []error{err2, err3},
 			expectedCounts: map[testCount]int{
