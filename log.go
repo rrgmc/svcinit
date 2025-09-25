@@ -14,3 +14,7 @@ func defaultLogger(output io.Writer) *slog.Logger {
 		ReplaceAttr: slog2.ReplaceAttr,
 	}))
 }
+
+func nullLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
+}
