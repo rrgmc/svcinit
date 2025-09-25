@@ -352,8 +352,8 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 		taskDesc := TaskDescription(tw.task)
 
 		if !tw.hasStep(step) {
+			// taskCount.Add(1)
 			// onTask()
-			// taskCount++
 			// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",
 			// 	"task", taskDesc)
 			continue
