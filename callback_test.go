@@ -133,8 +133,8 @@ func TestCallback(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, int32(6), runStarted.Load())
-		assert.Equal(t, int32(6), runStopped.Load())
+		assert.Equal(t, int32(4), runStarted.Load())
+		assert.Equal(t, int32(4), runStopped.Load())
 		testcb.m.Lock()
 		defer testcb.m.Unlock()
 		testtaskcb.m.Lock()

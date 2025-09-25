@@ -28,7 +28,8 @@ const (
 type Step int
 
 const (
-	StepSetup Step = iota
+	StepInvalid Step = iota
+	StepSetup
 	StepStart
 	StepPreStop
 	StepStop
@@ -37,6 +38,8 @@ const (
 
 func (s Step) String() string {
 	switch s {
+	case StepInvalid:
+		return "invalid"
 	case StepSetup:
 		return "setup"
 	case StepStart:
@@ -105,7 +108,3 @@ func unwrapInternalErrors(err error) error {
 	}
 	return err
 }
-
-const (
-	invalidStep Step = -1
-)

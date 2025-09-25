@@ -122,47 +122,57 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 func (m *Manager) start(ctx context.Context) error {
 	setupErr := newMultiErrorBuilder()
 
-	// run setup tasks
-	err := m.runStep(ctx, m.taskDoneCtx, StepSetup,
-		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-			var setupWG sync.WaitGroup
+	for stage := range stagesIter(m.stages, false) {
+		loggerStage := m.logger.With("stage", stage)
+		loggerStage.InfoContext(ctx, "running stage")
 
-			taskCount := m.runStage(ctx, cancelCtx, stage, step, &setupWG, onTask, func(serr error) {
-				if serr != nil {
-					ierr := newInitializationError(serr)
-					setupErr.add(ierr)
-					m.startupCancel(ierr)
+		// m.runManagerCallbacks(m.taskDoneCtx, stage, StepInvalid, CallbackStepBefore)
+
+		// run setup tasks
+		err := m.runStep(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup,
+			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
+				var setupWG sync.WaitGroup
+
+				taskCount := m.runStage(ctx, cancelCtx, stage, step, &setupWG, onTask, func(serr error) {
+					if serr != nil {
+						ierr := newInitializationError(serr)
+						setupErr.add(ierr)
+						m.startupCancel(ierr)
+					}
+				})
+
+				if taskCount > 0 {
+					logger.Log(ctx, slog.LevelDebug, "waiting for step to finish")
 				}
+				setupWG.Wait()
+				return nil
 			})
+		if err != nil {
+			return err
+		}
 
-			if taskCount > 0 {
-				logger.Log(ctx, slog.LevelDebug, "waiting for stage to finish")
-			}
-			setupWG.Wait()
-			return nil
-		})
-	if err != nil {
-		return err
-	}
+		if setupErr.hasErrors() {
+			return setupErr.build()
+		}
 
-	if setupErr.hasErrors() {
-		return setupErr.build()
-	}
-
-	// run start tasks
-	err = m.runStep(ctx, m.taskDoneCtx, StepStart,
-		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-			_ = m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, onTask, func(serr error) {
-				if serr != nil {
-					m.startupCancel(serr)
-				} else {
-					m.startupCancel(ErrExit)
-				}
+		// run start tasks
+		err = m.runStep(ctx, m.taskDoneCtx, loggerStage, stage, StepStart,
+			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
+				_ = m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, onTask, func(serr error) {
+					if serr != nil {
+						m.startupCancel(serr)
+					} else {
+						m.startupCancel(ErrExit)
+					}
+				})
+				return nil
 			})
-			return nil
-		})
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+
+		// m.runManagerCallbacks(m.taskDoneCtx, stage, StepInvalid, CallbackStepAfter)
+		loggerStage.InfoContext(ctx, "running stage: finished")
 	}
 
 	return nil
@@ -180,13 +190,46 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	}
 	m.logger.LogAttrs(ctx, slog.LevelInfo, "shutting down", shutdownAttr...)
 
-	// run pre-stop tasks in reverse stage order
-	err = m.runStep(ctx, ctx, StepPreStop,
-		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-			var preStopWG sync.WaitGroup
+	for stage := range stagesIter(m.stages, true) {
+		loggerStage := m.logger.With("stage", stage)
+		loggerStage.InfoContext(ctx, "running stage")
 
-			taskCount := m.runStage(ctx, cancelCtx, stage, step, &preStopWG, onTask,
-				func(serr error) {
+		// run pre-stop tasks in reverse stage order
+		err = m.runStep(ctx, ctx, loggerStage, stage, StepPreStop,
+			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
+				var preStopWG sync.WaitGroup
+
+				taskCount := m.runStage(ctx, cancelCtx, stage, step, &preStopWG, onTask,
+					func(serr error) {
+						if serr != nil {
+							logger.ErrorContext(ctx, "step error",
+								"step", step,
+								slog2.ErrorKey, serr)
+						}
+						eb.add(serr)
+					})
+
+				if taskCount > 0 {
+					logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
+				}
+				if m.enforceShutdownTimeout {
+					_ = waitGroupWaitWithContext(ctx, &preStopWG)
+				} else {
+					preStopWG.Wait()
+				}
+
+				return nil
+			})
+		if err != nil {
+			return err
+		}
+
+		// run stop tasks in reverse stage order
+		err = m.runStep(ctx, ctx, loggerStage, stage, StepStop,
+			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
+				var stopWG sync.WaitGroup
+
+				taskCount := m.runStage(ctx, cancelCtx, stage, step, &stopWG, onTask, func(serr error) {
 					if serr != nil {
 						logger.ErrorContext(ctx, "step error",
 							"step", step,
@@ -195,47 +238,21 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 					eb.add(serr)
 				})
 
-			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
-			}
-			if m.enforceShutdownTimeout {
-				_ = waitGroupWaitWithContext(ctx, &preStopWG)
-			} else {
-				preStopWG.Wait()
-			}
-
-			return nil
-		})
-	if err != nil {
-		return err
-	}
-
-	// run stop tasks in reverse stage order
-	err = m.runStep(ctx, ctx, StepStop,
-		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-			var stopWG sync.WaitGroup
-
-			taskCount := m.runStage(ctx, cancelCtx, stage, step, &stopWG, onTask, func(serr error) {
-				if serr != nil {
-					logger.ErrorContext(ctx, "step error",
-						"step", step,
-						slog2.ErrorKey, serr)
+				if taskCount > 0 {
+					logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
 				}
-				eb.add(serr)
+				if m.enforceShutdownTimeout {
+					_ = waitGroupWaitWithContext(ctx, &stopWG)
+				} else {
+					stopWG.Wait()
+				}
+				return nil
 			})
+		if err != nil {
+			return err
+		}
 
-			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
-			}
-			if m.enforceShutdownTimeout {
-				_ = waitGroupWaitWithContext(ctx, &stopWG)
-			} else {
-				stopWG.Wait()
-			}
-			return nil
-		})
-	if err != nil {
-		return err
+		loggerStage.InfoContext(ctx, "running stage: finished")
 	}
 
 	// wait for all goroutines to finish
@@ -261,23 +278,28 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 
 // start runs the setup and start steps.
 func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
-	// run teardown tasks
-	err := m.runStep(ctx, ctx, StepTeardown,
-		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-			var teardownWG sync.WaitGroup
+	for stage := range stagesIter(m.stages, true) {
+		loggerStage := m.logger.With("stage", stage)
+		loggerStage.InfoContext(ctx, "running stage")
 
-			taskCount := m.runStage(ctx, cancelCtx, stage, step, &teardownWG, onTask, func(serr error) {
-				eb.add(serr)
+		// run teardown tasks
+		err := m.runStep(ctx, ctx, loggerStage, stage, StepTeardown,
+			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
+				var teardownWG sync.WaitGroup
+
+				taskCount := m.runStage(ctx, cancelCtx, stage, step, &teardownWG, onTask, func(serr error) {
+					eb.add(serr)
+				})
+
+				if taskCount > 0 {
+					logger.Log(ctx, slog.LevelDebug, "waiting for stage to finish")
+				}
+				teardownWG.Wait()
+				return nil
 			})
-
-			if taskCount > 0 {
-				logger.Log(ctx, slog.LevelDebug, "waiting for stage to finish")
-			}
-			teardownWG.Wait()
-			return nil
-		})
-	if err != nil {
-		eb.add(err)
+		if err != nil {
+			eb.add(err)
+		}
 	}
 }
 
@@ -290,47 +312,31 @@ func (m *Manager) AddInitError(err error) {
 
 // runStep runs all stages and tasks for one step.
 // An error is returned only if the onStage returns an error, otherwise it is always nil.
-func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
+func (m *Manager) runStep(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step,
 	onStage func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error) error {
 	// run start tasks
-	loggerStep := m.logger.With("step", step.String())
+	loggerStep := logger.With("step", step.String())
 	var loggerStepOnce sync.Once
 	loggerStepFn := func() {
 		loggerStep.InfoContext(ctx, "running step")
 	}
 	var taskCount atomic.Int64
 
-	m.runManagerCallbacks(cancelCtx, "", step, CallbackStepBefore)
+	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
 
-	for stage := range stepStagesIter(step, m.stages) {
-		var stageTaskCount atomic.Int64
-
-		loggerStage := loggerStep.With("stage", stage)
-		var loggerStageOnce sync.Once
-		loggerStageFn := func() {
-			loggerStage.InfoContext(ctx, "running stage")
-		}
-
-		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
-
-		err := onStage(ctx, cancelCtx, loggerStage, stage, step, func() {
-			taskCount.Add(1)
-			stageTaskCount.Add(1)
-			loggerStepOnce.Do(loggerStepFn)
-			loggerStageOnce.Do(loggerStageFn)
-		})
-		if err != nil {
-			return err
-		}
-
-		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
-
-		if stageTaskCount.Load() > 0 {
-			loggerStage.InfoContext(ctx, "running stage: finished")
-		}
+	err := onStage(ctx, cancelCtx, loggerStep, stage, step, func() {
+		taskCount.Add(1)
+		loggerStepOnce.Do(loggerStepFn)
+	})
+	if err != nil {
+		return err
 	}
 
-	m.runManagerCallbacks(cancelCtx, "", step, CallbackStepAfter)
+	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
+
+	if taskCount.Load() > 0 {
+		loggerStep.InfoContext(ctx, "running step: finished")
+	}
 
 	if taskCount.Load() > 0 {
 		loggerStep.InfoContext(ctx, "running step: finished")

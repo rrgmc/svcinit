@@ -59,9 +59,9 @@ func taskNextStep(task Task, doneSteps []Step) (Step, error) {
 }
 
 func nextStep(taskSteps []Step, doneSteps []Step) (Step, error) {
-	nextStep := invalidStep
+	nextStep := StepInvalid
 	for step := range taskOrderedSteps(taskSteps) {
-		if nextStep == invalidStep {
+		if nextStep == StepInvalid {
 			if !slices.Contains(doneSteps, step) {
 				nextStep = step
 			}
@@ -94,7 +94,7 @@ func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, don
 	// }
 	// teardown can be executed out of order.
 	if next != currentStep && (currentStep != StepTeardown || slices.Contains(doneSteps, StepTeardown)) {
-		if next == invalidStep {
+		if next == StepInvalid {
 			return fmt.Errorf("%w: task has no next step but trying to run '%s'",
 				ErrInvalidStepOrder, currentStep)
 		}
