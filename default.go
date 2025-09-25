@@ -69,6 +69,10 @@ func (t *TaskTimeoutTask) TaskOptions() []TaskInstanceOption {
 	}
 }
 
+func (t *TaskTimeoutTask) String() string {
+	return fmt.Sprintf("Timeout %v", t.timeout)
+}
+
 type TimeoutTaskOption func(task *TaskTimeoutTask)
 
 // WithTimeoutTaskError sets an error to be returned from the timeout task instead of TimeoutError.
@@ -121,6 +125,10 @@ func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
 	return []TaskInstanceOption{
 		WithCancelContext(true),
 	}
+}
+
+func (t *TaskSignalTask) String() string {
+	return fmt.Sprintf("Signals %v", t.signals)
 }
 
 // TimeoutError is returned by TimeoutTask by default.
