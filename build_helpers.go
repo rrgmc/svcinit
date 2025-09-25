@@ -7,11 +7,12 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync/atomic"
 )
 
 type taskBuild struct {
 	stepFunc    map[Step]TaskBuildFunc
-	parent      Task
+	parent      atomic.Pointer[Task]
 	steps       []Step
 	options     []TaskInstanceOption
 	initError   error
@@ -54,8 +55,8 @@ func (t *taskBuild) TaskInitError() error {
 
 func (t *taskBuild) Run(ctx context.Context, step Step) error {
 	var parentHasStep bool
-	if t.parent != nil {
-		parentHasStep = taskHasStep(t.parent, step)
+	if parent := t.parent.Load(); parent != nil {
+		parentHasStep = taskHasStep(*parent, step)
 	}
 
 	if fn, ok := t.stepFunc[step]; ok {
@@ -65,7 +66,10 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 		return fn(ctx)
 	}
 	if parentHasStep {
-		return t.parent.Run(ctx, step)
+		if parent := t.parent.Load(); parent != nil {
+			return (*parent).Run(ctx, step)
+		}
+
 	}
 	return newInvalidTaskStep(step)
 }
@@ -74,8 +78,8 @@ func (t *taskBuild) String() string {
 	if t.description != "" {
 		return t.description
 	}
-	if t.parent != nil {
-		return taskDescription(t.parent)
+	if parent := t.parent.Load(); parent != nil {
+		return taskDescription(*parent)
 	}
 	return fmt.Sprintf("%T", t)
 }
@@ -93,7 +97,11 @@ func (t *taskBuild) isEmpty() bool {
 }
 
 func (t *taskBuild) setParent(parent Task) error {
-	t.parent = parent
+	if parent == nil {
+		t.parent.Store(nil)
+	} else {
+		t.parent.Store(&parent)
+	}
 	return t.init()
 }
 
@@ -102,8 +110,8 @@ func (t *taskBuild) init() error {
 
 	t.steps = slices.Collect(maps.Keys(t.stepFunc))
 
-	if t.parent != nil {
-		for _, step := range taskSteps(t.parent) {
+	if parent := t.parent.Load(); parent != nil {
+		for _, step := range taskSteps(*parent) {
 			if !slices.Contains(t.steps, step) {
 				t.steps = append(t.steps, step)
 			} else {

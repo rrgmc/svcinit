@@ -14,7 +14,7 @@ type TaskBuildOption func(*taskBuild)
 
 func WithParent(parent Task) TaskBuildOption {
 	return func(build *taskBuild) {
-		build.parent = parent
+		build.parent.Store(&parent)
 	}
 }
 
