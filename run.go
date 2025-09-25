@@ -319,7 +319,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 	var startWg sync.WaitGroup
 
 	for tw := range m.tasks.stageTasks(stage) {
-		taskDesc := taskDescription(tw.task)
+		taskDesc := TaskDescription(tw.task)
 
 		if !tw.hasStep(step) {
 			// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",

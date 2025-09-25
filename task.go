@@ -31,6 +31,14 @@ func DefaultTaskSteps() []Step {
 	return allSteps
 }
 
+// TaskDescription returns the task description.
+func TaskDescription(task Task) string {
+	if ts, ok := task.(fmt.Stringer); ok {
+		return ts.String()
+	}
+	return fmt.Sprintf("%T", task)
+}
+
 // TaskWithOptions allows the task to set some of the task options. They have priority over options set via
 // [Manager.AddTask].
 type TaskWithOptions interface {

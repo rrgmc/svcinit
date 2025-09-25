@@ -79,7 +79,7 @@ func (t *taskBuild) String() string {
 		return t.description
 	}
 	if parent := t.parent.Load(); parent != nil {
-		return taskDescription(*parent)
+		return TaskDescription(*parent)
 	}
 	return fmt.Sprintf("%T", t)
 }

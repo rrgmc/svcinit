@@ -104,13 +104,6 @@ func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, don
 	return nil
 }
 
-func taskDescription(task Task) string {
-	if ts, ok := task.(fmt.Stringer); ok {
-		return ts.String()
-	}
-	return fmt.Sprintf("%T", task)
-}
-
 // task options
 
 type taskOptions struct {
