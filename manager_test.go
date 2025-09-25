@@ -568,12 +568,18 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
+					WithSetup(func(ctx context.Context) error {
+						return err2
+					}),
 					WithStart(func(ctx context.Context) error {
 						return sleepContext(ctx, time.Second,
 							withSleepContextError(true))
 					}),
-					WithSetup(func(ctx context.Context) error {
-						return err2
+					WithStart(func(ctx context.Context) error {
+						return nil
+					}),
+					WithPreStop(func(ctx context.Context) error {
+						return nil
 					}),
 					WithTeardown(func(ctx context.Context) error {
 						return nil
@@ -646,6 +652,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				sopts := []Option{
 					WithStages("s1", "s2"),
 					WithTaskCallback(testcb),
+					// WithLogger(logger.With("category", test.name)),
 				}
 
 				sinit, err := New(sopts...)

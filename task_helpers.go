@@ -84,7 +84,7 @@ func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, don
 			logger.Log(ctx, slog2.LevelTrace, "task next step error",
 				"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
 				"doneSteps", stringerList(doneSteps),
-				slog2.ErrorKey, err)
+				slog2.ErrorKey, err.Error())
 		}
 		return err
 	}

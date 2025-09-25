@@ -78,7 +78,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	<-m.startupCtx.Done()
 	// get the error returned by the first exiting task. It will be the cause of exit.
 	cause = context.Cause(m.startupCtx)
-	m.logger.InfoContext(ctx, "first task returned", "cause", cause)
+	initializationError := errors.Is(cause, ErrInitialization)
+	m.logger.WarnContext(ctx, "first task returned", slog.String("cause", cause.Error()))
 	m.logger.Log(ctx, slog2.LevelTrace, "cancelling start task context")
 	// cancel the context of all tasks with cancelContext = true
 	m.taskDoneCancel(cause)
@@ -87,20 +88,21 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		roptns.shutdownCtx = context.WithoutCancel(ctx)
 	}
 
-	// run pre-stop and stop steps.
-	var shutdownErr error
-	shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
-	if shutdownErr != nil {
-		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
-		cause = shutdownErr
-		return
+	if !initializationError {
+		// run pre-stop and stop steps.
+		var shutdownErr error
+		shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
+		if shutdownErr != nil {
+			m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
+			cause = shutdownErr
+			return
+		}
+
 	}
 
 	if errors.Is(cause, ErrExit) {
 		cause = nil
 	}
-
-	// m.logger.InfoContext(ctx, "execution finished", "cause", cause)
 
 	return
 }
@@ -170,7 +172,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				if serr != nil {
 					logger.ErrorContext(ctx, "step error",
 						"step", step,
-						slog2.ErrorKey, serr)
+						slog2.ErrorKey, serr.Error())
 				}
 				eb.add(serr)
 			})
@@ -197,7 +199,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				if serr != nil {
 					logger.ErrorContext(ctx, "step error",
 						"step", step,
-						slog2.ErrorKey, serr)
+						slog2.ErrorKey, serr.Error())
 				}
 				eb.add(serr)
 			})
@@ -367,7 +369,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
 						loggerStage.With(logAttrs...).WarnContext(ctx, "task step finished with error",
-							slog2.ErrorKey, err)
+							slog2.ErrorKey, err.Error())
 					} else {
 						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished")
 					}
