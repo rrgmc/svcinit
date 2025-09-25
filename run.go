@@ -71,7 +71,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		if cause == nil {
 			m.logger.InfoContext(ctx, "execution finished")
 		} else {
-			m.logger.WarnContext(ctx, "execution finished with cause", "cause", cause.Error())
+			m.logger.WarnContext(ctx, "execution finished with cause", slog2.ErrorKey, cause)
 		}
 	}()
 
@@ -79,7 +79,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	err := m.start(ctx)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "startup error, aborting execution",
-			slog2.ErrorKey, err.Error())
+			slog2.ErrorKey, err)
 		cause = err
 		return
 	}
@@ -182,7 +182,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				if serr != nil {
 					logger.ErrorContext(ctx, "step error",
 						"step", step,
-						slog2.ErrorKey, serr.Error())
+						slog2.ErrorKey, serr)
 				}
 				eb.add(serr)
 			})
@@ -209,7 +209,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				if serr != nil {
 					logger.ErrorContext(ctx, "step error",
 						"step", step,
-						slog2.ErrorKey, serr.Error())
+						slog2.ErrorKey, serr)
 				}
 				eb.add(serr)
 			})
@@ -381,7 +381,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, stage string, step St
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
 						loggerStage.With(logAttrs...).WarnContext(ctx, "task step finished with error",
-							slog2.ErrorKey, err.Error())
+							slog2.ErrorKey, err)
 					} else {
 						loggerStage.With(logAttrs...).InfoContext(ctx, "task step finished")
 					}
