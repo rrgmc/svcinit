@@ -146,16 +146,6 @@ func stagesIter(stages []string, reversed bool) iter.Seq[string] {
 	}
 }
 
-// stepStagesIter returns an interator to a list of stages.
-// For the stop step, it returns a reverse iterator.
-func stepStagesIter(step Step, stages []string) iter.Seq[string] {
-	if step == StepStop || step == StepTeardown {
-		return reversedSlice(stages)
-	} else {
-		return slices.Values(stages)
-	}
-}
-
 // reversedSlice returns a reversed iterator to a slice.
 func reversedSlice[T any](s []T) iter.Seq[T] {
 	return func(yield func(T) bool) {
