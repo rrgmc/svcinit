@@ -232,9 +232,6 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			} else {
 				stopWG.Wait()
 			}
-			if taskCount > 0 {
-				logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish: finished")
-			}
 			return nil
 		})
 	if err != nil {
