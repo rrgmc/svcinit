@@ -190,6 +190,12 @@ func newMultiErrorBuilder() *multiErrorBuilder {
 	return &multiErrorBuilder{}
 }
 
+func (b *multiErrorBuilder) hasErrors() bool {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return len(b.errs) > 0
+}
+
 func (b *multiErrorBuilder) add(err error) {
 	if err == nil {
 		return

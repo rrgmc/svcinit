@@ -91,25 +91,17 @@ type fatalError struct {
 }
 
 func (f fatalError) Error() string {
-	return f.err.Error()
+	return fmt.Sprintf("fatal error: %s", f.err.Error())
 }
 
 func (f fatalError) Unwrap() error {
 	return f.err
 }
 
-// unwrapInternalErrors unwraps fatalError from the error, if any.
+// unwrapInternalErrors unwraps a fatalError, ONLY if the root error. Otherwise, any other embedded error would be lost.
 func unwrapInternalErrors(err error) error {
-	for {
-		if err == nil {
-			break
-		}
-		var ferr fatalError
-		if errors.As(err, &ferr) {
-			err = ferr.err
-			continue
-		}
-		break
+	if fe, ok := err.(fatalError); ok {
+		return fe.Unwrap()
 	}
 	return err
 }

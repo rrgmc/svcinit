@@ -45,6 +45,16 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	stopErrBuilder := newMultiErrorBuilder()
 
+	// create the context to be used during initialization.
+	// this ensures that any task start step returning early don't cancel other start steps.
+	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
+	// create the context to be sent to start steps with cancelContext = true.
+	// It may only be cancelled after the full initialization finishes.
+	m.taskDoneCtx, m.taskDoneCancel = context.WithCancelCause(ctx)
+
+	defer m.taskDoneCancel(nil) // must cancel all contexts to avoid resource leak
+	defer m.startupCancel(nil)  // must cancel all contexts to avoid resource leak
+
 	defer func() {
 		m.teardown(ctx, stopErrBuilder)
 		stopErr = stopErrBuilder.build()
@@ -57,19 +67,19 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 			}
 		}
 		cause = unwrapInternalErrors(cause)
-		m.logger.InfoContext(ctx, "execution finished", "cause", cause)
-	}()
 
-	// create the context to be used during initialization.
-	// this ensures that any task start step returning early don't cancel other start steps.
-	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
-	// create the context to be sent to start steps with cancelContext = true.
-	// It may only be cancelled after the full initialization finishes.
-	m.taskDoneCtx, m.taskDoneCancel = context.WithCancelCause(ctx)
+		if cause == nil {
+			m.logger.InfoContext(ctx, "execution finished")
+		} else {
+			m.logger.WarnContext(ctx, "execution finished with cause", "cause", cause.Error())
+		}
+	}()
 
 	// run setup and start steps.
 	err := m.start(ctx)
 	if err != nil {
+		m.logger.ErrorContext(ctx, "startup error, aborting execution",
+			slog2.ErrorKey, err.Error())
 		cause = err
 		return
 	}
@@ -78,7 +88,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	<-m.startupCtx.Done()
 	// get the error returned by the first exiting task. It will be the cause of exit.
 	cause = context.Cause(m.startupCtx)
-	initializationError := errors.Is(cause, ErrInitialization)
 	m.logger.WarnContext(ctx, "first task returned", slog.String("cause", cause.Error()))
 	m.logger.Log(ctx, slog2.LevelTrace, "cancelling start task context")
 	// cancel the context of all tasks with cancelContext = true
@@ -88,16 +97,13 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		roptns.shutdownCtx = context.WithoutCancel(ctx)
 	}
 
-	if !initializationError {
-		// run pre-stop and stop steps.
-		var shutdownErr error
-		shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
-		if shutdownErr != nil {
-			m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
-			cause = shutdownErr
-			return
-		}
-
+	// run pre-stop and stop steps.
+	var shutdownErr error
+	shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
+	if shutdownErr != nil {
+		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
+		cause = shutdownErr
+		return
 	}
 
 	if errors.Is(cause, ErrExit) {
@@ -109,6 +115,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 // start runs the setup and start steps.
 func (m *Manager) start(ctx context.Context) error {
+	setupErr := newMultiErrorBuilder()
+
 	// run setup tasks
 	err := m.runStep(ctx, m.taskDoneCtx, StepSetup,
 		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error {
@@ -116,7 +124,9 @@ func (m *Manager) start(ctx context.Context) error {
 
 			m.runStage(ctx, cancelCtx, stage, step, &setupWG, func(serr error) {
 				if serr != nil {
-					m.startupCancel(newInitializationError(serr))
+					ierr := newInitializationError(serr)
+					setupErr.add(ierr)
+					m.startupCancel(ierr)
 				}
 			})
 
@@ -128,8 +138,8 @@ func (m *Manager) start(ctx context.Context) error {
 		return err
 	}
 
-	if m.startupCtx.Err() != nil {
-		return nil
+	if setupErr.hasErrors() {
+		return setupErr.build()
 	}
 
 	// run start tasks
@@ -264,6 +274,8 @@ func (m *Manager) AddInitError(err error) {
 	m.initErrors = append(m.initErrors, err)
 }
 
+// runStep runs all stages and tasks for one step.
+// An error is returned only if the onStage returns an error, otherwise it is always nil.
 func (m *Manager) runStep(ctx, cancelCtx context.Context, step Step,
 	onStage func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step) error) error {
 	// run start tasks
