@@ -403,6 +403,7 @@ func TestManagerInitData(t *testing.T) {
 
 		sinit, err := New(
 			WithStages("init", "service"),
+			// WithLogger(defaultLogger(t.Output())),
 		)
 		assert.NilError(t, err)
 
@@ -415,7 +416,7 @@ func TestManagerInitData(t *testing.T) {
 				}
 				return &ivalue, nil
 			},
-		)
+			WithDataDescription[*idata1]("idata1"))
 		sinit.AddTask("init", initTask1)
 
 		initTask2 := NewTaskFuture[*idata2](
@@ -427,7 +428,8 @@ func TestManagerInitData(t *testing.T) {
 				}
 				return &ivalue, nil
 			},
-		)
+			WithDataDescription[*idata2]("idata2"))
+
 		sinit.AddTask("init", initTask2)
 
 		sinit.
@@ -652,7 +654,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				sopts := []Option{
 					WithStages("s1", "s2"),
 					WithTaskCallback(testcb),
-					// WithLogger(logger.With("category", test.name)),
+					// WithLogger(defaultLogger(t.Output()).With("category", test.name)),
 				}
 
 				sinit, err := New(sopts...)

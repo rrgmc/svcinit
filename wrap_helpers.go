@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"fmt"
 )
 
 // BaseOverloadedTask wraps and task and forwards TaskOptions and TaskSteps.
@@ -25,6 +26,13 @@ func (t *BaseOverloadedTask) TaskSteps() []Step {
 		return tt.TaskSteps()
 	}
 	return DefaultTaskSteps()
+}
+
+func (t *BaseOverloadedTask) String() string {
+	if tt, ok := t.Task.(fmt.Stringer); ok {
+		return tt.String()
+	}
+	return fmt.Sprintf("%T", t.Task)
 }
 
 // BaseWrappedTask wraps and task and forwards TaskOptions and TaskSteps.
