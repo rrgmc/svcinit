@@ -185,7 +185,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 			var preStopWG sync.WaitGroup
 
-			taskCount := m.runStage(ctx, cancelCtx, stage, step, &m.tasksRunning, onTask,
+			taskCount := m.runStage(ctx, cancelCtx, stage, step, &preStopWG, onTask,
 				func(serr error) {
 					if serr != nil {
 						logger.ErrorContext(ctx, "step error",
