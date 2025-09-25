@@ -73,6 +73,10 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		} else {
 			m.logger.WarnContext(ctx, "execution finished with cause", slog2.ErrorKey, cause)
 		}
+
+		if stopErr != nil {
+			m.logger.WarnContext(ctx, "execution finished with stop error", slog2.ErrorKey, stopErr)
+		}
 	}()
 
 	// run setup and start steps.
