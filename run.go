@@ -120,7 +120,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 // start runs the setup and start steps.
 func (m *Manager) start(ctx context.Context) error {
-	setupErr := newMultiErrorBuilder()
 
 	for stage := range stagesIter(m.stages, false) {
 		loggerStage := m.logger.With("stage", stage)
@@ -129,6 +128,8 @@ func (m *Manager) start(ctx context.Context) error {
 		// m.runManagerCallbacks(m.taskDoneCtx, stage, StepInvalid, CallbackStepBefore)
 
 		// run setup tasks
+		setupErr := newMultiErrorBuilder()
+
 		err := m.runStep(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 				var setupWG sync.WaitGroup
@@ -190,11 +191,12 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	}
 	m.logger.LogAttrs(ctx, slog.LevelInfo, "shutting down", shutdownAttr...)
 
+	// run stop tasks in reverse stage order
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
 		loggerStage.InfoContext(ctx, "stopping stage")
 
-		// run stop tasks in reverse stage order
+		// run stop tasks
 		err = m.runStep(ctx, ctx, loggerStage, stage, StepStop,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
 				var stopWG sync.WaitGroup
