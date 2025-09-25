@@ -6,8 +6,6 @@ import (
 	"iter"
 	"log/slog"
 	"slices"
-
-	slog2 "github.com/rrgmc/svcinit/v2/slog"
 )
 
 type errorTask struct {
@@ -80,20 +78,20 @@ func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, don
 
 	next, err := nextStep(tSteps, doneSteps)
 	if err != nil {
-		if logger.Enabled(ctx, slog2.LevelTrace) {
-			logger.Log(ctx, slog2.LevelTrace, "task next step error",
-				"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
-				"doneSteps", stringerList(doneSteps),
-				slog2.ErrorKey, err)
-		}
+		// if logger.Enabled(ctx, slog2.LevelTrace) {
+		// 	logger.Log(ctx, slog2.LevelTrace, "task next step error",
+		// 		"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
+		// 		"doneSteps", stringerList(doneSteps),
+		// 		slog2.ErrorKey, err)
+		// }
 		return err
 	}
-	if logger.Enabled(ctx, slog2.LevelTrace) {
-		logger.Log(ctx, slog2.LevelTrace, "task next step",
-			"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
-			"doneSteps", stringerList(doneSteps),
-			"next", next.String())
-	}
+	// if logger.Enabled(ctx, slog2.LevelTrace) {
+	// 	logger.Log(ctx, slog2.LevelTrace, "task next step",
+	// 		"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
+	// 		"doneSteps", stringerList(doneSteps),
+	// 		"next", next.String())
+	// }
 	// teardown can be executed out of order.
 	if next != currentStep && (currentStep != StepTeardown || slices.Contains(doneSteps, StepTeardown)) {
 		if next == invalidStep {

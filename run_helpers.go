@@ -160,23 +160,22 @@ func reversedSlice[T any](s []T) iter.Seq[T] {
 
 // multiError is an error containing a list of errors.
 type multiError struct {
-	Errors []error
+	errors []error
 }
 
 func (e *multiError) Error() string {
-	err := e.Err()
-	if err == nil {
+	if len(e.errors) == 0 {
 		return "empty errors"
 	}
-	return err.Error()
+	return e.errors[0].Error()
 }
 
-func (e *multiError) Err() error {
-	return errors.Join(e.Errors...)
+func (e *multiError) JoinedError() error {
+	return errors.Join(e.errors...)
 }
 
 func (e *multiError) Unwrap() []error {
-	return e.Errors
+	return e.errors
 }
 
 // multiErrorBuilder is a thread-safe error builder. It is used to avoid a mutex being return in the final error.
@@ -203,7 +202,7 @@ func (b *multiErrorBuilder) add(err error) {
 	b.m.Lock()
 	defer b.m.Unlock()
 	if me, ok := err.(*multiError); ok {
-		b.errs = append(b.errs, me.Errors...)
+		b.errs = append(b.errs, me.errors...)
 	} else {
 		b.errs = append(b.errs, err)
 	}
@@ -218,7 +217,7 @@ func (b *multiErrorBuilder) build() error {
 		return b.errs[0]
 	}
 	return &multiError{
-		Errors: slices.Clone(b.errs),
+		errors: slices.Clone(b.errs),
 	}
 }
 
@@ -229,7 +228,7 @@ func buildMultiErrors(errs []error) error {
 		return errs[0]
 	}
 	return &multiError{
-		Errors: slices.Clone(errs),
+		errors: slices.Clone(errs),
 	}
 }
 
