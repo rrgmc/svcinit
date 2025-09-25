@@ -26,7 +26,7 @@ func checkNilTask(task Task) Task {
 	return task
 }
 
-var allSteps = []Step{StepSetup, StepStart, StepPreStop, StepStop, StepTeardown} // order matters
+var allSteps = []Step{StepSetup, StepStart, StepStop, StepTeardown} // order matters
 
 func taskSteps(task Task) []Step {
 	if ts, ok := task.(TaskSteps); ok {

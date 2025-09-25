@@ -194,36 +194,6 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		loggerStage := m.logger.With("stage", stage)
 		loggerStage.InfoContext(ctx, "stopping stage")
 
-		// run pre-stop tasks in reverse stage order
-		err = m.runStep(ctx, ctx, loggerStage, stage, StepPreStop,
-			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {
-				var preStopWG sync.WaitGroup
-
-				taskCount := m.runStage(ctx, cancelCtx, stage, step, &preStopWG, onTask,
-					func(serr error) {
-						if serr != nil {
-							logger.ErrorContext(ctx, "step error",
-								"step", step,
-								slog2.ErrorKey, serr)
-						}
-						eb.add(serr)
-					})
-
-				if taskCount > 0 {
-					logger.Log(ctx, slog2.LevelTrace, "waiting for stage to finish")
-				}
-				if m.enforceShutdownTimeout {
-					_ = waitGroupWaitWithContext(ctx, &preStopWG)
-				} else {
-					preStopWG.Wait()
-				}
-
-				return nil
-			})
-		if err != nil {
-			return err
-		}
-
 		// run stop tasks in reverse stage order
 		err = m.runStep(ctx, ctx, loggerStage, stage, StepStop,
 			func(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step, onTask func()) error {

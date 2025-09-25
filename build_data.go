@@ -24,10 +24,6 @@ func WithDataStart[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepStart, f)
 }
 
-func WithDataPreStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return withDataStep(StepPreStop, f)
-}
-
 func WithDataStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepStop, f)
 }

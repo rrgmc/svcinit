@@ -16,7 +16,7 @@ func TestService(t *testing.T) {
 		err := task.Run(t.Context(), step)
 		assert.NilError(t, err)
 	}
-	assert.DeepEqual(t, []string{"PreStop", "Setup", "Start", "Stop", "Teardown"}, svc.tl.get(), cmpopts.SortSlices(cmp.Less[string]))
+	assert.DeepEqual(t, []string{"Setup", "Start", "Stop", "Teardown"}, svc.tl.get(), cmpopts.SortSlices(cmp.Less[string]))
 
 	ti2 := &testService2{}
 	task2 := ServiceAsTask(ti2)
@@ -33,11 +33,6 @@ type testService struct {
 
 var _ Service = (*testService)(nil)
 var _ ServiceWithSetup = (*testService)(nil)
-
-func (t *testService) PreStop(ctx context.Context) error {
-	t.tl.add("PreStop")
-	return nil
-}
 
 func (t *testService) Setup(ctx context.Context) error {
 	t.tl.add("Setup")

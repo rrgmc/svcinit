@@ -15,7 +15,6 @@ func TestWrapTask(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := &testList[string]{}
 		stopped := &testList[string]{}
-		prestopped := &testList[string]{}
 
 		sm, err := New(
 			WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -38,10 +37,6 @@ func TestWrapTask(t *testing.T) {
 				stopped.add("task3")
 				return nil
 			}),
-			WithPreStop(func(ctx context.Context) error {
-				prestopped.add("task3")
-				return nil
-			}),
 		))
 
 		sm.AddTask(StageDefault, WrapTask(task1))
@@ -50,7 +45,6 @@ func TestWrapTask(t *testing.T) {
 		assert.NilError(t, err)
 
 		assert.DeepEqual(t, []string{"task3"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-		assert.DeepEqual(t, []string{"task3"}, prestopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 		assert.DeepEqual(t, []string{"task3"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
@@ -58,7 +52,6 @@ func TestWrapTask(t *testing.T) {
 func TestWrapTaskImplements(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := &testList[string]{}
-		prestopped := &testList[string]{}
 
 		sm, err := New(
 			WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -74,7 +67,7 @@ func TestWrapTaskImplements(t *testing.T) {
 				if !assert.Check(t, ok) {
 					return
 				}
-				assert.Check(t, cmp2.Equal([]Step{StepStart, StepPreStop}, ts.TaskSteps()))
+				assert.Check(t, cmp2.Equal([]Step{StepStart}, ts.TaskSteps()))
 
 				to, ok := task.(TaskWithOptions)
 				if !assert.Check(t, ok) {
@@ -91,13 +84,9 @@ func TestWrapTaskImplements(t *testing.T) {
 					started.add("task3")
 					return nil
 				}),
-				WithPreStop(func(ctx context.Context) error {
-					prestopped.add("task3")
-					return nil
-				}),
 			),
 			steps: []Step{
-				StepStart, StepPreStop,
+				StepStart,
 			},
 			options: []TaskInstanceOption{
 				WithCancelContext(true),
@@ -110,7 +99,6 @@ func TestWrapTaskImplements(t *testing.T) {
 		assert.NilError(t, err)
 
 		assert.DeepEqual(t, []string{"task3"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-		assert.DeepEqual(t, []string{"task3"}, prestopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
 

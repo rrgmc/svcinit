@@ -20,7 +20,6 @@ func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := &testList[string]{}
 		stopped := &testList[string]{}
-		prestopped := &testList[string]{}
 
 		sm, err := New(
 			WithStages("health", "service"),
@@ -35,10 +34,6 @@ func TestManager(t *testing.T) {
 				stopped.add("task1")
 				return nil
 			}),
-			WithPreStop(func(ctx context.Context) error {
-				prestopped.add("task1")
-				return nil
-			}),
 		))
 		assert.NilError(t, err)
 
@@ -46,7 +41,6 @@ func TestManager(t *testing.T) {
 		assert.NilError(t, err)
 
 		assert.DeepEqual(t, []string{"task1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-		assert.DeepEqual(t, []string{"task1"}, prestopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 		assert.DeepEqual(t, []string{"task1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
@@ -251,11 +245,10 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil task start, prestop and stop",
+			name: "nil task start, stop",
 			fn: func(sinit *Manager) {
 				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
-					WithPreStop(nil),
 					WithStop(nil)),
 					WithCancelContext(true))
 			},
@@ -274,32 +267,14 @@ func TestManagerNilTask(t *testing.T) {
 			},
 		},
 		{
-			name: "nil task prestop",
-			fn: func(sinit *Manager) {
-				sinit.AddTask(StageDefault, BuildTask(
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second)
-					}),
-					WithPreStop(nil),
-					WithStop(func(ctx context.Context) error {
-						return nil
-					}),
-				),
-					WithCancelContext(true),
-				)
-			},
-		},
-		{
 			name: "nil task multiple",
 			fn: func(sinit *Manager) {
 				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
-					WithPreStop(nil),
 					WithStop(nil)),
 					WithCancelContext(true))
 				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(nil),
-					WithPreStop(nil),
 					WithStop(nil)),
 					WithCancelContext(true))
 			},
@@ -499,9 +474,6 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithStart(func(ctx context.Context) error {
 						return nil
 					}),
-					WithPreStop(func(ctx context.Context) error {
-						return nil
-					}),
 					WithTeardown(func(ctx context.Context) error {
 						return nil
 					}),
@@ -513,8 +485,6 @@ func TestManagerErrorReturns(t *testing.T) {
 			expectedCounts: map[testCount]int{
 				testCount{"s1", StepStart, CallbackStepBefore}:    1,
 				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
 				testCount{"s1", StepStop, CallbackStepBefore}:     1,
 				testCount{"s1", StepStop, CallbackStepAfter}:      1,
 				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
@@ -529,34 +499,6 @@ func TestManagerErrorReturns(t *testing.T) {
 					}),
 					WithStop(func(ctx context.Context) error {
 						return nil
-					}),
-					WithPreStop(func(ctx context.Context) error {
-						return nil
-					}),
-					WithTeardown(func(ctx context.Context) error {
-						return nil
-					}),
-				)))
-			},
-		}, {
-			name:            "return error from pre-stop step",
-			expectedStopErr: []error{err2},
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:    1,
-				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
-			},
-			setupFn: func(m *Manager) {
-				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true))
-					}),
-					WithPreStop(func(ctx context.Context) error {
-						return err2
 					}),
 					WithTeardown(func(ctx context.Context) error {
 						return nil
@@ -614,13 +556,11 @@ func TestManagerErrorReturns(t *testing.T) {
 				)))
 			},
 		}, {
-			name:            "return error from stop and pre-stop steps",
+			name:            "return error from stop and teardown steps",
 			expectedStopErr: []error{err2, err3},
 			expectedCounts: map[testCount]int{
 				testCount{"s1", StepStart, CallbackStepBefore}:    1,
 				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepPreStop, CallbackStepBefore}:  1,
-				testCount{"s1", StepPreStop, CallbackStepAfter}:   1,
 				testCount{"s1", StepStop, CallbackStepBefore}:     1,
 				testCount{"s1", StepStop, CallbackStepAfter}:      1,
 				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
@@ -635,11 +575,8 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithStop(func(ctx context.Context) error {
 						return err2
 					}),
-					WithPreStop(func(ctx context.Context) error {
-						return err3
-					}),
 					WithTeardown(func(ctx context.Context) error {
-						return nil
+						return err3
 					}),
 				)))
 			},

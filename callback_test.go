@@ -82,13 +82,6 @@ func TestCallback(t *testing.T) {
 				}()
 				return sleepContext(ctx, 10*time.Second, withSleepContextError(true)) // 10 seconds, will stop before task 1 which is 20 seconds
 			}),
-			WithPreStop(func(ctx context.Context) (err error) {
-				testruncb.add(2, "s2", StepPreStop, CallbackStepBefore, nil)
-				defer func() {
-					testruncb.add(2, "s2", StepPreStop, CallbackStepAfter, err)
-				}()
-				return nil
-			}),
 			WithStop(func(ctx context.Context) (err error) {
 				testruncb.add(2, "s2", StepStop, CallbackStepBefore, nil)
 				defer func() {
@@ -124,8 +117,6 @@ func TestCallback(t *testing.T) {
 			2: {
 				{2, "s2", StepStart, CallbackStepBefore, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepPreStop, CallbackStepBefore, nil},
-				{2, "s2", StepPreStop, CallbackStepAfter, nil},
 				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 			},
@@ -134,8 +125,6 @@ func TestCallback(t *testing.T) {
 			{1, "s1", StepStart, CallbackStepBefore, nil},
 			{2, "s2", StepStart, CallbackStepBefore, nil},
 			{2, "s2", StepStart, CallbackStepAfter, nil},
-			{2, "s2", StepPreStop, CallbackStepBefore, nil},
-			{2, "s2", StepPreStop, CallbackStepAfter, nil},
 			{2, "s2", StepStop, CallbackStepBefore, nil},
 			{2, "s2", StepStop, CallbackStepAfter, nil},
 			{1, "s1", StepStop, CallbackStepBefore, nil},

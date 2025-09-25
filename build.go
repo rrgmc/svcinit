@@ -38,10 +38,6 @@ func WithStart(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepStart, f)
 }
 
-func WithPreStop(f TaskBuildFunc) TaskBuildOption {
-	return WithStep(StepPreStop, f)
-}
-
 func WithStop(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepStop, f)
 }

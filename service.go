@@ -12,11 +12,6 @@ type Service interface {
 	Stop(ctx context.Context) error
 }
 
-// ServiceWithPreStop is a Service which has a PreStop step.
-type ServiceWithPreStop interface {
-	PreStop(ctx context.Context) error
-}
-
 // ServiceWithSetup is a Service which has a Setup step.
 type ServiceWithSetup interface {
 	Setup(ctx context.Context) error
@@ -38,9 +33,6 @@ func ServiceAsTask(service Service) ServiceTask {
 	if _, ok := t.service.(ServiceWithSetup); ok {
 		t.steps = append(t.steps, StepSetup, StepTeardown)
 	}
-	if _, ok := t.service.(ServiceWithPreStop); ok {
-		t.steps = append(t.steps, StepPreStop)
-	}
 	return t
 }
 
@@ -61,10 +53,6 @@ func (t *serviceTask) Run(ctx context.Context, step Step) error {
 		}
 	case StepStart:
 		return t.service.Start(ctx)
-	case StepPreStop:
-		if tt, ok := t.service.(ServiceWithPreStop); ok {
-			return tt.PreStop(ctx)
-		}
 	case StepStop:
 		return t.service.Stop(ctx)
 	case StepTeardown:
