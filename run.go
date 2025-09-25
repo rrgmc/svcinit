@@ -124,7 +124,7 @@ func (m *Manager) start(ctx context.Context) error {
 
 	for stage := range stagesIter(m.stages, false) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "running stage")
+		loggerStage.InfoContext(ctx, "starting stage")
 
 		// m.runManagerCallbacks(m.taskDoneCtx, stage, StepInvalid, CallbackStepBefore)
 
@@ -172,7 +172,7 @@ func (m *Manager) start(ctx context.Context) error {
 		}
 
 		// m.runManagerCallbacks(m.taskDoneCtx, stage, StepInvalid, CallbackStepAfter)
-		loggerStage.InfoContext(ctx, "running stage: finished")
+		loggerStage.InfoContext(ctx, "starting stage: finished")
 	}
 
 	return nil
@@ -192,7 +192,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "running stage")
+		loggerStage.InfoContext(ctx, "stopping stage")
 
 		// run pre-stop tasks in reverse stage order
 		err = m.runStep(ctx, ctx, loggerStage, stage, StepPreStop,
@@ -252,7 +252,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			return err
 		}
 
-		loggerStage.InfoContext(ctx, "running stage: finished")
+		loggerStage.InfoContext(ctx, "stopping stage: finished")
 	}
 
 	// wait for all goroutines to finish
@@ -333,10 +333,6 @@ func (m *Manager) runStep(ctx, cancelCtx context.Context, logger *slog.Logger, s
 	}
 
 	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
-
-	if taskCount.Load() > 0 {
-		loggerStep.InfoContext(ctx, "running step: finished")
-	}
 
 	if taskCount.Load() > 0 {
 		loggerStep.InfoContext(ctx, "running step: finished")
