@@ -185,13 +185,13 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	}
 
 	// wait for all goroutines to finish
-	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to finish", shutdownAttr...)
+	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to stop", shutdownAttr...)
 	if m.enforceShutdownTimeout {
 		_ = waitGroupWaitWithContext(ctx, &m.tasksRunning)
 	} else {
 		m.tasksRunning.Wait()
 	}
-	m.logger.LogAttrs(ctx, slog.LevelDebug, "finished waiting for tasks to finish", shutdownAttr...)
+	m.logger.LogAttrs(ctx, slog.LevelDebug, "waiting for tasks to stop (finished)", shutdownAttr...)
 
 	if ctx.Err() != nil {
 		ctxCause := context.Cause(ctx)
@@ -209,13 +209,15 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "running stage")
+		loggerStage.InfoContext(ctx, "teardown stage")
 
 		// run teardown tasks
 		m.runStage(ctx, ctx, loggerStage, stage, StepTeardown, nil, false,
 			func(serr error) {
 				eb.add(serr)
 			})
+
+		loggerStage.InfoContext(ctx, "teardown stage (finished)")
 	}
 }
 
@@ -251,7 +253,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
 
 	if taskCount > 0 {
-		logger.Log(ctx, slog.LevelDebug, "waiting for step to finish")
+		loggerStep.Log(ctx, slog.LevelDebug, "running step (waiting)")
 	}
 	if isWait {
 		if enforceWaitTimeout {
