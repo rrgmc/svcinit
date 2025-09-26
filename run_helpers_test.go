@@ -28,7 +28,7 @@ func TestTaskWrapper_invalidStep(t *testing.T) {
 			}),
 		)
 
-		tw := newTaskWrapper(StageDefault, testTask)
+		tw := newTaskWrapper(testTask)
 
 		err := tw.run(ctx, logger, StageDefault, StepTeardown, nil)
 		assert.ErrorIs(t, err, ErrInvalidTaskStep)
@@ -53,7 +53,7 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 			}),
 		)
 
-		tw := newTaskWrapper(StageDefault, testTask)
+		tw := newTaskWrapper(testTask)
 
 		err := tw.run(ctx, logger, StageDefault, StepSetup, nil)
 		assert.NilError(t, err)

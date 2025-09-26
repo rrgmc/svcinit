@@ -12,7 +12,6 @@ import (
 )
 
 type taskWrapper struct {
-	stage   string
 	task    Task
 	options taskOptions
 
@@ -22,10 +21,9 @@ type taskWrapper struct {
 	finishCtx    context.Context
 }
 
-func newTaskWrapper(stage string, task Task, options ...TaskOption) *taskWrapper {
+func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 	ret := &taskWrapper{
-		stage: stage,
-		task:  task,
+		task: task,
 	}
 	for _, option := range options {
 		option.applyTaskOpt(&ret.options)
@@ -96,8 +94,8 @@ func newStageTasks() *stageTasks {
 	}
 }
 
-func (s *stageTasks) add(tw *taskWrapper) {
-	s.tasks[tw.stage] = append(s.tasks[tw.stage], tw)
+func (s *stageTasks) add(stage string, tw *taskWrapper) {
+	s.tasks[stage] = append(s.tasks[stage], tw)
 }
 
 func (s *stageTasks) stageTasks(stage string) iter.Seq[*taskWrapper] {
