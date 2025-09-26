@@ -153,11 +153,21 @@ func Example() {
 	}
 	initTask := svcinit.NewTaskFuture[*initTaskData](
 		func(ctx context.Context) (ret *initTaskData, err error) {
+			// get the health server from the Future.
+			healthServer, err := healthTask.Value()
+			if err != nil {
+				return nil, err
+			}
+
 			ret = &initTaskData{}
 			ret.db, err = sql.Open("pgx", "dburl")
 			if err != nil {
 				return nil, err
 			}
+
+			// send the initialized DB connection to the health service to be used by the readiness probe.
+			healthServer.AddDBHealth(ret.db)
+
 			return
 		},
 		svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
