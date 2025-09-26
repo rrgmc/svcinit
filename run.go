@@ -244,7 +244,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 		waitWG = &sync.WaitGroup{}
 	}
 
-	taskCount := m.runStageStep(ctx, cancelCtx, stage, step, waitWG, func() {
+	taskCount := m.runStageStep(ctx, cancelCtx, stage, step, waitWG, !isWait, func() {
 		loggerStepOnce.Do(loggerStepFn)
 	}, onError)
 
@@ -266,7 +266,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 }
 
 func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
-	onTask func(), onError func(err error)) int {
+	waitStart bool, onTask func(), onError func(err error)) int {
 	loggerStage := m.logger.With(
 		"stage", stage,
 		"step", step.String())
@@ -304,10 +304,14 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		onTask()
 
 		wg.Add(1)
-		startWg.Add(1)
+		if waitStart {
+			startWg.Add(1)
+		}
 		go func() {
 			defer wg.Done()
-			startWg.Done()
+			if waitStart {
+				startWg.Done()
+			}
 			taskCtx := cancelCtx
 			var taskCancelOnStop context.CancelFunc
 			switch step {
@@ -367,12 +371,14 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		}()
 	}
 
-	if taskCount.Load() > 0 {
-		loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start")
-	}
-	startWg.Wait() // even if taskCount is 0, some startup might have been done, must still wait.
-	if taskCount.Load() > 0 {
-		loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start: finished")
+	if waitStart {
+		if taskCount.Load() > 0 {
+			loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start")
+		}
+		startWg.Wait() // even if taskCount is 0, some startup might have been done, must still wait.
+		if taskCount.Load() > 0 {
+			loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start: finished")
+		}
 	}
 
 	return int(taskCount.Load())
