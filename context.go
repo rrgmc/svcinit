@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	slog2 "github.com/rrgmc/svcinit/v2/slog"
+	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
 
 type StartStepManager interface {

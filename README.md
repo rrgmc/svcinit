@@ -1,5 +1,5 @@
 # svcinit
-[![GoDoc](https://godoc.org/github.com/rrgmc/svcinit/v2?status.png)](https://godoc.org/github.com/rrgmc/svcinit/v2)
+[![GoDoc](https://godoc.org/github.com/rrgmc/svcinit/v3?status.png)](https://godoc.org/github.com/rrgmc/svcinit/v3)
 
 ## Features
 
@@ -20,7 +20,7 @@ import (
     "syscall"
     "time"
 
-    "github.com/rrgmc/svcinit/v2"
+    "github.com/rrgmc/svcinit/v3"
 )
 
 // healthService wraps an HTTP service in a [svcinit.Task] interface.

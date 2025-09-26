@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	slog2 "github.com/rrgmc/svcinit/v2/slog"
+	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
 
 func (m *Manager) init() error {

@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rrgmc/svcinit/v2"
+	"github.com/rrgmc/svcinit/v3"
 )
 
 // healthService wraps an HTTP service in a [svcinit.Task] interface.

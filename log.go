@@ -4,7 +4,7 @@ import (
 	"io"
 	"log/slog"
 
-	slog2 "github.com/rrgmc/svcinit/v2/slog"
+	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
 
 // defaultLogger is the default logger to be used internally.

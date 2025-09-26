@@ -1,4 +1,4 @@
-module github.com/rrgmc/svcinit/v2
+module github.com/rrgmc/svcinit/v3
 
 go 1.25.0
 
