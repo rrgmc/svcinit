@@ -185,13 +185,13 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	}
 
 	// wait for all goroutines to finish
-	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to stop", shutdownAttr...)
+	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to shutdown", shutdownAttr...)
 	if m.enforceShutdownTimeout {
 		_ = waitGroupWaitWithContext(ctx, &m.tasksRunning)
 	} else {
 		m.tasksRunning.Wait()
 	}
-	m.logger.LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to stop", shutdownAttr...)
+	m.logger.LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
 
 	if ctx.Err() != nil {
 		ctxCause := context.Cause(ctx)
