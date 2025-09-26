@@ -12,46 +12,55 @@ import (
 
 type TaskBuildFunc func(ctx context.Context) error
 
+// BuildTask creates a task from callback functions.
 func BuildTask(options ...TaskBuildOption) Task {
 	return newTaskBuild(options...)
 }
 
 type TaskBuildOption func(*taskBuild)
 
-func WithParent(parent Task) TaskBuildOption {
-	return func(build *taskBuild) {
-		build.parent.Store(&parent)
-	}
-}
-
+// WithName sets the task name.
 func WithName(name string) TaskBuildOption {
 	return func(build *taskBuild) {
 		build.name = name
 	}
 }
 
+// WithStep sets the callback for a step.
 func WithStep(step Step, f TaskBuildFunc) TaskBuildOption {
 	return func(build *taskBuild) {
 		build.stepFunc[step] = f
 	}
 }
 
+// WithSetup sets a callback for the "setup" step.
 func WithSetup(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepSetup, f)
 }
 
+// WithStart sets a callback for the "start" step.
 func WithStart(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepStart, f)
 }
 
+// WithStop sets a callback for the "stop" step.
 func WithStop(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepStop, f)
 }
 
+// WithTeardown sets a callback for the "teardown" step.
 func WithTeardown(f TaskBuildFunc) TaskBuildOption {
 	return WithStep(StepTeardown, f)
 }
 
+// WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
+func WithParent(parent Task) TaskBuildOption {
+	return func(build *taskBuild) {
+		build.parent.Store(&parent)
+	}
+}
+
+// WithTaskOptions sets default task options for the TaskOption interface.
 func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 	return func(build *taskBuild) {
 		build.options = append(build.options, options...)

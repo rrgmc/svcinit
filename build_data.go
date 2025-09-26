@@ -10,42 +10,52 @@ type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
 
 type TaskBuildDataSetupFunc[T any] func(ctx context.Context) (T, error)
 
+// BuildDataTask creates a task from callback functions, where some data is created in the "setup" step and passed
+// to all other steps.
 func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
 	return newTaskBuildData[T](setupFunc, options...)
 }
 
 type TaskBuildDataOption[T any] func(*taskBuildData[T])
 
+// WithDataName sets the task name.
 func WithDataName[T any](name string) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.tbOptions = append(build.tbOptions, WithName(name))
 	}
 }
 
+// WithDataStart sets a callback for the "start" step.
 func WithDataStart[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepStart, f)
 }
 
+// WithDataStop sets a callback for the "stop" step.
 func WithDataStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepStop, f)
 }
 
+// WithDataTeardown sets a callback for the "teardown" step.
 func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
 	return withDataStep(StepTeardown, f)
 }
 
+// WithDataParent sets a parent task. Any step not set in the built task will be forwarded to it.
 func WithDataParent[T any](parent Task) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.tbOptions = append(build.tbOptions, WithParent(parent))
 	}
 }
 
+// WithDataParentFromSetup sets a parent task from the result of the "setup" task.
+// If this value doesn't implement Task, an initialization error will be issued.
 func WithDataParentFromSetup[T any](parentFromSetup bool) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.parentFromSetup = parentFromSetup
 	}
 }
 
+// WithDataTaskOptions sets default task options for the TaskOption interface.
 func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
 		build.tbOptions = append(build.tbOptions, WithTaskOptions(options...))
