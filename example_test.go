@@ -74,7 +74,7 @@ func ExampleManager() {
 		AddTask("service", svcinit.BuildTask(
 			svcinit.WithSetup(func(ctx context.Context) error {
 				// initialize the service in the setup step.
-				// as this may take some time in bigger services, initializing here allows other tasks to setup
+				// as this may take some time in bigger services, initializing here allows other tasks to initialize
 				// at the same time.
 				httpServer = &http.Server{
 					Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
