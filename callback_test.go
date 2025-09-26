@@ -109,43 +109,23 @@ func TestCallback(t *testing.T) {
 		err = sinit.Run(t.Context())
 		assert.NilError(t, err)
 
-		expected := map[int][]testCallbackItem{
-			1: {
-				{1, "s1", StepStart, CallbackStepBefore, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
-				{1, "s1", StepStart, CallbackStepAfter, errCancelTask1},
-				{1, "s1", StepStop, CallbackStepAfter, nil},
-			},
-			2: {
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepAfter, nil},
-			},
-		}
 		expectedAll := []testCallbackItem{
 			{1, "s1", StepStart, CallbackStepBefore, nil},
+			{1, "s1", StepStop, CallbackStepBefore, nil},
+			{1, "s1", StepStart, CallbackStepAfter, errCancelTask1},
+			{1, "s1", StepStop, CallbackStepAfter, nil},
+
 			{2, "s2", StepStart, CallbackStepBefore, nil},
 			{2, "s2", StepStart, CallbackStepAfter, nil},
 			{2, "s2", StepStop, CallbackStepBefore, nil},
 			{2, "s2", StepStop, CallbackStepAfter, nil},
-			{1, "s1", StepStop, CallbackStepBefore, nil},
-			{1, "s1", StepStart, CallbackStepAfter, errCancelTask1},
-			{1, "s1", StepStop, CallbackStepAfter, nil},
 		}
 
 		assert.Equal(t, int32(4), runStarted.Load())
 		assert.Equal(t, int32(4), runStopped.Load())
-		testcb.m.Lock()
-		defer testcb.m.Unlock()
-		testtaskcb.m.Lock()
-		defer testtaskcb.m.Unlock()
-		testruncb.m.Lock()
-		defer testruncb.m.Unlock()
-		assert.DeepEqual(t, expected, testcb.allTestTasksByNo)
-		assert.DeepEqual(t, expected, testtaskcb.allTestTasksByNo)
-		assert.DeepEqual(t, expected, testruncb.allTestTasksByNo)
-		assert.DeepEqual(t, expectedAll, testcb.allTestTasks)
+		testcb.assertExpectedNotExpected(t, expectedAll, nil)
+		testtaskcb.assertExpectedNotExpected(t, expectedAll, nil)
+		testruncb.assertExpectedNotExpected(t, expectedAll, nil)
 	})
 }
 
@@ -190,10 +170,9 @@ type testCount struct {
 }
 
 type testCallback struct {
-	m                sync.Mutex
-	counts           map[testCount]int
-	allTestTasks     []testCallbackItem
-	allTestTasksByNo map[int][]testCallbackItem
+	m            sync.Mutex
+	counts       map[testCount]int
+	allTestTasks []testCallbackItem
 }
 
 func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -217,11 +196,7 @@ func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep Cal
 		callbackStep: callbackStep,
 		err:          err,
 	}
-	if t.allTestTasksByNo == nil {
-		t.allTestTasksByNo = make(map[int][]testCallbackItem)
-	}
 	t.allTestTasks = append(t.allTestTasks, item)
-	t.allTestTasksByNo[taskNo] = append(t.allTestTasksByNo[taskNo], item)
 }
 
 func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackItem {
@@ -242,9 +217,6 @@ func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackI
 func (t *testCallback) assertExpectedNotExpected(tt *testing.T, expected, notExpected []testCallbackItem) {
 	_ = assert.Check(tt, cmp2.DeepEqual([]testCallbackItem(nil), t.containsAll(expected)), "failed expected test")
 	_ = assert.Check(tt, cmp2.DeepEqual(notExpected, t.containsAll(notExpected)), "failed not expected test")
-
-	// assert.DeepEqual(tt, []testCallbackItem(nil), t.containsAll(expected))
-	// assert.DeepEqual(tt, notExpected, t.containsAll(notExpected))
 }
 
 func (t *testCallback) Callback(_ context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
