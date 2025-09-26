@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+// SignalTask returns a task that returns when one of the passed OS signals is received.
+func SignalTask(signals ...os.Signal) *TaskSignalTask {
+	return &TaskSignalTask{signals}
+}
+
 // TimeoutTask stops the task after the specified timeout, or the context is done.
 // By default, a TimeoutError is returned on timeout.
 func TimeoutTask(timeout time.Duration, options ...TimeoutTaskOption) *TaskTimeoutTask {
@@ -20,9 +25,46 @@ func TimeoutTask(timeout time.Duration, options ...TimeoutTaskOption) *TaskTimeo
 	return ret
 }
 
-// SignalTask returns a task that returns when one of the passed OS signals is received.
-func SignalTask(signals ...os.Signal) *TaskSignalTask {
-	return &TaskSignalTask{signals}
+type TaskSignalTask struct {
+	signals []os.Signal
+}
+
+var _ Task = (*TaskSignalTask)(nil)
+var _ TaskSteps = (*TaskSignalTask)(nil)
+var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
+
+func (t *TaskSignalTask) Signals() []os.Signal {
+	return t.signals
+}
+
+func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
+	switch step {
+	case StepStart:
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, t.signals...)
+		select {
+		case sig := <-c:
+			return SignalError{Signal: sig}
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		}
+	default:
+	}
+	return nil
+}
+
+func (t *TaskSignalTask) TaskSteps() []Step {
+	return []Step{StepStart}
+}
+
+func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
+	return []TaskInstanceOption{
+		WithCancelContext(true),
+	}
+}
+
+func (t *TaskSignalTask) String() string {
+	return fmt.Sprintf("Signals %v", t.signals)
 }
 
 type TaskTimeoutTask struct {
@@ -87,48 +129,6 @@ func WithoutTimeoutTaskError() TimeoutTaskOption {
 	return func(task *TaskTimeoutTask) {
 		task.returnNilError = true
 	}
-}
-
-type TaskSignalTask struct {
-	signals []os.Signal
-}
-
-var _ Task = (*TaskSignalTask)(nil)
-var _ TaskSteps = (*TaskSignalTask)(nil)
-var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
-
-func (t *TaskSignalTask) Signals() []os.Signal {
-	return t.signals
-}
-
-func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
-	switch step {
-	case StepStart:
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, t.signals...)
-		select {
-		case sig := <-c:
-			return SignalError{Signal: sig}
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		}
-	default:
-	}
-	return nil
-}
-
-func (t *TaskSignalTask) TaskSteps() []Step {
-	return []Step{StepStart}
-}
-
-func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
-	return []TaskInstanceOption{
-		WithCancelContext(true),
-	}
-}
-
-func (t *TaskSignalTask) String() string {
-	return fmt.Sprintf("Signals %v", t.signals)
 }
 
 // TimeoutError is returned by TimeoutTask by default.
