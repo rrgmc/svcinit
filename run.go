@@ -79,6 +79,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	if roptns.shutdownCtx == nil {
 		roptns.shutdownCtx = context.WithoutCancel(ctx)
+	} else {
+		roptns.shutdownCtx = slog2.LoggerToContext(roptns.shutdownCtx, m.logger)
 	}
 
 	// run stop steps.

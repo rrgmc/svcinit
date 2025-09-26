@@ -7,11 +7,12 @@ import (
 	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
 
+// StartStepManager allows the "stop" step to cancel the start step and/or wait for it to finish.
 type StartStepManager interface {
-	ContextCancel(cause error) bool
-	Finished() <-chan struct{}
-	CanContextCancel() bool
-	CanFinished() bool
+	ContextCancel(cause error) bool // cancel the "start" step context. Returns whether the cancellation was possible.
+	Finished() <-chan struct{}      // channel that will be closed once the "start" step finishes.
+	CanContextCancel() bool         // returns whether the "start" step context can be called.
+	CanFinished() bool              // returns whether the Finished channel can be checked. If false, Finished will return a nil channel.
 }
 
 // StartStepManagerFromContext returns a StartStepManager from the stop step's context.
