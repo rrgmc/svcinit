@@ -45,8 +45,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	ctx = slog2.LoggerToContext(ctx, m.logger)
 
-	stopErrBuilder := newMultiErrorBuilder()
-
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
 	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
@@ -84,11 +82,9 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 
 	// run stop steps.
-	var shutdownErr error
-	shutdownErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause), stopErrBuilder)
-	if shutdownErr != nil {
-		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
-		cause = shutdownErr
+	stopErr = m.shutdown(contextWithCause(roptns.shutdownCtx, cause))
+	if stopErr != nil {
+		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, stopErr)
 	}
 
 	if errors.Is(cause, ErrExit) {
@@ -96,7 +92,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 
 	// build errors to return
-	stopErr = stopErrBuilder.build()
 	var ferr fatalError
 	if errors.As(stopErr, &ferr) {
 		if cause == nil {
@@ -156,7 +151,7 @@ func (m *Manager) start(ctx context.Context) error {
 }
 
 // shutdown runs the stop step.
-func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err error) {
+func (m *Manager) shutdown(ctx context.Context) (err error) {
 	startTime := time.Now()
 	var shutdownAttr []slog.Attr
 	if m.shutdownTimeout > 0 {
@@ -167,6 +162,8 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 			slog.Duration("timeout", m.shutdownTimeout))
 	}
 	m.logger.LogAttrs(ctx, slog.LevelInfo, "shutting down", shutdownAttr...)
+
+	eb := newMultiErrorBuilder()
 
 	// run stop tasks in reverse stage order
 	for stage := range stagesIter(m.stages, true) {
@@ -214,7 +211,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		With("duration", time.Since(startTime).String()).
 		LogAttrs(ctx, slog.LevelInfo, "(finished) shutting down", shutdownAttr...)
 
-	return nil
+	return eb.build()
 }
 
 func (m *Manager) AddInitError(err error) {
