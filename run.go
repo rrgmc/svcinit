@@ -208,7 +208,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 
 	m.logger.
 		With("duration", time.Since(startTime).String()).
-		LogAttrs(ctx, slog.LevelInfo, "(finished) shutting down", shutdownAttr...)
+		LogAttrs(ctx, slog.LevelDebug, "(finished) shutting down", shutdownAttr...)
 
 	return nil
 }
@@ -254,7 +254,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 			waitWG.Wait()
 		}
 		if taskCount > 0 {
-			loggerStep.InfoContext(ctx, "(finished) running step")
+			loggerStep.DebugContext(ctx, "(finished) running step")
 		}
 	}
 }
@@ -354,10 +354,14 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
-						loggerTask.With(logAttrs...).WarnContext(ctx, "(finished with error) running task step",
+						level := slog.LevelDebug
+						if step != StepStart && step != StepStop {
+							level = slog.LevelWarn
+						}
+						loggerTask.With(logAttrs...).Log(ctx, level, "(finished with error) running task step",
 							slog2.ErrorKey, err)
 					} else {
-						loggerTask.With(logAttrs...).InfoContext(ctx, "(finished) running task step")
+						loggerTask.With(logAttrs...).DebugContext(ctx, "(finished) running task step")
 					}
 				}
 				onError(err)
