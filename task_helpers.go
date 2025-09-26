@@ -2,28 +2,9 @@ package svcinit
 
 import (
 	"context"
-	"fmt"
 	"iter"
 	"slices"
 )
-
-type errorTask struct {
-	err error
-}
-
-var _ Task = (*errorTask)(nil)
-
-func (n *errorTask) Run(_ context.Context, step Step) error {
-	return n.err
-}
-
-// checkNilTask returns errorTask if task is nil, otherwise return the task itself.
-func checkNilTask(task Task) Task {
-	if task == nil {
-		return &errorTask{err: ErrNilTask}
-	}
-	return task
-}
 
 var allSteps = []Step{StepSetup, StepStart, StepStop, StepTeardown} // order matters
 
@@ -53,23 +34,22 @@ func taskHasStep(task Task, step Step) bool {
 	return slices.Contains(taskSteps(task), step)
 }
 
-func taskNextStep(task Task, doneSteps []Step) (Step, error) {
-	return nextStep(taskSteps(task), doneSteps)
+type errorTask struct {
+	err error
 }
 
-func nextStep(taskSteps []Step, doneSteps []Step) (Step, error) {
-	nextStep := StepInvalid
-	for step := range taskOrderedSteps(taskSteps) {
-		if nextStep == StepInvalid {
-			if !slices.Contains(doneSteps, step) {
-				nextStep = step
-			}
-		} else if slices.Contains(doneSteps, step) {
-			return nextStep, fmt.Errorf("%w: task next step should be '%s' but following step '%s' already done",
-				ErrInvalidStepOrder, nextStep.String(), step.String())
-		}
+var _ Task = (*errorTask)(nil)
+
+func (n *errorTask) Run(_ context.Context, step Step) error {
+	return n.err
+}
+
+// checkNilTask returns errorTask if task is nil, otherwise return the task itself.
+func checkNilTask(task Task) Task {
+	if task == nil {
+		return &errorTask{err: ErrNilTask}
 	}
-	return nextStep, nil
+	return task
 }
 
 // task options

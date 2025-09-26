@@ -33,6 +33,28 @@ func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 	return ret
 }
 
+// checkStartStep checks if the step can be started for this task.
+// Returns any logic error found.
+func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	canStartStep := t.internalCanStartStep(step)
+	prevStepIsDone, err := t.internalPrevStepIsDone(step)
+	if err != nil {
+		return false, err
+	}
+	if !canStartStep && prevStepIsDone {
+		t.internalAddStepDone(step)
+	}
+	return canStartStep && prevStepIsDone, nil
+}
+
+// checkRunStep checks if the step can be run, after checkStartStep allowed it to start.
+func (t *taskWrapper) checkRunStep(step Step) bool {
+	return taskHasStep(t.task, step)
+}
+
 // run runs the task.
 // checkStartStep and checkRunStep must be called prior to calling this.
 func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
@@ -58,28 +80,6 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 	for _, callback := range slices.Concat(callbacks, t.options.callbacks) {
 		callback.Callback(ctx, t.task, stage, step, callbackStep, err)
 	}
-}
-
-// checkStartStep checks if the step can be started for this task.
-// Returns any logic error found.
-func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	canStartStep := t.internalCanStartStep(step)
-	prevStepIsDone, err := t.internalPrevStepIsDone(step)
-	if err != nil {
-		return false, err
-	}
-	if !canStartStep && prevStepIsDone {
-		t.internalAddStepDone(step)
-	}
-	return canStartStep && prevStepIsDone, nil
-}
-
-// checkRunStep checks if the step can be run, after checkStartStep allowed it to start.
-func (t *taskWrapper) checkRunStep(step Step) bool {
-	return taskHasStep(t.task, step)
 }
 
 func (t *taskWrapper) addStepDone(step Step) {

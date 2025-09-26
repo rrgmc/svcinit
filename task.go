@@ -21,7 +21,7 @@ func (t TaskFunc) String() string {
 
 type TaskHandler func(ctx context.Context, task Task, step Step) error
 
-// TaskSteps sets the steps that the task implements. They will be the only ones called.
+// TaskSteps returns the steps that the task implements. They will be the only ones called.
 type TaskSteps interface {
 	TaskSteps() []Step
 }
