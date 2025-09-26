@@ -35,6 +35,8 @@ func CauseFromContext(ctx context.Context) (error, bool) {
 	return nil, false
 }
 
+// internal
+
 type startStepManagerContextKey struct{}
 
 type causeKey struct{}
