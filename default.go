@@ -75,6 +75,7 @@ type TaskTimeoutTask struct {
 }
 
 var _ Task = (*TaskTimeoutTask)(nil)
+var _ TaskName = (*TaskTimeoutTask)(nil)
 var _ TaskSteps = (*TaskTimeoutTask)(nil)
 var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
 
@@ -112,8 +113,15 @@ func (t *TaskTimeoutTask) TaskOptions() []TaskInstanceOption {
 	}
 }
 
-func (t *TaskTimeoutTask) String() string {
+func (t *TaskTimeoutTask) TaskName() string {
 	return fmt.Sprintf("Timeout %v", t.timeout)
+}
+
+func (t *TaskTimeoutTask) String() string {
+	if tn := t.TaskName(); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(t)
 }
 
 type TimeoutTaskOption func(task *TaskTimeoutTask)

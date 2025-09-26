@@ -74,7 +74,10 @@ func (t *BaseOverloadedTask) TaskName() string {
 }
 
 func (t *BaseOverloadedTask) String() string {
-	return GetTaskDescription(t.Task)
+	if tn := t.TaskName(); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(t.Task)
 }
 
 // BaseWrappedTask wraps and task and forwards TaskOptions and TaskSteps.
