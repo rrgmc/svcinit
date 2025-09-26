@@ -64,7 +64,9 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 			slog2.ErrorKey, setupErr)
 	}
 
-	m.logger.InfoContext(ctx, "waiting for first task to return")
+	if setupErr == nil {
+		m.logger.InfoContext(ctx, "waiting for first task to return")
+	}
 	<-m.startupCtx.Done()
 	// get the error returned by the first exiting task. It will be the cause of exit.
 	if setupErr == nil {
@@ -120,12 +122,12 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 // start runs the setup and start steps.
 func (m *Manager) start(ctx context.Context) error {
-	setupErr := newMultiErrorBuilder()
-
 	for stage := range stagesIter(m.stages, false) {
 		loggerStage := m.logger.With("stage", stage)
 
 		// run setup tasks
+		setupErr := newMultiErrorBuilder()
+
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup, nil, false,
 			func(serr error) {
 				if serr != nil {
@@ -134,6 +136,10 @@ func (m *Manager) start(ctx context.Context) error {
 					m.startupCancel(ierr)
 				}
 			})
+
+		if setupErr.hasErrors() {
+			return setupErr.build()
+		}
 
 		// run start tasks
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepStart, &m.tasksRunning, false,
@@ -146,7 +152,7 @@ func (m *Manager) start(ctx context.Context) error {
 			})
 	}
 
-	return setupErr.build()
+	return nil
 }
 
 // shutdown runs the stop step.

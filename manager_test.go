@@ -488,6 +488,15 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 
 			{0, "second", StepSetup, CallbackStepBefore, nil},
 			{0, "second", StepSetup, CallbackStepAfter, err1},
+		}
+
+		notExpectedTasks := []testCallbackItem{
+			{0, "second", StepStart, CallbackStepBefore, nil},
+			{0, "second", StepStart, CallbackStepAfter, err1},
+			{0, "second", StepStop, CallbackStepBefore, nil},
+			{0, "second", StepStop, CallbackStepAfter, err1},
+			{0, "second", StepTeardown, CallbackStepBefore, nil},
+			{0, "second", StepTeardown, CallbackStepAfter, err1},
 
 			{0, "third", StepSetup, CallbackStepBefore, nil},
 			{0, "third", StepSetup, CallbackStepAfter, nil},
@@ -499,18 +508,8 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 			{0, "third", StepTeardown, CallbackStepAfter, nil},
 		}
 
-		notExpectedTasks := []testCallbackItem{
-			{0, "second", StepStart, CallbackStepBefore, nil},
-			{0, "second", StepStart, CallbackStepAfter, err1},
-			{0, "second", StepStop, CallbackStepBefore, nil},
-			{0, "second", StepStop, CallbackStepAfter, err1},
-			{0, "second", StepTeardown, CallbackStepBefore, nil},
-			{0, "second", StepTeardown, CallbackStepAfter, err1},
-		}
-		// assert.DeepEqual(t, expectedTasks, testcb.allTestTasks)
-
 		assert.DeepEqual(t, []testCallbackItem(nil), testcb.containsAll(expectedTasks))
-		assert.DeepEqual(t, []testCallbackItem(nil), testcb.containsAll(notExpectedTasks))
+		assert.DeepEqual(t, notExpectedTasks, testcb.containsAll(notExpectedTasks))
 	})
 }
 
