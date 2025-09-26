@@ -36,21 +36,12 @@ func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 	return ret
 }
 
-func (t *taskWrapper) checkStepDone(step Step) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if slices.Contains(t.executeSteps, step) {
-		return fmt.Errorf("%w: task already did step '%s'",
-			ErrInvalidStepOrder, step.String())
-	}
-	return nil
-}
-
 // run runs the task.
 // checkStartStep and checkRunStep must be called prior to calling this.
 func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
 	if step != StepSetup {
+		// setup is only added if no run error, so start and stop are not called in that case.
 		t.addStepDone(step)
 	}
 	if t.options.handler != nil {
@@ -72,38 +63,8 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 	}
 }
 
-func (t *taskWrapper) prevExecuted(step Step) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	prev := prevStep(step)
-	if prev == StepInvalid {
-		return true
-	}
-	return slices.Contains(t.executeSteps, prev)
-}
-
-func (t *taskWrapper) addStepDone(step Step) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.internalAddStepDone(step)
-}
-
-func (t *taskWrapper) checkStep(ctx context.Context, logger *slog.Logger, step Step) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	err := checkTaskStepOrder(ctx, logger, t.task, t.executeSteps, step)
-	if err == nil {
-		t.executeSteps = append(t.executeSteps, step)
-	} else {
-		err = fmt.Errorf("task '%s' error: %w", TaskDescription(t.task), err)
-	}
-	return err
-}
-
-func (t *taskWrapper) checkRunStep(step Step) bool {
-	return taskHasStep(t.task, step)
-}
-
+// checkStartStep checks if the step can be started for this task.
+// Returns any logic error found.
 func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -117,6 +78,17 @@ func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
 		t.internalAddStepDone(step)
 	}
 	return canStartStep && prevStepIsDone, nil
+}
+
+// checkRunStep checks if the step can be run, after checkStartStep allowed it to start.
+func (t *taskWrapper) checkRunStep(step Step) bool {
+	return taskHasStep(t.task, step)
+}
+
+func (t *taskWrapper) addStepDone(step Step) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.internalAddStepDone(step)
 }
 
 func (t *taskWrapper) internalAddStepDone(step Step) {
@@ -145,16 +117,6 @@ func (t *taskWrapper) internalStepsAreDoneAny(steps ...Step) bool {
 	}
 	return false
 }
-
-// func (t *taskWrapper) internalStepsAreDoneOnly(steps ...Step) bool {
-// 	if len(steps) != len(t.executeSteps) {
-// 		return false
-// 	}
-// 	if len(steps) == 0 {
-// 		return true
-// 	}
-// 	return slices.Equal(slices.Sorted(slices.Values(steps)), slices.Sorted(slices.Values(t.executeSteps)))
-// }
 
 func (t *taskWrapper) internalPrevStepIsDone(step Step) (bool, error) {
 	switch step {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"log/slog"
 	"slices"
 )
 
@@ -71,45 +70,6 @@ func nextStep(taskSteps []Step, doneSteps []Step) (Step, error) {
 		}
 	}
 	return nextStep, nil
-}
-
-func prevStep(step Step) Step {
-	sidx := slices.Index(allSteps, step)
-	if sidx <= 0 {
-		return StepInvalid
-	}
-	return allSteps[sidx-1]
-}
-
-func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, doneSteps []Step, currentStep Step) error {
-	tSteps := taskSteps(task)
-
-	next, err := nextStep(tSteps, doneSteps)
-	if err != nil {
-		// if logger.Enabled(ctx, slog2.LevelTrace) {
-		// 	logger.Log(ctx, slog2.LevelTrace, "task next step error",
-		// 		"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
-		// 		"doneSteps", stringerList(doneSteps),
-		// 		slog2.ErrorKey, err)
-		// }
-		return err
-	}
-	// if logger.Enabled(ctx, slog2.LevelTrace) {
-	// 	logger.Log(ctx, slog2.LevelTrace, "task next step",
-	// 		"taskSteps", stringerIter(taskOrderedSteps(tSteps)),
-	// 		"doneSteps", stringerList(doneSteps),
-	// 		"next", next.String())
-	// }
-	// teardown can be executed out of order.
-	if next != currentStep && (currentStep != StepTeardown || slices.Contains(doneSteps, StepTeardown)) {
-		if next == StepInvalid {
-			return fmt.Errorf("%w: task has no next step but trying to run '%s'",
-				ErrInvalidStepOrder, currentStep)
-		}
-		return fmt.Errorf("%w: task next step should be '%s' but trying to run '%s'",
-			ErrInvalidStepOrder, next, currentStep)
-	}
-	return nil
 }
 
 // task options
