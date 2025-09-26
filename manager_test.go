@@ -474,6 +474,7 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 		))
 
 		err = sm.Run(t.Context())
+		assert.ErrorIs(t, err, ErrInitialization)
 		assert.ErrorIs(t, err, err1)
 
 		expectedTasks := []testCallbackItem{
