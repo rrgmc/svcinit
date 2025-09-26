@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"iter"
 	"slices"
+	"strings"
 )
 
 func sliceMap[S ~[]E, E, R any](slice S, mapper func(int, E) R) []R {
@@ -22,6 +23,10 @@ func sliceFilter[S ~[]E, E any](slice S, filter func(int, E) bool) []E {
 		}
 	}
 	return slices.Clip(filteredSlice)
+}
+
+func stringerString[T fmt.Stringer](s []T) string {
+	return strings.Join(stringerList(s), ",")
 }
 
 func stringerList[T fmt.Stringer](s []T) []string {

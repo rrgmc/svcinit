@@ -73,6 +73,14 @@ func nextStep(taskSteps []Step, doneSteps []Step) (Step, error) {
 	return nextStep, nil
 }
 
+func prevStep(step Step) Step {
+	sidx := slices.Index(allSteps, step)
+	if sidx <= 0 {
+		return StepInvalid
+	}
+	return allSteps[sidx-1]
+}
+
 func checkTaskStepOrder(ctx context.Context, logger *slog.Logger, task Task, doneSteps []Step, currentStep Step) error {
 	tSteps := taskSteps(task)
 

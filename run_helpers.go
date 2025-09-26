@@ -36,20 +36,28 @@ func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 	return ret
 }
 
+func (t *taskWrapper) checkStepDone(step Step) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if slices.Contains(t.executeSteps, step) {
+		return fmt.Errorf("%w: task already did step '%s'",
+			ErrInvalidStepOrder, step.String())
+	}
+	return nil
+}
+
 func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
-	if !taskHasStep(t.task, step) {
-		return fatalError{fmt.Errorf("%w: task '%s' don't have step '%s'",
-			ErrInvalidTaskStep, TaskDescription(t.task), step.String())}
-	}
-	err = t.checkStep(ctx, logger, step)
-	if err != nil {
-		return fatalError{err}
-	}
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
+	if step != StepSetup {
+		t.addStepDone(step)
+	}
 	if t.options.handler != nil {
 		err = t.options.handler(ctx, t.task, step)
 	} else {
 		err = t.task.Run(ctx, step)
+	}
+	if step == StepSetup && err == nil {
+		t.addStepDone(step)
 	}
 	t.runCallbacks(ctx, stage, step, CallbackStepAfter, err, callbacks)
 	return err
@@ -60,6 +68,22 @@ func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step,
 	for _, callback := range slices.Concat(callbacks, t.options.callbacks) {
 		callback.Callback(ctx, t.task, stage, step, callbackStep, err)
 	}
+}
+
+func (t *taskWrapper) prevExecuted(step Step) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	prev := prevStep(step)
+	if prev == StepInvalid {
+		return true
+	}
+	return slices.Contains(t.executeSteps, prev)
+}
+
+func (t *taskWrapper) addStepDone(step Step) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.internalAddStepDone(step)
 }
 
 func (t *taskWrapper) checkStep(ctx context.Context, logger *slog.Logger, step Step) error {
@@ -74,7 +98,31 @@ func (t *taskWrapper) checkStep(ctx context.Context, logger *slog.Logger, step S
 	return err
 }
 
-func (t *taskWrapper) hasStep(step Step) bool {
+func (t *taskWrapper) checkRunStep(step Step) bool {
+	return taskHasStep(t.task, step)
+}
+
+func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	canStartStep := t.internalCanStartStep(step)
+	prevStepIsDone, err := t.internalPrevStepIsDone(step)
+	if err != nil {
+		return false, err
+	}
+	isRunStep := canStartStep && prevStepIsDone
+	if !isRunStep {
+		t.internalAddStepDone(step)
+	}
+	return isRunStep, nil
+}
+
+func (t *taskWrapper) internalAddStepDone(step Step) {
+	t.executeSteps = append(t.executeSteps, step)
+}
+
+func (t *taskWrapper) internalCanStartStep(step Step) bool {
 	if taskHasStep(t.task, step) {
 		return true
 	}
@@ -82,6 +130,54 @@ func (t *taskWrapper) hasStep(step Step) bool {
 		return t.options.startStepManager
 	}
 	return false
+}
+
+func (t *taskWrapper) internalStepIsDone(step Step) bool {
+	return slices.Contains(t.executeSteps, step)
+}
+
+func (t *taskWrapper) internalStepsAreDoneAny(steps ...Step) bool {
+	for _, step := range steps {
+		if t.internalStepIsDone(step) {
+			return true
+		}
+	}
+	return false
+}
+
+// func (t *taskWrapper) internalStepsAreDoneOnly(steps ...Step) bool {
+// 	if len(steps) != len(t.executeSteps) {
+// 		return false
+// 	}
+// 	if len(steps) == 0 {
+// 		return true
+// 	}
+// 	return slices.Equal(slices.Sorted(slices.Values(steps)), slices.Sorted(slices.Values(t.executeSteps)))
+// }
+
+func (t *taskWrapper) internalPrevStepIsDone(step Step) (bool, error) {
+	switch step {
+	case StepSetup:
+		if !t.internalStepsAreDoneAny(StepSetup, StepStart, StepStop, StepTeardown) {
+			return true, nil
+		}
+	case StepStart:
+		if !t.internalStepsAreDoneAny(StepStart, StepStop, StepTeardown) {
+			return t.internalStepsAreDoneAny(StepSetup), nil
+		}
+	case StepStop:
+		if !t.internalStepsAreDoneAny(StepStop, StepTeardown) {
+			return t.internalStepsAreDoneAny(StepStart), nil
+		}
+	case StepTeardown:
+		if !t.internalStepsAreDoneAny(StepTeardown) {
+			return t.internalStepsAreDoneAny(StepSetup), nil
+		}
+	default:
+		return false, fmt.Errorf("%w: step '%s' is not a valid step", ErrInvalidTaskStep, step.String())
+	}
+	return false, fmt.Errorf("%w: invalid order for step '%s': already done '%s'", ErrInvalidStepOrder,
+		step, stringerString(t.executeSteps))
 }
 
 type stageTasks struct {

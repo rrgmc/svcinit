@@ -280,13 +280,28 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 	for tw := range m.tasks.stageTasks(stage) {
 		taskDesc := TaskDescription(tw.task)
 
-		if !tw.hasStep(step) {
+		if startStep, err := tw.checkStartStep(step); err != nil {
+			onError(err)
+			continue
+		} else if !startStep {
 			// taskCount.Add(1)
 			// onTask()
 			// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",
 			// 	"task", taskDesc)
 			continue
 		}
+
+		// if !tw.canRunStep(step) {
+		// 	err := tw.stepDone(step)
+		// 	if err != nil {
+		// 		onError(err)
+		// 	}
+		// 	// taskCount.Add(1)
+		// 	// onTask()
+		// 	// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",
+		// 	// 	"task", taskDesc)
+		// 	continue
+		// }
 
 		loggerTask := loggerStage.With("task", taskDesc)
 
@@ -341,7 +356,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				}
 			default:
 			}
-			if taskHasStep(tw.task, step) {
+			if tw.checkRunStep(step) {
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					loggerTask.InfoContext(ctx, "running task", logAttrs...)
 				}
