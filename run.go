@@ -57,29 +57,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	defer m.taskDoneCancel(nil) // must cancel all contexts to avoid resource leak
 	defer m.startupCancel(nil)  // must cancel all contexts to avoid resource leak
 
-	defer func() {
-		stopErr = stopErrBuilder.build()
-		var ferr fatalError
-		if errors.As(stopErr, &ferr) {
-			if cause == nil {
-				cause = ferr.err
-			} else {
-				cause = errors.Join(cause, ferr.err)
-			}
-		}
-		cause = unwrapInternalErrors(cause)
-
-		if cause == nil {
-			m.logger.InfoContext(ctx, "execution finished")
-		} else {
-			m.logger.WarnContext(ctx, "execution finished with cause", slog2.ErrorKey, cause)
-		}
-
-		if stopErr != nil {
-			m.logger.WarnContext(ctx, "execution finished with stop error", slog2.ErrorKey, stopErr)
-		}
-	}()
-
 	// run setup and start steps.
 	setupErr := m.start(ctx)
 	if setupErr != nil {
@@ -110,11 +87,32 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	if shutdownErr != nil {
 		m.logger.ErrorContext(ctx, "shutdown error", slog2.ErrorKey, shutdownErr)
 		cause = shutdownErr
-		return
 	}
 
 	if errors.Is(cause, ErrExit) {
 		cause = nil
+	}
+
+	// build errors to return
+	stopErr = stopErrBuilder.build()
+	var ferr fatalError
+	if errors.As(stopErr, &ferr) {
+		if cause == nil {
+			cause = ferr.err
+		} else {
+			cause = errors.Join(cause, ferr.err)
+		}
+	}
+	cause = unwrapInternalErrors(cause)
+
+	if cause == nil {
+		m.logger.InfoContext(ctx, "execution finished")
+	} else {
+		m.logger.WarnContext(ctx, "execution finished with cause", slog2.ErrorKey, cause)
+	}
+
+	if stopErr != nil {
+		m.logger.WarnContext(ctx, "execution finished with stop error", slog2.ErrorKey, stopErr)
 	}
 
 	return
