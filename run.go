@@ -58,7 +58,6 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	defer m.startupCancel(nil)  // must cancel all contexts to avoid resource leak
 
 	defer func() {
-		m.teardown(ctx, stopErrBuilder)
 		stopErr = stopErrBuilder.build()
 		var ferr fatalError
 		if errors.As(stopErr, &ferr) {
@@ -188,8 +187,19 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		m.tasksRunning.Wait()
 	}
 	m.logger.
-		With("duration", time.Since(startTime)).
+		With("duration", time.Since(startTime).String()).
 		LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
+
+	// run teardown tasks in reverse stage order
+	for stage := range stagesIter(m.stages, true) {
+		loggerStage := m.logger.With("stage", stage)
+
+		// run teardown tasks
+		m.runStage(ctx, ctx, loggerStage, stage, StepTeardown, nil, false,
+			func(serr error) {
+				eb.add(serr)
+			})
+	}
 
 	if ctx.Err() != nil {
 		ctxCause := context.Cause(ctx)
@@ -200,20 +210,11 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		m.logger.ErrorContext(ctx, "shutdown context error", slog2.ErrorKey, ctxCause)
 	}
 
+	m.logger.
+		With("duration", time.Since(startTime).String()).
+		LogAttrs(ctx, slog.LevelInfo, "(finished) shutting down", shutdownAttr...)
+
 	return nil
-}
-
-// start runs the setup and start steps.
-func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
-	for stage := range stagesIter(m.stages, true) {
-		loggerStage := m.logger.With("stage", stage)
-
-		// run teardown tasks
-		m.runStage(ctx, ctx, loggerStage, stage, StepTeardown, nil, false,
-			func(serr error) {
-				eb.add(serr)
-			})
-	}
 }
 
 func (m *Manager) AddInitError(err error) {
