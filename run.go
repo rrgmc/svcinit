@@ -138,10 +138,6 @@ func (m *Manager) start(ctx context.Context) error {
 				}
 			})
 
-		// if setupErr.hasErrors() {
-		// 	return setupErr.build()
-		// }
-
 		// run start tasks
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepStart, &m.tasksRunning, false,
 			func(serr error) {
@@ -278,33 +274,29 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 	var startWg sync.WaitGroup
 	var taskCount atomic.Int64
 
+	doInitLog := func(f func()) {
+		taskCount.Add(1)
+		onTask()
+		f()
+	}
+
 	for tw := range m.tasks.stageTasks(stage) {
 		taskDesc := TaskDescription(tw.task)
+		loggerTask := loggerStage.With("task", taskDesc)
 
 		if startStep, err := tw.checkStartStep(step); err != nil {
-			onError(err)
+			doInitLog(func() {
+				loggerTask.ErrorContext(ctx, "error checking task start step",
+					slog2.ErrorKey, err)
+			})
+			onError(fatalError{err})
 			continue
 		} else if !startStep {
-			// taskCount.Add(1)
-			// onTask()
-			// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",
-			// 	"task", taskDesc)
+			// doInitLog(func() {
+			// 	loggerStage.Log(ctx, slog2.LevelTrace, "can't start step, skipping")
+			// })
 			continue
 		}
-
-		// if !tw.canRunStep(step) {
-		// 	err := tw.stepDone(step)
-		// 	if err != nil {
-		// 		onError(err)
-		// 	}
-		// 	// taskCount.Add(1)
-		// 	// onTask()
-		// 	// loggerStage.Log(ctx, slog2.LevelTrace, "task don't have step, skipping",
-		// 	// 	"task", taskDesc)
-		// 	continue
-		// }
-
-		loggerTask := loggerStage.With("task", taskDesc)
 
 		var logAttrs []any
 

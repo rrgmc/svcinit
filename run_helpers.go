@@ -99,6 +99,7 @@ func (t *taskWrapper) internalCanStartStep(step Step) bool {
 	if taskHasStep(t.task, step) {
 		return true
 	}
+	// if SSM is enabled, a stop step must exist for it to work. If it don't exist, create an internal one.
 	if step == StepStop {
 		return t.options.startStepManager
 	}
