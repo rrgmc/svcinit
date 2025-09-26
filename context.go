@@ -7,6 +7,14 @@ import (
 	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
 
+// LoggerFromContext gets the default logger from the context.
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if logger, ok := ctx.Value(loggerContextKey{}).(*slog.Logger); ok {
+		return logger
+	}
+	return nullLogger()
+}
+
 // StartStepManager allows the "stop" step to cancel the start step and/or wait for it to finish.
 type StartStepManager interface {
 	ContextCancel(cause error) bool // cancel the "start" step context. Returns whether the cancellation was possible.
@@ -81,4 +89,11 @@ func (s *startStepManager) CanContextCancel() bool {
 
 func (s *startStepManager) CanFinished() bool {
 	return s.finished != nil
+}
+
+type loggerContextKey struct{}
+
+// loggerToContext puts a logger to the context.
+func loggerToContext(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerContextKey{}, logger)
 }

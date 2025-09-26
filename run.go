@@ -43,7 +43,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		option(&roptns)
 	}
 
-	ctx = slog2.LoggerToContext(ctx, m.logger)
+	ctx = loggerToContext(ctx, m.logger)
 
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
@@ -80,7 +80,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	if roptns.shutdownCtx == nil {
 		roptns.shutdownCtx = context.WithoutCancel(ctx)
 	} else {
-		roptns.shutdownCtx = slog2.LoggerToContext(roptns.shutdownCtx, m.logger)
+		roptns.shutdownCtx = loggerToContext(roptns.shutdownCtx, m.logger)
 	}
 
 	// run stop steps.
