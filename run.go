@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
@@ -126,7 +127,6 @@ func (m *Manager) start(ctx context.Context) error {
 
 	for stage := range stagesIter(m.stages, false) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "starting stage")
 
 		// run setup tasks
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup, nil, false,
@@ -147,8 +147,6 @@ func (m *Manager) start(ctx context.Context) error {
 					m.startupCancel(ErrExit)
 				}
 			})
-
-		loggerStage.InfoContext(ctx, "(finished) starting stage")
 	}
 
 	return setupErr.build()
@@ -156,6 +154,7 @@ func (m *Manager) start(ctx context.Context) error {
 
 // shutdown runs the stop step.
 func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err error) {
+	startTime := time.Now()
 	var shutdownAttr []slog.Attr
 	if m.shutdownTimeout > 0 {
 		var cancel context.CancelFunc
@@ -169,7 +168,6 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	// run stop tasks in reverse stage order
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "stopping stage")
 
 		// run stop tasks
 		m.runStage(ctx, ctx, loggerStage, stage, StepStop, nil, m.enforceShutdownTimeout,
@@ -180,8 +178,6 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				}
 				eb.add(serr)
 			})
-
-		loggerStage.InfoContext(ctx, "(finished) stopping stage")
 	}
 
 	// wait for all goroutines to finish
@@ -191,7 +187,9 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	} else {
 		m.tasksRunning.Wait()
 	}
-	m.logger.LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
+	m.logger.
+		With("duration", time.Since(startTime)).
+		LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
 
 	if ctx.Err() != nil {
 		ctxCause := context.Cause(ctx)
@@ -209,15 +207,12 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
-		loggerStage.InfoContext(ctx, "teardown stage")
 
 		// run teardown tasks
 		m.runStage(ctx, ctx, loggerStage, stage, StepTeardown, nil, false,
 			func(serr error) {
 				eb.add(serr)
 			})
-
-		loggerStage.InfoContext(ctx, "(finished) teardown stage")
 	}
 }
 
