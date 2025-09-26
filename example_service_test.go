@@ -31,8 +31,9 @@ var allStages = []string{stageManagement, StageInitialize, stageReady, StageServ
 type HealthService interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	ServiceStarted()     // signal the startup / readiness probe that the service is ready
-	ServiceTerminating() // signal the readiness probe that the service is terminating and not ready
+	ServiceStarted()        // signal the startup / readiness probe that the service is ready
+	ServiceTerminating()    // signal the readiness probe that the service is terminating and not ready
+	AddDBHealth(db *sql.DB) // add the DB connection to be checked in the readiness probe...
 }
 
 //
@@ -101,7 +102,7 @@ func Example() {
 	// Health service
 	//
 
-	// debug/health server must be the first to start and last to stop.
+	// health server must be the first to start and last to stop.
 	// created as a future task so it can be accessed by other tasks.
 	// other tasks can wait for it to become available.
 	healthTask := svcinit.NewTaskFuture[HealthService](
@@ -128,7 +129,7 @@ func Example() {
 			healthServer.ServiceStarted()
 			return nil
 		}),
-		svcinit.WithName("debug server started probe"),
+		svcinit.WithName("health server started probe"),
 	))
 
 	sinit.AddTask(StageService, svcinit.BuildTask(
@@ -141,7 +142,69 @@ func Example() {
 			healthServer.ServiceTerminating()
 			return nil
 		}),
-		svcinit.WithName("debug server terminating probe"),
+		svcinit.WithName("health server terminating probe"),
+	))
+
+	//
+	// initialize data to be used by the service, like database and cache connections.
+	//
+	type initTaskData struct {
+		db *sql.DB
+	}
+	initTask := svcinit.NewTaskFuture[*initTaskData](
+		func(ctx context.Context) (ret *initTaskData, err error) {
+			ret = &initTaskData{}
+			ret.db, err = sql.Open("pgx", "dburl")
+			if err != nil {
+				return nil, err
+			}
+			return
+		},
+		svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
+			return data.db.Close()
+		}),
+		svcinit.WithDataName[*initTaskData]("initialization"),
+	)
+	sinit.AddTask(StageInitialize, initTask)
+
+	//
+	// initialize and start the HTTP service.
+	//
+	sinit.AddTask(StageService, svcinit.BuildDataTask[HTTPService](
+		func(ctx context.Context) (HTTPService, error) {
+			initData, err := initTask.Value()
+			if err != nil {
+				return nil, err
+			}
+			return NewHTTPServiceImpl(initData.db), nil
+		},
+		svcinit.WithDataStart(func(ctx context.Context, data HTTPService) error {
+			return data.Start(ctx)
+		}),
+		svcinit.WithDataStop(func(ctx context.Context, data HTTPService) error {
+			return data.Stop(ctx)
+		}),
+		svcinit.WithDataName[HTTPService]("HTTP service"),
+	))
+
+	//
+	// initialize and start the messaging service.
+	//
+	sinit.AddTask(StageService, svcinit.BuildDataTask[MessagingService](
+		func(ctx context.Context) (MessagingService, error) {
+			initData, err := initTask.Value()
+			if err != nil {
+				return nil, err
+			}
+			return NewMessagingServiceImpl(logger, initData.db), nil
+		},
+		svcinit.WithDataStart(func(ctx context.Context, data MessagingService) error {
+			return data.Start(ctx)
+		}),
+		svcinit.WithDataStop(func(ctx context.Context, data MessagingService) error {
+			return data.Stop(ctx)
+		}),
+		svcinit.WithDataName[MessagingService]("Messaging service"),
 	))
 
 	//
@@ -188,6 +251,10 @@ func (s *HealthServiceImpl) Start(ctx context.Context) error {
 
 func (s *HealthServiceImpl) Stop(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
+}
+
+func (s *HealthServiceImpl) AddDBHealth(db *sql.DB) {
+	// add the DB connection to be checked in the readiness probe...
 }
 
 func (s *HealthServiceImpl) ServiceStarted() {
