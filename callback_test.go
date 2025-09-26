@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -203,7 +204,8 @@ func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep Cal
 	t.m.Unlock()
 
 	if taskNo < 0 {
-		return
+		taskNo = 0
+		// return
 	}
 	t.m.Lock()
 	defer t.m.Unlock()
@@ -219,6 +221,21 @@ func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep Cal
 	}
 	t.allTestTasks = append(t.allTestTasks, item)
 	t.allTestTasksByNo[taskNo] = append(t.allTestTasksByNo[taskNo], item)
+}
+
+func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackItem {
+	t.m.Lock()
+	defer t.m.Unlock()
+	var ret []testCallbackItem
+
+	for _, task := range testTasks {
+		if !slices.ContainsFunc(t.allTestTasks, func(item testCallbackItem) bool {
+			return item.Equal(task)
+		}) {
+			ret = append(ret, task)
+		}
+	}
+	return ret
 }
 
 func (t *testCallback) Callback(_ context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {

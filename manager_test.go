@@ -439,22 +439,87 @@ func TestManagerInitData(t *testing.T) {
 	})
 }
 
+func TestManagerSetupErrorReturnsEarly(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var (
+			err1 = errors.New("err1")
+		)
+
+		testcb := &testCallback{}
+
+		sm, err := New(
+			WithStages("first", "second", "third"),
+			WithTaskCallback(testcb),
+		)
+
+		sm.AddTask("first", BuildTask(
+			WithSetup(testEmptyStep),
+			WithStart(testDefaultStart(1)),
+			WithStop(testEmptyStep),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("second", BuildTask(
+			WithSetup(func(ctx context.Context) error {
+				return err1
+			}),
+			WithStart(testDefaultStart(1)),
+			WithStop(testEmptyStep),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("third", BuildTask(
+			WithSetup(testEmptyStep),
+			WithStart(testDefaultStart(1)),
+			WithStop(testEmptyStep),
+			WithTeardown(testEmptyStep),
+		))
+
+		err = sm.Run(t.Context())
+		assert.ErrorIs(t, err, err1)
+
+		expectedTasks := []testCallbackItem{
+			{0, "first", StepSetup, CallbackStepBefore, nil},
+			{0, "first", StepSetup, CallbackStepAfter, nil},
+			{0, "first", StepStart, CallbackStepBefore, nil},
+			{0, "first", StepStart, CallbackStepAfter, nil},
+			{0, "first", StepStop, CallbackStepBefore, nil},
+			{0, "first", StepStop, CallbackStepAfter, nil},
+			{0, "first", StepTeardown, CallbackStepBefore, nil},
+			{0, "first", StepTeardown, CallbackStepAfter, nil},
+
+			{0, "second", StepSetup, CallbackStepBefore, nil},
+			{0, "second", StepSetup, CallbackStepAfter, err1},
+
+			{0, "third", StepSetup, CallbackStepBefore, nil},
+			{0, "third", StepSetup, CallbackStepAfter, nil},
+			{0, "third", StepStart, CallbackStepBefore, nil},
+			{0, "third", StepStart, CallbackStepAfter, nil},
+			{0, "third", StepStop, CallbackStepBefore, nil},
+			{0, "third", StepStop, CallbackStepAfter, nil},
+			{0, "third", StepTeardown, CallbackStepBefore, nil},
+			{0, "third", StepTeardown, CallbackStepAfter, nil},
+		}
+
+		notExpectedTasks := []testCallbackItem{
+			{0, "second", StepStart, CallbackStepBefore, nil},
+			{0, "second", StepStart, CallbackStepAfter, err1},
+			{0, "second", StepStop, CallbackStepBefore, nil},
+			{0, "second", StepStop, CallbackStepAfter, err1},
+			{0, "second", StepTeardown, CallbackStepBefore, nil},
+			{0, "second", StepTeardown, CallbackStepAfter, err1},
+		}
+		// assert.DeepEqual(t, expectedTasks, testcb.allTestTasks)
+
+		assert.DeepEqual(t, []testCallbackItem(nil), testcb.containsAll(expectedTasks))
+		assert.DeepEqual(t, []testCallbackItem(nil), testcb.containsAll(notExpectedTasks))
+	})
+}
+
 func TestManagerErrorReturns(t *testing.T) {
 	var (
 		err1 = errors.New("err1")
 		err2 = errors.New("err2")
 		err3 = errors.New("err3")
 	)
-
-	emptyStep := func(ctx context.Context) error {
-		return nil
-	}
-	defaultStart := func(delay int, options ...sleepContextOption) func(ctx context.Context) error {
-		return func(ctx context.Context) error {
-			return sleepContext(ctx, time.Duration(delay)*time.Second,
-				append(options, withSleepContextError(true))...)
-		}
-	}
 
 	for _, test := range []struct {
 		name            string
@@ -483,9 +548,9 @@ func TestManagerErrorReturns(t *testing.T) {
 					WithSetup(func(ctx context.Context) error {
 						return err2
 					}),
-					WithStart(defaultStart(1)),
-					WithStop(emptyStep),
-					WithTeardown(emptyStep),
+					WithStart(testDefaultStart(1)),
+					WithStop(testEmptyStep),
+					WithTeardown(testEmptyStep),
 				)))
 			},
 		},
@@ -510,9 +575,9 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(defaultStart(1, withSleepContextTimeoutError(err1))),
-					WithStop(emptyStep),
-					WithTeardown(emptyStep),
+					WithStart(testDefaultStart(1, withSleepContextTimeoutError(err1))),
+					WithStop(testEmptyStep),
+					WithTeardown(testEmptyStep),
 				)))
 			},
 		},
@@ -537,11 +602,11 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(defaultStart(1)),
+					WithStart(testDefaultStart(1)),
 					WithStop(func(ctx context.Context) error {
 						return err1
 					}),
-					WithTeardown(emptyStep),
+					WithTeardown(testEmptyStep),
 				)))
 			},
 		},
@@ -566,8 +631,8 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithSetup(emptyStep),
-					WithStart(defaultStart(1)),
+					WithSetup(testEmptyStep),
+					WithStart(testDefaultStart(1)),
 					WithTeardown(func(ctx context.Context) error {
 						return err2
 					}),
@@ -595,7 +660,7 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(defaultStart(1)),
+					WithStart(testDefaultStart(1)),
 					WithStop(func(ctx context.Context) error {
 						return err2
 					}),
@@ -624,10 +689,10 @@ func TestManagerErrorReturns(t *testing.T) {
 				test.setupFn(sinit)
 
 				sinit.AddTask("s2", newTestTask(2, BuildTask(
-					WithSetup(emptyStep),
-					WithStart(defaultStart(2)),
-					WithStop(emptyStep),
-					WithTeardown(emptyStep),
+					WithSetup(testEmptyStep),
+					WithStart(testDefaultStart(2)),
+					WithStop(testEmptyStep),
+					WithTeardown(testEmptyStep),
 				)))
 
 				err, stopErr := sinit.RunWithStopErrors(ctx)
@@ -643,6 +708,17 @@ func TestManagerErrorReturns(t *testing.T) {
 				assert.DeepEqual(t, test.expectedTasks, testcb.allTestTasks)
 			})
 		})
+	}
+}
+
+func testEmptyStep(ctx context.Context) error {
+	return nil
+}
+
+func testDefaultStart(delay int, options ...sleepContextOption) func(ctx context.Context) error {
+	return func(ctx context.Context) error {
+		return sleepContext(ctx, time.Duration(delay)*time.Second,
+			append(options, withSleepContextError(true))...)
 	}
 }
 
