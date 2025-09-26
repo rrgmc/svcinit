@@ -238,6 +238,11 @@ func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackI
 	return ret
 }
 
+func (t *testCallback) assertExpectedNotExpected(tt *testing.T, expected, notExpected []testCallbackItem) {
+	assert.DeepEqual(tt, []testCallbackItem(nil), t.containsAll(expected))
+	assert.DeepEqual(tt, notExpected, t.containsAll(notExpected))
+}
+
 func (t *testCallback) Callback(_ context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
 	taskNo, _ := getTestTaskNo(task)
 	t.add(taskNo, stage, step, callbackStep, err)

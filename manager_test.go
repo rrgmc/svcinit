@@ -509,8 +509,7 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 			{0, "third", StepTeardown, CallbackStepAfter, nil},
 		}
 
-		assert.DeepEqual(t, []testCallbackItem(nil), testcb.containsAll(expectedTasks))
-		assert.DeepEqual(t, notExpectedTasks, testcb.containsAll(notExpectedTasks))
+		testcb.assertExpectedNotExpected(t, expectedTasks, notExpectedTasks)
 	})
 }
 
