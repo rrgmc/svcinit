@@ -171,21 +171,12 @@ type testCount struct {
 
 type testCallback struct {
 	m            sync.Mutex
-	counts       map[testCount]int
 	allTestTasks []testCallbackItem
 }
 
 func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep CallbackStep, err error) {
-	t.m.Lock()
-	if t.counts == nil {
-		t.counts = make(map[testCount]int)
-	}
-	t.counts[testCount{stage: stage, step: step, callbackStep: callbackStep}]++
-	t.m.Unlock()
-
 	if taskNo < 0 {
 		taskNo = 0
-		// return
 	}
 	t.m.Lock()
 	defer t.m.Unlock()
