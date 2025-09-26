@@ -276,7 +276,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 	}
 
 	for tw := range m.tasks.stageTasks(stage) {
-		taskDesc := TaskDescription(tw.task)
+		taskDesc := GetTaskDescription(tw.task)
 		loggerTask := loggerStage.With("task", taskDesc)
 
 		if startStep, err := tw.checkStartStep(step); err != nil {

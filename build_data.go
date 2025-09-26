@@ -63,6 +63,7 @@ type taskBuildData[T any] struct {
 }
 
 var _ Task = (*taskBuildData[int])(nil)
+var _ TaskName = (*taskBuildData[int])(nil)
 var _ TaskSteps = (*taskBuildData[int])(nil)
 var _ TaskWithOptions = (*taskBuildData[int])(nil)
 var _ TaskWithInitError = (*taskBuildData[int])(nil)
@@ -151,6 +152,10 @@ func (t *taskBuildData[T]) runStep(ctx context.Context, step Step) error {
 
 func (t *taskBuildData[T]) Run(ctx context.Context, step Step) error {
 	return t.tb.Run(ctx, step)
+}
+
+func (t *taskBuildData[T]) TaskName() string {
+	return t.tb.TaskName()
 }
 
 func (t *taskBuildData[T]) String() string {

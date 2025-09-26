@@ -30,6 +30,7 @@ type TaskSignalTask struct {
 }
 
 var _ Task = (*TaskSignalTask)(nil)
+var _ TaskName = (*TaskSignalTask)(nil)
 var _ TaskSteps = (*TaskSignalTask)(nil)
 var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
 
@@ -63,7 +64,7 @@ func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
 	}
 }
 
-func (t *TaskSignalTask) String() string {
+func (t *TaskSignalTask) TaskName() string {
 	return fmt.Sprintf("Signals %v", t.signals)
 }
 

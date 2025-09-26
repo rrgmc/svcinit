@@ -70,6 +70,7 @@ type taskBuild struct {
 }
 
 var _ Task = (*taskBuild)(nil)
+var _ TaskName = (*taskBuild)(nil)
 var _ TaskSteps = (*taskBuild)(nil)
 var _ TaskWithOptions = (*taskBuild)(nil)
 var _ TaskWithInitError = (*taskBuild)(nil)
@@ -124,14 +125,21 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 	return newInvalidTaskStep(step)
 }
 
-func (t *taskBuild) String() string {
+func (t *taskBuild) TaskName() string {
 	if t.description != "" {
 		return t.description
 	}
 	if parent := t.parent.Load(); parent != nil {
-		return TaskDescription(*parent)
+		return GetTaskName(*parent)
 	}
-	return fmt.Sprintf("%T", t)
+	return ""
+}
+
+func (t *taskBuild) String() string {
+	if tn := t.TaskName(); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(t)
 }
 
 func (t *taskBuild) isEmpty() bool {

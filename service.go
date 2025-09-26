@@ -2,7 +2,6 @@ package svcinit
 
 import (
 	"context"
-	"fmt"
 )
 
 // Service is an abstraction of Task as an interface, for convenience.
@@ -42,6 +41,7 @@ type serviceTask struct {
 }
 
 var _ Task = (*serviceTask)(nil)
+var _ TaskName = (*serviceTask)(nil)
 var _ TaskSteps = (*serviceTask)(nil)
 var _ ServiceTask = (*serviceTask)(nil)
 
@@ -72,6 +72,16 @@ func (t *serviceTask) Service() Service {
 	return t.service
 }
 
+func (t *serviceTask) TaskName() string {
+	if ts, ok := t.service.(TaskName); ok {
+		return ts.TaskName()
+	}
+	return ""
+}
+
 func (t *serviceTask) String() string {
-	return fmt.Sprintf("%v", t.service)
+	if tn := t.TaskName(); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(t.service)
 }

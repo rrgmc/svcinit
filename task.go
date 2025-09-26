@@ -16,7 +16,7 @@ func (t TaskFunc) Run(ctx context.Context, step Step) error {
 }
 
 func (t TaskFunc) String() string {
-	return fmt.Sprintf("%T", t)
+	return getDefaultTaskDescription(t)
 }
 
 type TaskHandler func(ctx context.Context, task Task, step Step) error
@@ -26,13 +26,29 @@ type TaskSteps interface {
 	TaskSteps() []Step
 }
 
+// TaskName allows tasks to have a name.
+type TaskName interface {
+	TaskName() string
+}
+
 // DefaultTaskSteps returns the default value for [TaskSteps.TaskSteps], which is the list of all steps.
 func DefaultTaskSteps() []Step {
 	return allSteps
 }
 
-// TaskDescription returns the task description.
-func TaskDescription(task Task) string {
+// GetTaskName gets the name of task, or blank if it don't have one.
+func GetTaskName(task Task) string {
+	if ts, ok := task.(TaskName); ok {
+		return ts.TaskName()
+	}
+	return ""
+}
+
+// GetTaskDescription returns the task description, be it a task name, String method, or its variable type.
+func GetTaskDescription(task Task) string {
+	if tn := GetTaskName(task); tn != "" {
+		return tn
+	}
 	if ts, ok := task.(fmt.Stringer); ok {
 		return ts.String()
 	}
@@ -91,4 +107,8 @@ type TaskInstanceOption interface {
 type TaskAndInstanceOption interface {
 	TaskOption
 	TaskInstanceOption
+}
+
+func getDefaultTaskDescription(task any) string {
+	return fmt.Sprintf("%T", task)
 }

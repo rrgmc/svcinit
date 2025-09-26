@@ -2,7 +2,6 @@ package svcinit
 
 import (
 	"context"
-	"fmt"
 )
 
 // TaskWithWrapped is a task which was wrapped from another Task.
@@ -52,6 +51,7 @@ type BaseOverloadedTask struct {
 	Task Task
 }
 
+var _ TaskName = (*BaseOverloadedTask)(nil)
 var _ TaskSteps = (*BaseOverloadedTask)(nil)
 var _ TaskWithOptions = (*BaseOverloadedTask)(nil)
 
@@ -69,11 +69,12 @@ func (t *BaseOverloadedTask) TaskSteps() []Step {
 	return DefaultTaskSteps()
 }
 
+func (t *BaseOverloadedTask) TaskName() string {
+	return GetTaskName(t.Task)
+}
+
 func (t *BaseOverloadedTask) String() string {
-	if tt, ok := t.Task.(fmt.Stringer); ok {
-		return tt.String()
-	}
-	return fmt.Sprintf("%T", t.Task)
+	return GetTaskDescription(t.Task)
 }
 
 // BaseWrappedTask wraps and task and forwards TaskOptions and TaskSteps.
@@ -111,6 +112,7 @@ type wrappedTask struct {
 }
 
 var _ Task = (*wrappedTask)(nil)
+var _ TaskName = (*wrappedTask)(nil)
 var _ TaskSteps = (*wrappedTask)(nil)
 var _ TaskWithOptions = (*wrappedTask)(nil)
 var _ TaskWithWrapped = (*wrappedTask)(nil)
@@ -132,11 +134,18 @@ func (t *wrappedTask) Run(ctx context.Context, step Step) error {
 	return t.Task.Run(ctx, step)
 }
 
-func (t *wrappedTask) String() string {
+func (t *wrappedTask) TaskName() string {
 	if t.description != "" {
 		return t.description
 	}
-	return fmt.Sprintf("wrappedTask(%v)", t.Task)
+	return GetTaskName(t.Task)
+}
+
+func (t *wrappedTask) String() string {
+	if tn := t.TaskName(); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(t.Task)
 }
 
 type baseOverloadedTaskPrivate = BaseOverloadedTask
