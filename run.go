@@ -171,10 +171,6 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 		// run stop tasks
 		m.runStage(ctx, ctx, loggerStage, stage, StepStop, nil, m.enforceShutdownTimeout,
 			func(serr error) {
-				if serr != nil {
-					loggerStage.ErrorContext(ctx, "step error",
-						slog2.ErrorKey, serr)
-				}
 				eb.add(serr)
 			})
 	}
