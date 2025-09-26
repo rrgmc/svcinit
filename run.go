@@ -360,10 +360,10 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
-						loggerTask.With(logAttrs...).WarnContext(ctx, "task finished with error",
+						loggerTask.With(logAttrs...).WarnContext(ctx, "running task (finished with error)",
 							slog2.ErrorKey, err)
 					} else {
-						loggerTask.With(logAttrs...).InfoContext(ctx, "task finished")
+						loggerTask.With(logAttrs...).InfoContext(ctx, "running task (finished)")
 					}
 				}
 				onError(err)
