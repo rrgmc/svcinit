@@ -113,11 +113,10 @@ func (t *taskWrapper) checkStartStep(step Step) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	isRunStep := canStartStep && prevStepIsDone
-	if !isRunStep {
+	if !canStartStep && prevStepIsDone {
 		t.internalAddStepDone(step)
 	}
-	return isRunStep, nil
+	return canStartStep && prevStepIsDone, nil
 }
 
 func (t *taskWrapper) internalAddStepDone(step Step) {

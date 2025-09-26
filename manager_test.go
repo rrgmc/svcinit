@@ -446,130 +446,128 @@ func TestManagerErrorReturns(t *testing.T) {
 		err3 = errors.New("err3")
 	)
 
+	emptyStep := func(ctx context.Context) error {
+		return nil
+	}
+	defaultStart := func(delay int, options ...sleepContextOption) func(ctx context.Context) error {
+		return func(ctx context.Context) error {
+			return sleepContext(ctx, time.Duration(delay)*time.Second,
+				append(options, withSleepContextError(true))...)
+		}
+	}
+
 	for _, test := range []struct {
 		name            string
 		setupFn         func(*Manager)
 		expectedErr     error
 		expectedStopErr []error
-		expectedCounts  map[testCount]int
+		expectedTasks   []testCallbackItem
 	}{
 		{
 			name:        "return error from s1 setup step",
 			expectedErr: err2,
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepSetup, CallbackStepBefore}:    1,
-				testCount{"s1", StepSetup, CallbackStepAfter}:     1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
-				testCount{"s2", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s2", StepTeardown, CallbackStepAfter}:  1,
+			expectedTasks: []testCallbackItem{
+				{1, "s1", StepSetup, CallbackStepBefore, nil},
+				{1, "s1", StepSetup, CallbackStepAfter, err2},
+				{2, "s2", StepSetup, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepTeardown, CallbackStepBefore, nil},
+				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
 					WithSetup(func(ctx context.Context) error {
 						return err2
 					}),
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true))
-					}),
-					WithStop(func(ctx context.Context) error {
-						return nil
-					}),
-					WithTeardown(func(ctx context.Context) error {
-						return nil
-					}),
-				)))
-				m.AddTask("s2", newTestTask(2, BuildTask(
-					WithSetup(func(ctx context.Context) error {
-						return nil
-					}),
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, 2*time.Second,
-							withSleepContextError(true))
-					}),
-					WithStop(func(ctx context.Context) error {
-						return nil
-					}),
-					WithTeardown(func(ctx context.Context) error {
-						return nil
-					}),
+					WithStart(defaultStart(1)),
+					WithStop(emptyStep),
+					WithTeardown(emptyStep),
 				)))
 			},
 		},
 		{
 			name:        "return error from start step",
 			expectedErr: err1,
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:    1,
-				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepStop, CallbackStepBefore}:     1,
-				testCount{"s1", StepStop, CallbackStepAfter}:      1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+			expectedTasks: []testCallbackItem{
+				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, err1},
+				{2, "s2", StepStop, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepTeardown, CallbackStepBefore, nil},
+				{2, "s2", StepTeardown, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true),
-							withSleepContextTimeoutError(err1))
-					}),
-					WithStop(func(ctx context.Context) error {
-						return nil
-					}),
-					WithTeardown(func(ctx context.Context) error {
-						return nil
-					}),
+					WithStart(defaultStart(1, withSleepContextTimeoutError(err1))),
+					WithStop(emptyStep),
+					WithTeardown(emptyStep),
 				)))
 			},
 		},
 		{
 			name:            "return error from stop step",
 			expectedStopErr: []error{err1},
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:    1,
-				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepStop, CallbackStepBefore}:     1,
-				testCount{"s1", StepStop, CallbackStepAfter}:      1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+			expectedTasks: []testCallbackItem{
+				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepStop, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, err1},
+				{2, "s2", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepTeardown, CallbackStepBefore, nil},
+				{2, "s2", StepTeardown, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
-				m.AddTask("s1", newTestTask(2, BuildTask(
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true))
-					}),
+				m.AddTask("s1", newTestTask(1, BuildTask(
+					WithStart(defaultStart(1)),
 					WithStop(func(ctx context.Context) error {
 						return err1
 					}),
-					WithTeardown(func(ctx context.Context) error {
-						return nil
-					}),
+					WithTeardown(emptyStep),
 				)))
 			},
 		},
 		{
 			name:            "return error from teardown step",
 			expectedStopErr: []error{err2},
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepSetup, CallbackStepBefore}:    1,
-				testCount{"s1", StepSetup, CallbackStepAfter}:     1,
-				testCount{"s1", StepStart, CallbackStepBefore}:    1,
-				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+			expectedTasks: []testCallbackItem{
+				{1, "s1", StepSetup, CallbackStepBefore, nil},
+				{1, "s1", StepSetup, CallbackStepAfter, nil},
+				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepStop, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepTeardown, CallbackStepBefore, nil},
+				{2, "s2", StepTeardown, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, err2},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithSetup(func(ctx context.Context) error {
-						return nil
-					}),
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true))
-					}),
+					WithSetup(emptyStep),
+					WithStart(defaultStart(1)),
 					WithTeardown(func(ctx context.Context) error {
 						return err2
 					}),
@@ -579,20 +577,25 @@ func TestManagerErrorReturns(t *testing.T) {
 		{
 			name:            "return error from stop and teardown steps",
 			expectedStopErr: []error{err2, err3},
-			expectedCounts: map[testCount]int{
-				testCount{"s1", StepStart, CallbackStepBefore}:    1,
-				testCount{"s1", StepStart, CallbackStepAfter}:     1,
-				testCount{"s1", StepStop, CallbackStepBefore}:     1,
-				testCount{"s1", StepStop, CallbackStepAfter}:      1,
-				testCount{"s1", StepTeardown, CallbackStepBefore}: 1,
-				testCount{"s1", StepTeardown, CallbackStepAfter}:  1,
+			expectedTasks: []testCallbackItem{
+				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepBefore, nil},
+				{2, "s2", StepSetup, CallbackStepAfter, nil},
+				{2, "s2", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepStop, CallbackStepBefore, nil},
+				{2, "s2", StepStop, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, err2},
+				{2, "s2", StepStart, CallbackStepAfter, nil},
+				{2, "s2", StepTeardown, CallbackStepBefore, nil},
+				{2, "s2", StepTeardown, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, err3},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second,
-							withSleepContextError(true))
-					}),
+					WithStart(defaultStart(1)),
 					WithStop(func(ctx context.Context) error {
 						return err2
 					}),
@@ -620,6 +623,13 @@ func TestManagerErrorReturns(t *testing.T) {
 
 				test.setupFn(sinit)
 
+				sinit.AddTask("s2", newTestTask(2, BuildTask(
+					WithSetup(emptyStep),
+					WithStart(defaultStart(2)),
+					WithStop(emptyStep),
+					WithTeardown(emptyStep),
+				)))
+
 				err, stopErr := sinit.RunWithStopErrors(ctx)
 				if test.expectedErr == nil {
 					assert.NilError(t, err)
@@ -629,7 +639,8 @@ func TestManagerErrorReturns(t *testing.T) {
 				for _, serr := range test.expectedStopErr {
 					assert.ErrorIs(t, stopErr, serr)
 				}
-				assert.DeepEqual(t, test.expectedCounts, testcb.counts)
+				// assert.DeepEqual(t, test.expectedCounts, testcb.counts)
+				assert.DeepEqual(t, test.expectedTasks, testcb.allTestTasks)
 			})
 		})
 	}
