@@ -208,7 +208,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 
 	m.logger.
 		With("duration", time.Since(startTime).String()).
-		LogAttrs(ctx, slog.LevelDebug, "(finished) shutting down", shutdownAttr...)
+		LogAttrs(ctx, slog.LevelInfo, "(finished) shutting down", shutdownAttr...)
 
 	return nil
 }
@@ -246,7 +246,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 
 	if isWait {
 		if taskCount > 0 {
-			loggerStep.Log(ctx, slog.LevelDebug, "running step (waiting)")
+			loggerStep.Log(ctx, slog2.LevelTrace, "running step (waiting)")
 		}
 		if enforceWaitTimeout {
 			_ = waitGroupWaitWithContext(ctx, waitWG)
@@ -254,7 +254,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 			waitWG.Wait()
 		}
 		if taskCount > 0 {
-			loggerStep.DebugContext(ctx, "(finished) running step")
+			loggerStep.InfoContext(ctx, "(finished) running step")
 		}
 	}
 }
