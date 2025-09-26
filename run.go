@@ -81,18 +81,20 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}()
 
 	// run setup and start steps.
-	err := m.start(ctx)
-	if err != nil {
-		m.logger.ErrorContext(ctx, "startup error, aborting execution",
-			slog2.ErrorKey, err)
-		cause = err
-		return
+	setupErr := m.start(ctx)
+	if setupErr != nil {
+		m.logger.ErrorContext(ctx, "setup error",
+			slog2.ErrorKey, setupErr)
 	}
 
 	m.logger.InfoContext(ctx, "waiting for first task to return")
 	<-m.startupCtx.Done()
 	// get the error returned by the first exiting task. It will be the cause of exit.
-	cause = context.Cause(m.startupCtx)
+	if setupErr == nil {
+		cause = context.Cause(m.startupCtx)
+	} else {
+		cause = setupErr
+	}
 	m.logger.WarnContext(ctx, "first task returned", slog.String("cause", cause.Error()))
 	m.logger.Log(ctx, slog2.LevelTrace, "cancelling start task context")
 	// cancel the context of all tasks with cancelContext = true
@@ -120,14 +122,13 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 // start runs the setup and start steps.
 func (m *Manager) start(ctx context.Context) error {
+	setupErr := newMultiErrorBuilder()
 
 	for stage := range stagesIter(m.stages, false) {
 		loggerStage := m.logger.With("stage", stage)
 		loggerStage.InfoContext(ctx, "starting stage")
 
 		// run setup tasks
-		setupErr := newMultiErrorBuilder()
-
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepSetup, nil, false,
 			func(serr error) {
 				if serr != nil {
@@ -137,9 +138,9 @@ func (m *Manager) start(ctx context.Context) error {
 				}
 			})
 
-		if setupErr.hasErrors() {
-			return setupErr.build()
-		}
+		// if setupErr.hasErrors() {
+		// 	return setupErr.build()
+		// }
 
 		// run start tasks
 		m.runStage(ctx, m.taskDoneCtx, loggerStage, stage, StepStart, &m.tasksRunning, false,
@@ -154,7 +155,7 @@ func (m *Manager) start(ctx context.Context) error {
 		loggerStage.InfoContext(ctx, "starting stage: finished")
 	}
 
-	return nil
+	return setupErr.build()
 }
 
 // shutdown runs the stop step.

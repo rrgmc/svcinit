@@ -612,7 +612,7 @@ func TestManagerErrorReturns(t *testing.T) {
 				sopts := []Option{
 					WithStages("s1", "s2"),
 					WithTaskCallback(testcb),
-					WithLogger(defaultLogger(t.Output()).With("category", test.name)),
+					// WithLogger(defaultLogger(t.Output()).With("category", test.name)),
 				}
 
 				sinit, err := New(sopts...)

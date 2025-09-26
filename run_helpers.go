@@ -46,6 +46,8 @@ func (t *taskWrapper) checkStepDone(step Step) error {
 	return nil
 }
 
+// run runs the task.
+// checkStartStep and checkRunStep must be called prior to calling this.
 func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
 	if step != StepSetup {
