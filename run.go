@@ -148,7 +148,7 @@ func (m *Manager) start(ctx context.Context) error {
 				}
 			})
 
-		loggerStage.InfoContext(ctx, "starting stage (finished)")
+		loggerStage.InfoContext(ctx, "(finished) starting stage")
 	}
 
 	return setupErr.build()
@@ -181,7 +181,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 				eb.add(serr)
 			})
 
-		loggerStage.InfoContext(ctx, "stopping stage (finished)")
+		loggerStage.InfoContext(ctx, "(finished) stopping stage")
 	}
 
 	// wait for all goroutines to finish
@@ -191,7 +191,7 @@ func (m *Manager) shutdown(ctx context.Context, eb *multiErrorBuilder) (err erro
 	} else {
 		m.tasksRunning.Wait()
 	}
-	m.logger.LogAttrs(ctx, slog.LevelDebug, "waiting for tasks to stop (finished)", shutdownAttr...)
+	m.logger.LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to stop", shutdownAttr...)
 
 	if ctx.Err() != nil {
 		ctxCause := context.Cause(ctx)
@@ -217,7 +217,7 @@ func (m *Manager) teardown(ctx context.Context, eb *multiErrorBuilder) {
 				eb.add(serr)
 			})
 
-		loggerStage.InfoContext(ctx, "teardown stage (finished)")
+		loggerStage.InfoContext(ctx, "(finished) teardown stage")
 	}
 }
 
@@ -263,7 +263,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 		}
 	}
 	if taskCount > 0 {
-		loggerStep.InfoContext(ctx, "running step (finished)")
+		loggerStep.InfoContext(ctx, "(finished) running step")
 	}
 }
 
@@ -362,10 +362,10 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
-						loggerTask.With(logAttrs...).WarnContext(ctx, "running task step (finished with error)",
+						loggerTask.With(logAttrs...).WarnContext(ctx, "(finished with error) running task step",
 							slog2.ErrorKey, err)
 					} else {
-						loggerTask.With(logAttrs...).InfoContext(ctx, "running task step (finished)")
+						loggerTask.With(logAttrs...).InfoContext(ctx, "(finished) running task step")
 					}
 				}
 				onError(err)
@@ -379,7 +379,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		}
 		startWg.Wait() // even if taskCount is 0, some startup might have been done, must still wait.
 		if taskCount.Load() > 0 {
-			loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start (finished)")
+			loggerStage.Log(ctx, slog2.LevelTrace, "(finished) waiting for task goroutines to start")
 		}
 	}
 
