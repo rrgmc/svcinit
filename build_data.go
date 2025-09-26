@@ -3,6 +3,7 @@ package svcinit
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 )
 
 type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
@@ -55,7 +56,7 @@ func WithDataTaskOptions[T any](options ...TaskInstanceOption) TaskBuildDataOpti
 
 type taskBuildData[T any] struct {
 	tb              *taskBuild
-	data            *T
+	data            atomic.Pointer[T]
 	setupFunc       TaskBuildDataSetupFunc[T]
 	stepFunc        map[Step]TaskBuildDataFunc[T]
 	parentFromSetup bool
@@ -93,10 +94,10 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 		if stepFn != nil {
 			ret.tbOptions = append(ret.tbOptions,
 				WithStep(step, func(ctx context.Context) error {
-					if ret.data == nil {
+					if data := ret.data.Load(); data == nil {
 						return fmt.Errorf("%w: data not initialized", ErrNotInitialized)
 					}
-					return stepFn(ctx, *ret.data)
+					return stepFn(ctx, *ret.data.Load())
 				}))
 		} else {
 			ret.tbOptions = append(ret.tbOptions,
@@ -122,14 +123,14 @@ func (t *taskBuildData[T]) TaskInitError() error {
 }
 
 func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
-	if t.data != nil {
+	if t.data.Load() != nil {
 		return ErrAlreadyInitialized
 	}
 	data, err := t.setupFunc(ctx)
 	if err != nil {
 		return err
 	}
-	t.data = &data
+	t.data.Store(&data)
 	if t.parentFromSetup {
 		if tt, ok := any(data).(Task); ok {
 			err := t.tb.setParent(tt)
@@ -145,7 +146,7 @@ func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
 
 func (t *taskBuildData[T]) runStep(ctx context.Context, step Step) error {
 	if fn, ok := t.stepFunc[step]; ok {
-		return fn(ctx, *t.data)
+		return fn(ctx, *t.data.Load())
 	}
 	return newInvalidTaskStep(step)
 }
