@@ -24,10 +24,10 @@ func WithWrapTaskHandler(handler TaskHandler) WrapTaskOption {
 	}
 }
 
-// WithWrapDescription sets the task description.
-func WithWrapDescription(description string) WrapTaskOption {
+// WithWrapName sets the task name.
+func WithWrapName(name string) WrapTaskOption {
 	return func(task *wrappedTask) {
-		task.description = description
+		task.name = name
 	}
 }
 
@@ -110,8 +110,8 @@ func (t *BaseWrappedTask) WrappedTask() Task {
 
 type wrappedTask struct {
 	*baseWrappedTaskPrivate
-	handler     TaskHandler
-	description string
+	handler TaskHandler
+	name    string
 }
 
 var _ Task = (*wrappedTask)(nil)
@@ -138,8 +138,8 @@ func (t *wrappedTask) Run(ctx context.Context, step Step) error {
 }
 
 func (t *wrappedTask) TaskName() string {
-	if t.description != "" {
-		return t.description
+	if t.name != "" {
+		return t.name
 	}
 	return GetTaskName(t.Task)
 }

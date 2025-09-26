@@ -16,9 +16,9 @@ func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBu
 
 type TaskBuildDataOption[T any] func(*taskBuildData[T])
 
-func WithDataDescription[T any](description string) TaskBuildDataOption[T] {
+func WithDataName[T any](name string) TaskBuildDataOption[T] {
 	return func(build *taskBuildData[T]) {
-		build.tbOptions = append(build.tbOptions, WithDescription(description))
+		build.tbOptions = append(build.tbOptions, WithName(name))
 	}
 }
 

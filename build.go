@@ -24,9 +24,9 @@ func WithParent(parent Task) TaskBuildOption {
 	}
 }
 
-func WithDescription(description string) TaskBuildOption {
+func WithName(name string) TaskBuildOption {
 	return func(build *taskBuild) {
-		build.description = description
+		build.name = name
 	}
 }
 
@@ -61,12 +61,12 @@ func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 // internal
 
 type taskBuild struct {
-	stepFunc    map[Step]TaskBuildFunc
-	parent      atomic.Pointer[Task]
-	steps       []Step
-	options     []TaskInstanceOption
-	initError   error
-	description string
+	stepFunc  map[Step]TaskBuildFunc
+	parent    atomic.Pointer[Task]
+	steps     []Step
+	options   []TaskInstanceOption
+	initError error
+	name      string
 }
 
 var _ Task = (*taskBuild)(nil)
@@ -126,8 +126,8 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 }
 
 func (t *taskBuild) TaskName() string {
-	if t.description != "" {
-		return t.description
+	if t.name != "" {
+		return t.name
 	}
 	if parent := t.parent.Load(); parent != nil {
 		return GetTaskName(*parent)
