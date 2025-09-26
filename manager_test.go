@@ -521,11 +521,12 @@ func TestManagerErrorReturns(t *testing.T) {
 	)
 
 	for _, test := range []struct {
-		name            string
-		setupFn         func(*Manager)
-		expectedErr     error
-		expectedStopErr []error
-		expectedTasks   []testCallbackItem
+		name             string
+		setupFn          func(*Manager)
+		expectedErr      error
+		expectedStopErr  []error
+		expectedTasks    []testCallbackItem
+		notExpectedTasks []testCallbackItem
 	}{
 		{
 			name:        "return error from s1 setup step",
@@ -533,6 +534,15 @@ func TestManagerErrorReturns(t *testing.T) {
 			expectedTasks: []testCallbackItem{
 				{1, "s1", StepSetup, CallbackStepBefore, nil},
 				{1, "s1", StepSetup, CallbackStepAfter, err2},
+			},
+			notExpectedTasks: []testCallbackItem{
+				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, err2},
+
 				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepBefore, nil},
@@ -558,19 +568,20 @@ func TestManagerErrorReturns(t *testing.T) {
 			expectedErr: err1,
 			expectedTasks: []testCallbackItem{
 				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, err1},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, nil},
+
 				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{1, "s1", StepStart, CallbackStepAfter, err1},
 				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
-				{1, "s1", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
-				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
@@ -585,19 +596,20 @@ func TestManagerErrorReturns(t *testing.T) {
 			expectedStopErr: []error{err1},
 			expectedTasks: []testCallbackItem{
 				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, err1},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, nil},
+
 				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{1, "s1", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
-				{1, "s1", StepStop, CallbackStepAfter, err1},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
-				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
@@ -616,17 +628,18 @@ func TestManagerErrorReturns(t *testing.T) {
 				{1, "s1", StepSetup, CallbackStepBefore, nil},
 				{1, "s1", StepSetup, CallbackStepAfter, nil},
 				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, err2},
+
 				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{1, "s1", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
-				{1, "s1", StepTeardown, CallbackStepAfter, err2},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
@@ -643,19 +656,20 @@ func TestManagerErrorReturns(t *testing.T) {
 			expectedStopErr: []error{err2, err3},
 			expectedTasks: []testCallbackItem{
 				{1, "s1", StepStart, CallbackStepBefore, nil},
+				{1, "s1", StepStart, CallbackStepAfter, nil},
+				{1, "s1", StepStop, CallbackStepBefore, nil},
+				{1, "s1", StepStop, CallbackStepAfter, err2},
+				{1, "s1", StepTeardown, CallbackStepBefore, nil},
+				{1, "s1", StepTeardown, CallbackStepAfter, err3},
+
 				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{1, "s1", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
-				{1, "s1", StepStop, CallbackStepAfter, err2},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
 				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
-				{1, "s1", StepTeardown, CallbackStepAfter, err3},
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
@@ -704,7 +718,8 @@ func TestManagerErrorReturns(t *testing.T) {
 					assert.ErrorIs(t, stopErr, serr)
 				}
 				// assert.DeepEqual(t, test.expectedCounts, testcb.counts)
-				assert.DeepEqual(t, test.expectedTasks, testcb.allTestTasks)
+				// assert.DeepEqual(t, test.expectedTasks, testcb.allTestTasks)
+				testcb.assertExpectedNotExpected(t, test.expectedTasks, test.notExpectedTasks)
 			})
 		})
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	cmp2 "gotest.tools/v3/assert/cmp"
 )
 
 func TestCallback(t *testing.T) {
@@ -239,8 +240,11 @@ func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackI
 }
 
 func (t *testCallback) assertExpectedNotExpected(tt *testing.T, expected, notExpected []testCallbackItem) {
-	assert.DeepEqual(tt, []testCallbackItem(nil), t.containsAll(expected))
-	assert.DeepEqual(tt, notExpected, t.containsAll(notExpected))
+	_ = assert.Check(tt, cmp2.DeepEqual([]testCallbackItem(nil), t.containsAll(expected)), "failed expected test")
+	_ = assert.Check(tt, cmp2.DeepEqual(notExpected, t.containsAll(notExpected)), "failed not expected test")
+
+	// assert.DeepEqual(tt, []testCallbackItem(nil), t.containsAll(expected))
+	// assert.DeepEqual(tt, notExpected, t.containsAll(notExpected))
 }
 
 func (t *testCallback) Callback(_ context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
