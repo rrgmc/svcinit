@@ -252,18 +252,18 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 
 	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
 
-	if taskCount > 0 {
-		loggerStep.Log(ctx, slog.LevelDebug, "running step (waiting)")
-	}
 	if isWait {
+		if taskCount > 0 {
+			loggerStep.Log(ctx, slog.LevelDebug, "running step (waiting)")
+		}
 		if enforceWaitTimeout {
 			_ = waitGroupWaitWithContext(ctx, waitWG)
 		} else {
 			waitWG.Wait()
 		}
-	}
-	if taskCount > 0 {
-		loggerStep.InfoContext(ctx, "(finished) running step")
+		if taskCount > 0 {
+			loggerStep.InfoContext(ctx, "(finished) running step")
+		}
 	}
 }
 
