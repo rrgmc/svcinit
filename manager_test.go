@@ -234,7 +234,10 @@ func TestManagerShutdownTimeout(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				sinit, err := New(WithShutdownTimeout(30 * time.Second))
+				sinit, err := New(
+					WithShutdownTimeout(30*time.Second),
+					WithTeardownTimeout(0),
+				)
 				assert.NilError(t, err)
 
 				sinit.AddTask(StageDefault, BuildTask(
