@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	slog2 "github.com/rrgmc/svcinit/v3/slog"
@@ -19,6 +20,7 @@ func LoggerFromContext(ctx context.Context) *slog.Logger {
 type StartStepManager interface {
 	ContextCancel(cause error) bool // cancel the "start" step context. Returns whether the cancellation was possible.
 	Finished() <-chan struct{}      // channel that will be closed once the "start" step finishes.
+	FinishedErr() error             // the error returned from the start step.
 	CanContextCancel() bool         // returns whether the "start" step context can be called.
 	CanFinished() bool              // returns whether the Finished channel can be checked. If false, Finished will return a nil channel.
 }
@@ -58,6 +60,10 @@ func contextWithStartStepManager(ctx context.Context, stopContext *startStepMana
 	return context.WithValue(ctx, startStepManagerContextKey{}, stopContext)
 }
 
+var (
+	startStepManagerNilError = errors.New("ssmNilError")
+)
+
 type startStepManager struct {
 	logger   *slog.Logger
 	cancel   context.CancelCauseFunc
@@ -81,6 +87,17 @@ func (s *startStepManager) Finished() <-chan struct{} {
 		return s.finished.Done()
 	}
 	return closedchan // channel can't block if checking for finished is not possible.
+}
+
+func (s *startStepManager) FinishedErr() error {
+	if s.finished == nil {
+		return nil
+	}
+	cause := context.Cause(s.finished)
+	if errors.Is(cause, startStepManagerNilError) {
+		return nil
+	}
+	return cause
 }
 
 func (s *startStepManager) CanContextCancel() bool {

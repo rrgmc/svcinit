@@ -310,7 +310,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				startWg.Done()
 			}
 			taskCtx := cancelCtx
-			var taskCancelOnStop context.CancelFunc
+			var taskCancelOnStop context.CancelCauseFunc
 			switch step {
 			case StepStart:
 				logAttrs = append(logAttrs,
@@ -326,8 +326,8 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 					taskCtx, tw.startCancel = context.WithCancelCause(taskCtx)
 					defer tw.startCancel(context.Canceled) // ensure context is always cancelled
 					// create context to be cancelled when the start task ends.
-					tw.finishCtx, taskCancelOnStop = context.WithCancel(context.WithoutCancel(taskCtx))
-					defer taskCancelOnStop() // ensure context is always cancelled
+					tw.finishCtx, taskCancelOnStop = context.WithCancelCause(context.WithoutCancel(taskCtx))
+					defer taskCancelOnStop(startStepManagerNilError) // ensure context is always cancelled
 					tw.mu.Unlock()
 				}
 			case StepStop:
@@ -355,6 +355,9 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 					loggerTask.InfoContext(ctx, "running task step", logAttrs...)
 				}
 				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
+				if taskCancelOnStop != nil {
+					taskCancelOnStop(err)
+				}
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
 						level := slog.LevelDebug

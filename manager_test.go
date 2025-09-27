@@ -732,6 +732,7 @@ func TestManagerSSM(t *testing.T) {
 		err1 := errors.New("err1")
 		err2 := errors.New("err2")
 		err3 := errors.New("err3")
+		err4 := errors.New("err4")
 
 		sm, err := New()
 
@@ -741,7 +742,7 @@ func TestManagerSSM(t *testing.T) {
 				select {
 				case <-ctx.Done():
 					assert.Check(t, errors.Is(context.Cause(ctx), err3))
-					return nil
+					return err4
 				}
 			}),
 			WithStop(func(ctx context.Context) error {
@@ -752,6 +753,7 @@ func TestManagerSSM(t *testing.T) {
 				case <-ctx.Done():
 					return context.Canceled
 				case <-ssm.Finished():
+					assert.Check(t, errors.Is(ssm.FinishedErr(), err4))
 					return err1
 				}
 			}),
@@ -796,6 +798,7 @@ func TestManagerSSMNotBlocked(t *testing.T) {
 				case <-ssm.Finished():
 					// finished returns a closed channel if "ssm.CanFinished" is false, otherwise the step
 					// would be deadlocked.
+					assert.Check(t, ssm.FinishedErr() == nil)
 					return err1
 				}
 			}),
