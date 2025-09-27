@@ -245,7 +245,6 @@ func run(ctx context.Context) error {
 	//
 	// Signal handling
 	//
-
 	sinit.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
 
 	//
