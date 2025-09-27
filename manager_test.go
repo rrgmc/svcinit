@@ -448,17 +448,28 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 		testcb := &testCallback{}
 
 		sm, err := New(
-			WithStages("first", "second", "third"),
+			WithStages("s1", "s2", "s3", "s4", "s5", "s6"),
 			WithTaskCallback(testcb),
 		)
 
-		sm.AddTask("first", BuildTask(
+		sm.AddTask("s1", BuildTask(
 			WithSetup(testEmptyStep),
 			WithStart(testDefaultStart(1)),
 			WithStop(testEmptyStep),
 			WithTeardown(testEmptyStep),
 		))
-		sm.AddTask("second", BuildTask(
+		sm.AddTask("s2", BuildTask(
+			WithStart(testDefaultStart(1)),
+			WithStop(testEmptyStep),
+		))
+		sm.AddTask("s3", BuildTask(
+			WithStop(testEmptyStep),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s4", BuildTask(
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s5", BuildTask(
 			WithSetup(func(ctx context.Context) error {
 				return err1
 			}),
@@ -466,7 +477,7 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 			WithStop(testEmptyStep),
 			WithTeardown(testEmptyStep),
 		))
-		sm.AddTask("third", BuildTask(
+		sm.AddTask("s6", BuildTask(
 			WithSetup(testEmptyStep),
 			WithStart(testDefaultStart(1)),
 			WithStop(testEmptyStep),
@@ -478,35 +489,65 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 		assert.ErrorIs(t, err, err1)
 
 		expectedTasks := []testCallbackItem{
-			{0, "first", StepSetup, CallbackStepBefore, nil},
-			{0, "first", StepSetup, CallbackStepAfter, nil},
-			{0, "first", StepStart, CallbackStepBefore, nil},
-			{0, "first", StepStart, CallbackStepAfter, nil},
-			{0, "first", StepStop, CallbackStepBefore, nil},
-			{0, "first", StepStop, CallbackStepAfter, nil},
-			{0, "first", StepTeardown, CallbackStepBefore, nil},
-			{0, "first", StepTeardown, CallbackStepAfter, nil},
+			{0, "s1", StepSetup, CallbackStepBefore, nil},
+			{0, "s1", StepSetup, CallbackStepAfter, nil},
+			{0, "s1", StepStart, CallbackStepBefore, nil},
+			{0, "s1", StepStart, CallbackStepAfter, nil},
+			{0, "s1", StepStop, CallbackStepBefore, nil},
+			{0, "s1", StepStop, CallbackStepAfter, nil},
+			{0, "s1", StepTeardown, CallbackStepBefore, nil},
+			{0, "s1", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "second", StepSetup, CallbackStepBefore, nil},
-			{0, "second", StepSetup, CallbackStepAfter, err1},
+			{0, "s2", StepStart, CallbackStepBefore, nil},
+			{0, "s2", StepStart, CallbackStepAfter, nil},
+			{0, "s2", StepStop, CallbackStepBefore, nil},
+			{0, "s2", StepStop, CallbackStepAfter, nil},
+
+			{0, "s3", StepStop, CallbackStepBefore, nil},
+			{0, "s3", StepStop, CallbackStepAfter, nil},
+			{0, "s3", StepTeardown, CallbackStepBefore, nil},
+			{0, "s3", StepTeardown, CallbackStepAfter, nil},
+
+			{0, "s4", StepTeardown, CallbackStepBefore, nil},
+			{0, "s4", StepTeardown, CallbackStepAfter, nil},
+
+			{0, "s5", StepSetup, CallbackStepBefore, nil},
+			{0, "s5", StepSetup, CallbackStepAfter, err1},
 		}
 
 		notExpectedTasks := []testCallbackItem{
-			{0, "second", StepStart, CallbackStepBefore, nil},
-			{0, "second", StepStart, CallbackStepAfter, err1},
-			{0, "second", StepStop, CallbackStepBefore, nil},
-			{0, "second", StepStop, CallbackStepAfter, err1},
-			{0, "second", StepTeardown, CallbackStepBefore, nil},
-			{0, "second", StepTeardown, CallbackStepAfter, err1},
+			{0, "s2", StepSetup, CallbackStepBefore, nil},
+			{0, "s2", StepSetup, CallbackStepAfter, nil},
+			{0, "s2", StepTeardown, CallbackStepBefore, nil},
+			{0, "s2", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "third", StepSetup, CallbackStepBefore, nil},
-			{0, "third", StepSetup, CallbackStepAfter, nil},
-			{0, "third", StepStart, CallbackStepBefore, nil},
-			{0, "third", StepStart, CallbackStepAfter, nil},
-			{0, "third", StepStop, CallbackStepBefore, nil},
-			{0, "third", StepStop, CallbackStepAfter, nil},
-			{0, "third", StepTeardown, CallbackStepBefore, nil},
-			{0, "third", StepTeardown, CallbackStepAfter, nil},
+			{0, "s3", StepSetup, CallbackStepBefore, nil},
+			{0, "s3", StepSetup, CallbackStepAfter, nil},
+			{0, "s3", StepStart, CallbackStepBefore, nil},
+			{0, "s3", StepStart, CallbackStepAfter, err1},
+
+			{0, "s4", StepSetup, CallbackStepBefore, nil},
+			{0, "s4", StepSetup, CallbackStepAfter, nil},
+			{0, "s4", StepStart, CallbackStepBefore, nil},
+			{0, "s4", StepStart, CallbackStepAfter, nil},
+			{0, "s4", StepStop, CallbackStepBefore, nil},
+			{0, "s4", StepStop, CallbackStepAfter, nil},
+
+			{0, "s5", StepStart, CallbackStepBefore, nil},
+			{0, "s5", StepStart, CallbackStepAfter, err1},
+			{0, "s5", StepStop, CallbackStepBefore, nil},
+			{0, "s5", StepStop, CallbackStepAfter, err1},
+			{0, "s5", StepTeardown, CallbackStepBefore, nil},
+			{0, "s5", StepTeardown, CallbackStepAfter, err1},
+
+			{0, "s6", StepSetup, CallbackStepBefore, nil},
+			{0, "s6", StepSetup, CallbackStepAfter, nil},
+			{0, "s6", StepStart, CallbackStepBefore, nil},
+			{0, "s6", StepStart, CallbackStepAfter, nil},
+			{0, "s6", StepStop, CallbackStepBefore, nil},
+			{0, "s6", StepStop, CallbackStepAfter, nil},
+			{0, "s6", StepTeardown, CallbackStepBefore, nil},
+			{0, "s6", StepTeardown, CallbackStepAfter, nil},
 		}
 
 		testcb.assertExpectedNotExpected(t, expectedTasks, notExpectedTasks)
