@@ -260,7 +260,12 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 		loggerStep.InfoContext(ctx, "running step")
 	}
 
-	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
+	var cbStepOnce sync.Once
+	var isStepCallback bool
+	cbStepFn := func() {
+		isStepCallback = true
+		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
+	}
 
 	isWait := false
 	if waitWG == nil {
@@ -268,11 +273,12 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 		waitWG = &sync.WaitGroup{}
 	}
 
-	taskCount := m.runStageStep(ctx, cancelCtx, stage, step, waitWG, !isWait, func() {
+	taskCount := m.runStageStep(ctx, cancelCtx, stage, step, waitWG, !isWait, func(logOnly bool) {
 		loggerStepOnce.Do(loggerStepFn)
+		if !logOnly {
+			cbStepOnce.Do(cbStepFn)
+		}
 	}, onError)
-
-	m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
 
 	if isWait {
 		if taskCount > 0 {
@@ -287,10 +293,14 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 			loggerStep.InfoContext(ctx, "(finished) running step")
 		}
 	}
+
+	if isStepCallback {
+		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
+	}
 }
 
 func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
-	waitStart bool, onTask func(), onError func(err error)) int {
+	waitStart bool, onTask func(logOnly bool), onError func(err error)) int {
 	loggerStage := m.logger.With(
 		"stage", stage,
 		"step", step.String())
@@ -298,10 +308,14 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 	var startWg sync.WaitGroup
 	var taskCount atomic.Int64
 
-	doInitLog := func(f func()) {
-		taskCount.Add(1)
-		onTask()
-		f()
+	doInitLog := func(logOnly bool, f func()) {
+		if !logOnly {
+			taskCount.Add(1)
+		}
+		onTask(logOnly)
+		if f != nil {
+			f()
+		}
 	}
 
 	for tw := range m.tasks.stageTasks(stage) {
@@ -309,7 +323,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		loggerTask := loggerStage.With("task", taskDesc)
 
 		if startStep, err := tw.checkStartStep(step); err != nil {
-			doInitLog(func() {
+			doInitLog(true, func() {
 				loggerTask.ErrorContext(ctx, "error checking task start step",
 					slog2.ErrorKey, err)
 			})
@@ -324,8 +338,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 
 		var logAttrs []any
 
-		taskCount.Add(1)
-		onTask()
+		doInitLog(false, nil)
 
 		wg.Add(1)
 		if waitStart {

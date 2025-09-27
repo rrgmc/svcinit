@@ -37,6 +37,7 @@ func StartStepManagerFromContext(ctx context.Context) StartStepManager {
 }
 
 // CauseFromContext gets the stop cause from the context, if available.
+// If not available, err is guaranteed to be nil.
 func CauseFromContext(ctx context.Context) (error, bool) {
 	if val := ctx.Value(causeKey{}); val != nil {
 		if err, ok := val.(error); ok {

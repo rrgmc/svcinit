@@ -629,23 +629,23 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 
 func TestManagerStageOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		testcb := &testCallback{
+		testcb := &testManagerCallback{
 			filterCallbackStep: ptr(CallbackStepAfter),
 		}
 
 		sm, err := New(
 			WithStages("s1", "s2", "s3", "s4", "s5", "s6"),
-			WithTaskCallback(testcb),
+			WithManagerCallback(testcb),
 		)
 
 		sm.AddTask("s1", BuildTask(
 			WithSetup(testEmptyStep),
-			WithStart(testDefaultStart(2)),
+			WithStart(testDefaultStart(20)),
 			WithStop(testWaitContext),
 			WithTeardown(testEmptyStep),
 		))
 		sm.AddTask("s2", BuildTask(
-			WithStart(testDefaultStart(2)),
+			WithStart(testDefaultStart(20)),
 			WithStop(testWaitContext),
 		))
 		sm.AddTask("s3", BuildTask(
@@ -657,13 +657,13 @@ func TestManagerStageOrder(t *testing.T) {
 		))
 		sm.AddTask("s5", BuildTask(
 			WithSetup(testEmptyStep),
-			WithStart(testDefaultStart(1)),
+			WithStart(testDefaultStart(15)),
 			WithStop(testWaitContext),
 			WithTeardown(testEmptyStep),
 		))
 		sm.AddTask("s6", BuildTask(
 			WithSetup(testEmptyStep),
-			WithStart(testDefaultStart(2)),
+			WithStart(testDefaultStart(20)),
 			WithStop(testWaitContext),
 			WithTeardown(testEmptyStep),
 		))
@@ -673,10 +673,13 @@ func TestManagerStageOrder(t *testing.T) {
 
 		expectedStageSteps := []testStageStep{
 			{"s1", StepSetup},
+			{"s1", StepStart},
+			{"s2", StepStart},
 			{"s5", StepSetup},
-			{"s6", StepSetup},
 			{"s5", StepStart},
+			{"s6", StepSetup},
 			{"s6", StepStart},
+
 			{"s6", StepStop},
 			{"s5", StepStop},
 			{"s3", StepStop},

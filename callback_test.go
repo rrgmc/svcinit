@@ -246,6 +246,42 @@ func (t *testCallback) Callback(_ context.Context, task Task, stage string, step
 	t.add(taskNo, stage, step, callbackStep, err)
 }
 
+type testManagerCallback struct {
+	filterCallbackStep *CallbackStep
+
+	m     sync.Mutex
+	steps []testStageStep
+}
+
+func (t *testManagerCallback) add(stage string, step Step, callbackStep CallbackStep, err error) {
+	if t.filterCallbackStep != nil && *t.filterCallbackStep != callbackStep {
+		return
+	}
+
+	t.m.Lock()
+	defer t.m.Unlock()
+	stageStep := testStageStep{
+		Stage: stage,
+		Step:  step,
+	}
+	if !slices.ContainsFunc(t.steps, func(step testStageStep) bool {
+		return testStageStepCompare(step, stageStep) == 0
+	}) {
+		t.steps = append(t.steps, stageStep)
+	}
+}
+
+func (t *testManagerCallback) assertStageSteps(tt *testing.T, expected []testStageStep) {
+	t.m.Lock()
+	defer t.m.Unlock()
+	assert.DeepEqual(tt, expected, t.steps)
+}
+
+func (t *testManagerCallback) Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
+	cause, _ := CauseFromContext(ctx)
+	t.add(stage, step, callbackStep, cause)
+}
+
 func printTaskCallback(startTime time.Time, ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
 	taskNo, _ := getTestTaskNo(task)
 	fmt.Printf("[%s] --- [TASK %d] (stage:%s)(step:%s)(callbackStep:%s)(err:%v)\n", time.Since(startTime), // time.Now().Format("15:04:05.000000000"),
