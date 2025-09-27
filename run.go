@@ -308,7 +308,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 	var startWg sync.WaitGroup
 	var taskCount atomic.Int64
 
-	doInitLog := func(logOnly bool, f func()) {
+	doTask := func(logOnly bool, f func()) {
 		if !logOnly {
 			taskCount.Add(1)
 		}
@@ -323,14 +323,14 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		loggerTask := loggerStage.With("task", taskDesc)
 
 		if startStep, err := tw.checkStartStep(step); err != nil {
-			doInitLog(true, func() {
+			doTask(true, func() {
 				loggerTask.ErrorContext(ctx, "error checking task start step",
 					slog2.ErrorKey, err)
 			})
 			onError(fatalError{err})
 			continue
 		} else if !startStep {
-			// doInitLog(func() {
+			// doTask(true, func() {
 			// 	loggerStage.Log(ctx, slog2.LevelTrace, "can't start step, skipping")
 			// })
 			continue
@@ -338,7 +338,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 
 		var logAttrs []any
 
-		doInitLog(false, nil)
+		doTask(false, nil)
 
 		wg.Add(1)
 		if waitStart {
@@ -423,7 +423,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 		if taskCount.Load() > 0 {
 			loggerStage.Log(ctx, slog2.LevelTrace, "waiting for task goroutines to start")
 		}
-		startWg.Wait() // even if taskCount is 0, some startup might have been done, must still wait.
+		startWg.Wait() // might free resources even it no tasks.
 		if taskCount.Load() > 0 {
 			loggerStage.Log(ctx, slog2.LevelTrace, "(finished) waiting for task goroutines to start")
 		}
