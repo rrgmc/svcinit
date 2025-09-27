@@ -23,7 +23,7 @@ import (
     "github.com/rrgmc/svcinit/v3"
 )
 
-// healthService wraps an HTTP service in a [svcinit.Task] interface.
+// healthService implements an HTTP server used to serve health probes.
 type healthService struct {
     server *http.Server
 }
