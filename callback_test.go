@@ -163,17 +163,27 @@ func testCallbackItemCompare(a, b testCallbackItem) int {
 	return 0
 }
 
-type testCount struct {
-	stage        string
-	step         Step
-	callbackStep CallbackStep
+type testStageStep struct {
+	Stage string
+	Step  Step
+}
+
+func testStageStepCompare(a, b testStageStep) int {
+	if c := cmp.Compare(a.Stage, b.Stage); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.Step, b.Step); c != 0 {
+		return c
+	}
+	return 0
 }
 
 type testCallback struct {
 	filterCallbackStep *CallbackStep
 
-	m            sync.Mutex
-	allTestTasks []testCallbackItem
+	m     sync.Mutex
+	items []testCallbackItem
+	steps []testStageStep
 }
 
 func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -193,7 +203,16 @@ func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep Cal
 		callbackStep: callbackStep,
 		err:          err,
 	}
-	t.allTestTasks = append(t.allTestTasks, item)
+	t.items = append(t.items, item)
+	stageStep := testStageStep{
+		Stage: stage,
+		Step:  step,
+	}
+	if !slices.ContainsFunc(t.steps, func(step testStageStep) bool {
+		return testStageStepCompare(step, stageStep) == 0
+	}) {
+		t.steps = append(t.steps, stageStep)
+	}
 }
 
 func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackItem {
@@ -202,7 +221,7 @@ func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackI
 	var ret []testCallbackItem
 
 	for _, task := range testTasks {
-		if !slices.ContainsFunc(t.allTestTasks, func(item testCallbackItem) bool {
+		if !slices.ContainsFunc(t.items, func(item testCallbackItem) bool {
 			return item.Equal(task)
 		}) {
 			ret = append(ret, task)
@@ -214,6 +233,12 @@ func (t *testCallback) containsAll(testTasks []testCallbackItem) []testCallbackI
 func (t *testCallback) assertExpectedNotExpected(tt *testing.T, expected, notExpected []testCallbackItem) {
 	_ = assert.Check(tt, cmp2.DeepEqual([]testCallbackItem(nil), t.containsAll(expected)), "failed expected test")
 	_ = assert.Check(tt, cmp2.DeepEqual(notExpected, t.containsAll(notExpected)), "failed not expected test")
+}
+
+func (t *testCallback) assertStageSteps(tt *testing.T, expected []testStageStep) {
+	t.m.Lock()
+	defer t.m.Unlock()
+	assert.DeepEqual(tt, expected, t.steps)
 }
 
 func (t *testCallback) Callback(_ context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {

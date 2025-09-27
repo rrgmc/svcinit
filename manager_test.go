@@ -627,6 +627,72 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 	})
 }
 
+func TestManagerStageOrder(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testcb := &testCallback{
+			filterCallbackStep: ptr(CallbackStepAfter),
+		}
+
+		sm, err := New(
+			WithStages("s1", "s2", "s3", "s4", "s5", "s6"),
+			WithTaskCallback(testcb),
+		)
+
+		sm.AddTask("s1", BuildTask(
+			WithSetup(testEmptyStep),
+			WithStart(testDefaultStart(2)),
+			WithStop(testWaitContext),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s2", BuildTask(
+			WithStart(testDefaultStart(2)),
+			WithStop(testWaitContext),
+		))
+		sm.AddTask("s3", BuildTask(
+			WithStop(testWaitContext),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s4", BuildTask(
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s5", BuildTask(
+			WithSetup(testEmptyStep),
+			WithStart(testDefaultStart(1)),
+			WithStop(testWaitContext),
+			WithTeardown(testEmptyStep),
+		))
+		sm.AddTask("s6", BuildTask(
+			WithSetup(testEmptyStep),
+			WithStart(testDefaultStart(2)),
+			WithStop(testWaitContext),
+			WithTeardown(testEmptyStep),
+		))
+
+		err = sm.Run(t.Context())
+		assert.NilError(t, err)
+
+		expectedStageSteps := []testStageStep{
+			{"s1", StepSetup},
+			{"s5", StepSetup},
+			{"s6", StepSetup},
+			{"s5", StepStart},
+			{"s6", StepStart},
+			{"s6", StepStop},
+			{"s5", StepStop},
+			{"s3", StepStop},
+			{"s2", StepStop},
+			{"s1", StepStop},
+			{"s6", StepTeardown},
+			{"s5", StepTeardown},
+			{"s4", StepTeardown},
+			{"s3", StepTeardown},
+			{"s1", StepTeardown},
+		}
+
+		testcb.assertStageSteps(t, expectedStageSteps)
+	})
+}
+
 func TestManagerErrorReturns(t *testing.T) {
 	var (
 		err1 = errors.New("err1")
@@ -898,6 +964,13 @@ func testDefaultStart(delay int, options ...sleepContextOption) func(ctx context
 	return func(ctx context.Context) error {
 		return sleepContext(ctx, time.Duration(delay)*time.Second,
 			append(options, withSleepContextError(true))...)
+	}
+}
+
+func testWaitContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return nil
 	}
 }
 
