@@ -73,20 +73,20 @@ type startStepManager struct {
 var _ StartStepManager = (*startStepManager)(nil)
 
 func (s *startStepManager) ContextCancel(cause error) bool {
-	if s.cancel != nil {
-		s.logger.Log(context.Background(), slog2.LevelTrace, "ssm: canceling context",
-			"cause", cause)
-		s.cancel(cause)
-		return true
+	if s.cancel == nil {
+		return false
 	}
-	return false
+	s.logger.Log(context.Background(), slog2.LevelTrace, "ssm: canceling context",
+		"cause", cause)
+	s.cancel(cause)
+	return true
 }
 
 func (s *startStepManager) Finished() <-chan struct{} {
-	if s.finished != nil {
-		return s.finished.Done()
+	if s.finished == nil {
+		return closedchan // channel can't block if checking for finished is not possible.
 	}
-	return closedchan // channel can't block if checking for finished is not possible.
+	return s.finished.Done()
 }
 
 func (s *startStepManager) FinishedErr() error {
