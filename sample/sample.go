@@ -115,16 +115,18 @@ func run(ctx context.Context) error {
 		func(ctx context.Context) (HealthService, error) {
 			return NewHealthServiceImpl(), nil
 		},
-		svcinit.WithDataStart(func(ctx context.Context, data HealthService) error {
-			return data.Start(ctx)
+		svcinit.WithDataStart(func(ctx context.Context, service HealthService) error {
+			return service.Start(ctx)
 		}),
-		svcinit.WithDataStop(func(ctx context.Context, data HealthService) error {
-			return data.Stop(ctx)
+		svcinit.WithDataStop(func(ctx context.Context, service HealthService) error {
+			return service.Stop(ctx)
 		}),
 		svcinit.WithDataName[HealthService]("health service"),
 	)
 	sinit.AddTask(StageManagement, healthTask)
 
+	// the "ready" stage is executed after all initialization already happened. It is used to signal the
+	// startup probes that the service is ready.
 	sinit.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			healthServer, err := healthTask.Value()
@@ -138,6 +140,8 @@ func run(ctx context.Context) error {
 		svcinit.WithName("health server started probe"),
 	))
 
+	// add a task in the "service" stage, so the stop step is called in parallel with the service stopping ones.
+	// This tasks signals the probes that the service is terminating.
 	sinit.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
 			healthServer, err := healthTask.Value()
@@ -158,27 +162,24 @@ func run(ctx context.Context) error {
 		db *sql.DB
 	}
 	initTask := svcinit.NewTaskFuture[*initTaskData](
-		func(ctx context.Context) (ret *initTaskData, err error) {
-			// get the health server from the Future.
-			healthServer, err := healthTask.Value()
-			if err != nil {
-				return nil, err
-			}
-
-			ret = &initTaskData{}
+		func(ctx context.Context) (data *initTaskData, err error) {
+			data = &initTaskData{}
 
 			logger.InfoContext(ctx, "connecting to database")
 			// ret.db, err = sql.Open("pgx", "dburl")
-			ret.db = &sql.DB{}
+			data.db = &sql.DB{}
 			if err != nil {
 				return nil, err
 			}
 
 			// send the initialized DB connection to the health service to be used by the readiness probe.
-			healthServer.AddDBHealth(ret.db)
+			healthServer, err := healthTask.Value() // get the health server from the Future.
+			if err != nil {
+				return nil, err
+			}
+			healthServer.AddDBHealth(data.db)
 
 			logger.InfoContext(ctx, "data initialization finished")
-
 			return
 		},
 		svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
