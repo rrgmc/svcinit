@@ -402,7 +402,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 						taskCancelOnStop(startStepManagerNilError)
 					}
 				}
-				if loggerTask.Enabled(ctx, slog.LevelInfo) {
+				if loggerTask.Enabled(ctx, slog.LevelDebug) {
 					if err != nil {
 						level := slog.LevelDebug
 						if step != StepStart && step != StepStop {
