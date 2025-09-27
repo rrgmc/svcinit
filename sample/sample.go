@@ -190,10 +190,10 @@ func run(ctx context.Context) error {
 	//
 	sinit.AddTask(StageService, svcinit.BuildDataTask[svcinit.Task](
 		func(ctx context.Context) (svcinit.Task, error) {
-			// using WithDataParentFromSetup, returning a [svcinit.Task] from this "setup" step sets it as the parent
-			// task, and all of its steps are added to this one.
+			// using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
+			// sets it as the parent task, and all of its steps are added to this one.
 			// This makes Start and Stop be called automatically.
-			initData, err := initTask.Value()
+			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {
 				return nil, err
 			}
@@ -208,23 +208,25 @@ func run(ctx context.Context) error {
 	//
 	sinit.AddTask(StageService, svcinit.BuildDataTask[MessagingService](
 		func(ctx context.Context) (MessagingService, error) {
-			initData, err := initTask.Value()
+			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {
 				return nil, err
 			}
 			return NewMessagingServiceImpl(logger, initData.db), nil
 		},
 		svcinit.WithDataStart(func(ctx context.Context, service MessagingService) error {
+			// service is the object returned from the setup step function above.
 			return service.Start(ctx)
 		}),
 		svcinit.WithDataStop(func(ctx context.Context, service MessagingService) error {
+			// service is the object returned from the setup step function above.
 			err := service.Stop(ctx)
 			if err != nil {
 				return err
 			}
 
-			// the stop method of TCP messaging service do not wait until the connection is shutdown to return.
-			// using the [svcinit.WithStartStepManager] task option, we have access to an interface from the context
+			// the stop method of the TCP listener do not wait until the connection is shutdown to return.
+			// Using the [svcinit.WithStartStepManager] task option, we have access to an interface from the context
 			// that we can use to cancel the "start" step context and/or wait for its completion.
 			ssm := svcinit.StartStepManagerFromContext(ctx)
 
@@ -240,7 +242,7 @@ func run(ctx context.Context) error {
 			}
 			select {
 			case <-ctx.Done():
-			case <-ssm.Finished(): // will be signaled then the "start" step of this task ends.
+			case <-ssm.Finished(): // will be signaled when the "start" step of this task ends.
 			}
 			return nil
 		}),

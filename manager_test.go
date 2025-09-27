@@ -725,6 +725,40 @@ func TestManagerErrorReturns(t *testing.T) {
 	}
 }
 
+func TestManagerSSM(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
+		err1 := errors.New("err1")
+
+		sm, err := New()
+
+		sm.AddTask(StageDefault, BuildTask(
+			WithStart(func(ctx context.Context) error {
+				items.add("start")
+				return sleepContext(ctx, time.Second)
+			}),
+			WithStop(func(ctx context.Context) error {
+				items.add("stop")
+				ssm := StartStepManagerFromContext(ctx)
+				ssm.ContextCancel(context.Canceled)
+				select {
+				case <-ctx.Done():
+					return context.Canceled
+				case <-ssm.Finished():
+					return err1
+				}
+			}),
+		), WithStartStepManager())
+		assert.NilError(t, err)
+
+		err, stopErr := sm.RunWithStopErrors(t.Context())
+		assert.NilError(t, err)
+		assert.ErrorIs(t, stopErr, err1)
+		assert.DeepEqual(t, []string{"start", "stop"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+	})
+}
+
 func testEmptyStep(ctx context.Context) error {
 	return nil
 }
