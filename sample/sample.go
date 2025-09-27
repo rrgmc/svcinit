@@ -63,10 +63,15 @@ func run(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
 	sinit, err := svcinit.New(
-		svcinit.WithStages(allStages...),
-		svcinit.WithShutdownTimeout(20*time.Second),
-		svcinit.WithEnforceShutdownTimeout(true),
 		svcinit.WithLogger(logger),
+		// initialization in 4 stages. Initialization is done in stage order, and shutdown in reverse stage order.
+		// all tasks added to the same stage are started/stopped in parallel.
+		svcinit.WithStages(allStages...),
+		// use a context with a 20-second cancellation during shutdown.
+		svcinit.WithShutdownTimeout(20*time.Second),
+		// some tasks may not check context cancellation, set enforce to true to give up waiting after the shutdown timeout.
+		// The default is true.
+		svcinit.WithEnforceShutdownTimeout(true),
 	)
 	if err != nil {
 		return err
