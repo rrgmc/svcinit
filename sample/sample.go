@@ -161,6 +161,8 @@ func run(ctx context.Context) error {
 			}
 
 			ret = &initTaskData{}
+
+			logger.InfoContext(ctx, "connecting to database")
 			// ret.db, err = sql.Open("pgx", "dburl")
 			ret.db = &sql.DB{}
 			if err != nil {
@@ -170,13 +172,16 @@ func run(ctx context.Context) error {
 			// send the initialized DB connection to the health service to be used by the readiness probe.
 			healthServer.AddDBHealth(ret.db)
 
+			logger.InfoContext(ctx, "data initialization finished")
+
 			return
 		},
 		svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
+			logger.InfoContext(ctx, "closing database connection")
 			// return data.db.Close()
 			return nil
 		}),
-		svcinit.WithDataName[*initTaskData]("initialization"),
+		svcinit.WithDataName[*initTaskData]("init data"),
 	)
 	sinit.AddTask(StageInitialize, initTask)
 
