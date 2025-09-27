@@ -445,7 +445,9 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 			err1 = errors.New("err1")
 		)
 
-		testcb := &testCallback{}
+		testcb := &testCallback{
+			filterCallbackStep: ptr(CallbackStepAfter),
+		}
 
 		sm, err := New(
 			WithStages("s1", "s2", "s3", "s4", "s5", "s6"),
@@ -489,64 +491,40 @@ func TestManagerSetupErrorReturnsEarly(t *testing.T) {
 		assert.ErrorIs(t, err, err1)
 
 		expectedTasks := []testCallbackItem{
-			{0, "s1", StepSetup, CallbackStepBefore, nil},
 			{0, "s1", StepSetup, CallbackStepAfter, nil},
-			{0, "s1", StepStart, CallbackStepBefore, nil},
 			{0, "s1", StepStart, CallbackStepAfter, nil},
-			{0, "s1", StepStop, CallbackStepBefore, nil},
 			{0, "s1", StepStop, CallbackStepAfter, nil},
-			{0, "s1", StepTeardown, CallbackStepBefore, nil},
 			{0, "s1", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "s2", StepStart, CallbackStepBefore, nil},
 			{0, "s2", StepStart, CallbackStepAfter, nil},
-			{0, "s2", StepStop, CallbackStepBefore, nil},
 			{0, "s2", StepStop, CallbackStepAfter, nil},
 
-			{0, "s3", StepStop, CallbackStepBefore, nil},
 			{0, "s3", StepStop, CallbackStepAfter, nil},
-			{0, "s3", StepTeardown, CallbackStepBefore, nil},
 			{0, "s3", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "s4", StepTeardown, CallbackStepBefore, nil},
 			{0, "s4", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "s5", StepSetup, CallbackStepBefore, nil},
 			{0, "s5", StepSetup, CallbackStepAfter, err1},
 		}
 
 		notExpectedTasks := []testCallbackItem{
-			{0, "s2", StepSetup, CallbackStepBefore, nil},
 			{0, "s2", StepSetup, CallbackStepAfter, nil},
-			{0, "s2", StepTeardown, CallbackStepBefore, nil},
 			{0, "s2", StepTeardown, CallbackStepAfter, nil},
 
-			{0, "s3", StepSetup, CallbackStepBefore, nil},
 			{0, "s3", StepSetup, CallbackStepAfter, nil},
-			{0, "s3", StepStart, CallbackStepBefore, nil},
 			{0, "s3", StepStart, CallbackStepAfter, err1},
 
-			{0, "s4", StepSetup, CallbackStepBefore, nil},
 			{0, "s4", StepSetup, CallbackStepAfter, nil},
-			{0, "s4", StepStart, CallbackStepBefore, nil},
 			{0, "s4", StepStart, CallbackStepAfter, nil},
-			{0, "s4", StepStop, CallbackStepBefore, nil},
 			{0, "s4", StepStop, CallbackStepAfter, nil},
 
-			{0, "s5", StepStart, CallbackStepBefore, nil},
 			{0, "s5", StepStart, CallbackStepAfter, err1},
-			{0, "s5", StepStop, CallbackStepBefore, nil},
 			{0, "s5", StepStop, CallbackStepAfter, err1},
-			{0, "s5", StepTeardown, CallbackStepBefore, nil},
 			{0, "s5", StepTeardown, CallbackStepAfter, err1},
 
-			{0, "s6", StepSetup, CallbackStepBefore, nil},
 			{0, "s6", StepSetup, CallbackStepAfter, nil},
-			{0, "s6", StepStart, CallbackStepBefore, nil},
 			{0, "s6", StepStart, CallbackStepAfter, nil},
-			{0, "s6", StepStop, CallbackStepBefore, nil},
 			{0, "s6", StepStop, CallbackStepAfter, nil},
-			{0, "s6", StepTeardown, CallbackStepBefore, nil},
 			{0, "s6", StepTeardown, CallbackStepAfter, nil},
 		}
 

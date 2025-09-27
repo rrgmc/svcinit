@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 // waitGroupWaitWithContext waits for the WaitGroup or the context to be done.
 // Returns false if waiting timed out.
 func waitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {

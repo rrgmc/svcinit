@@ -170,11 +170,17 @@ type testCount struct {
 }
 
 type testCallback struct {
+	filterCallbackStep *CallbackStep
+
 	m            sync.Mutex
 	allTestTasks []testCallbackItem
 }
 
 func (t *testCallback) add(taskNo int, stage string, step Step, callbackStep CallbackStep, err error) {
+	if t.filterCallbackStep != nil && *t.filterCallbackStep != callbackStep {
+		return
+	}
+
 	if taskNo < 0 {
 		taskNo = 0
 	}
