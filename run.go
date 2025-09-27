@@ -356,7 +356,11 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 				}
 				err := tw.run(taskCtx, loggerTask, stage, step, m.taskCallbacks)
 				if taskCancelOnStop != nil {
-					taskCancelOnStop(err)
+					if err != nil {
+						taskCancelOnStop(err)
+					} else {
+						taskCancelOnStop(startStepManagerNilError)
+					}
 				}
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {
 					if err != nil {
