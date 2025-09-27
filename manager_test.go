@@ -209,19 +209,27 @@ func TestManagerShutdownOptions(t *testing.T) {
 
 func TestManagerShutdownTimeout(t *testing.T) {
 	for _, test := range []struct {
-		name          string
-		taskStopSleep time.Duration
-		isError       bool
+		name                             string
+		taskStopSleep, taskTeardownSleep time.Duration
+		isError                          bool
 	}{
 		{
-			name:          "stop timeout",
-			taskStopSleep: 40 * time.Second,
-			isError:       true,
+			name:              "stop timeout",
+			taskStopSleep:     40 * time.Second,
+			taskTeardownSleep: 1 * time.Second,
+			isError:           true,
 		},
 		{
-			name:          "no timeout",
-			taskStopSleep: 10 * time.Second,
-			isError:       false,
+			name:              "stop + teardown timeout",
+			taskStopSleep:     20 * time.Second,
+			taskTeardownSleep: 15 * time.Second,
+			isError:           true,
+		},
+		{
+			name:              "no timeout",
+			taskStopSleep:     10 * time.Second,
+			taskTeardownSleep: 1 * time.Second,
+			isError:           false,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -235,6 +243,9 @@ func TestManagerShutdownTimeout(t *testing.T) {
 					}),
 					WithStop(func(ctx context.Context) error {
 						return sleepContext(ctx, test.taskStopSleep)
+					}),
+					WithTeardown(func(ctx context.Context) error {
+						return sleepContext(ctx, test.taskTeardownSleep)
 					}),
 				))
 
