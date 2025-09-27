@@ -44,7 +44,7 @@ type HTTPService interface {
 //
 // Messaging service
 //
-// Simulates a messaging service receiving and forwarding messages.
+// Simulates a messaging service receiving and processing messages.
 //
 
 type MessagingService interface {
