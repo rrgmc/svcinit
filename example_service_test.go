@@ -3,6 +3,7 @@ package svcinit_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,13 +17,13 @@ import (
 )
 
 const (
-	stageManagement = "management" // 1st stage: initialize telemetry, health server and signal handling
+	StageManagement = "management" // 1st stage: initialize telemetry, health server and signal handling
 	StageInitialize = "initialize" // 2nd stage: initialize data, like DB connections
-	stageReady      = "ready"      // 3rd stage: signals probes that the service has completely started
+	StageReady      = "ready"      // 3rd stage: signals probes that the service has completely started
 	StageService    = "service"    // 4th state: initialize services
 )
 
-var allStages = []string{stageManagement, StageInitialize, stageReady, StageService}
+var allStages = []string{StageManagement, StageInitialize, StageReady, StageService}
 
 //
 // Health webservice
@@ -41,8 +42,7 @@ type HealthService interface {
 //
 
 type HTTPService interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
+	svcinit.Service // has "Start(ctx) error" and "Stop(ctx) error" methods.
 }
 
 //
@@ -52,7 +52,8 @@ type HTTPService interface {
 //
 
 type MessagingService interface {
-	svcinit.Service // has Start(ctx) and Stop(ctx) methods.
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 }
 
 func Example() {
@@ -75,7 +76,7 @@ func Example() {
 	//
 
 	// initialize and close OpenTelemetry.
-	sinit.AddTask(stageManagement, svcinit.BuildTask(
+	sinit.AddTask(StageManagement, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			// OpenTelemetry initialization...
 			return nil
@@ -116,9 +117,9 @@ func Example() {
 		}),
 		svcinit.WithDataName[HealthService]("health service"),
 	)
-	sinit.AddTask(stageManagement, healthTask)
+	sinit.AddTask(StageManagement, healthTask)
 
-	sinit.AddTask(stageReady, svcinit.BuildTask(
+	sinit.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			healthServer, err := healthTask.Value()
 			if err != nil {
@@ -159,7 +160,8 @@ func Example() {
 			}
 
 			ret = &initTaskData{}
-			ret.db, err = sql.Open("pgx", "dburl")
+			// ret.db, err = sql.Open("pgx", "dburl")
+			ret.db = &sql.DB{}
 			if err != nil {
 				return nil, err
 			}
@@ -170,7 +172,8 @@ func Example() {
 			return
 		},
 		svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
-			return data.db.Close()
+			// return data.db.Close()
+			return nil
 		}),
 		svcinit.WithDataName[*initTaskData]("initialization"),
 	)
@@ -179,46 +182,52 @@ func Example() {
 	//
 	// initialize and start the HTTP service.
 	//
-	sinit.AddTask(StageService, svcinit.BuildDataTask[HTTPService](
-		func(ctx context.Context) (HTTPService, error) {
-			initData, err := initTask.Value()
-			if err != nil {
-				return nil, err
-			}
-			return NewHTTPServiceImpl(initData.db), nil
-		},
-		svcinit.WithDataStart(func(ctx context.Context, data HTTPService) error {
-			return data.Start(ctx)
-		}),
-		svcinit.WithDataStop(func(ctx context.Context, data HTTPService) error {
-			return data.Stop(ctx)
-		}),
-		svcinit.WithDataName[HTTPService]("HTTP service"),
-	))
-
-	//
-	// initialize and start the messaging service.
-	//
 	sinit.AddTask(StageService, svcinit.BuildDataTask[svcinit.Task](
 		func(ctx context.Context) (svcinit.Task, error) {
-			// using WithDataParentFromSetup, returning a [svcinit.Task] from this setup step sets it as the parent
+			// using WithDataParentFromSetup, returning a [svcinit.Task] from this "setup" step sets it as the parent
 			// task, and all of its steps are added to this one.
 			// This makes Start and Stop be called automatically.
 			initData, err := initTask.Value()
 			if err != nil {
 				return nil, err
 			}
-			return svcinit.ServiceAsTask(NewMessagingServiceImpl(logger, initData.db)), nil
+			return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
 		},
 		svcinit.WithDataParentFromSetup[svcinit.Task](true),
-		svcinit.WithDataName[svcinit.Task]("Messaging service"),
+		svcinit.WithDataName[svcinit.Task]("HTTP service"),
+	))
+
+	//
+	// initialize and start the messaging service.
+	//
+	sinit.AddTask(StageService, svcinit.BuildDataTask[MessagingService](
+		func(ctx context.Context) (MessagingService, error) {
+			initData, err := initTask.Value()
+			if err != nil {
+				return nil, err
+			}
+			return NewMessagingServiceImpl(logger, initData.db), nil
+		},
+		svcinit.WithDataStart(func(ctx context.Context, data MessagingService) error {
+			return data.Start(ctx)
+		}),
+		svcinit.WithDataStop(func(ctx context.Context, data MessagingService) error {
+			return data.Stop(ctx)
+		}),
+		svcinit.WithDataName[MessagingService]("Messaging service"),
 	))
 
 	//
 	// Signal handling
 	//
 
-	sinit.AddTask(stageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+	sinit.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+
+	//
+	// debug step: sleep 100ms and shutdown.
+	//
+	sinit.AddTask(StageManagement, svcinit.TimeoutTask(100*time.Millisecond,
+		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
 	//
 	// start execution
@@ -228,6 +237,8 @@ func Example() {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// Output: timed out
 }
 
 //
