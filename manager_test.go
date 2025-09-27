@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -14,12 +13,12 @@ import (
 	cmp2 "github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
+	cmp3 "gotest.tools/v3/assert/cmp"
 )
 
 func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		started := &testList[string]{}
-		stopped := &testList[string]{}
+		items := &testList[string]{}
 
 		sm, err := New(
 			WithStages("health", "service"),
@@ -27,11 +26,11 @@ func TestManager(t *testing.T) {
 
 		sm.AddTask("health", BuildTask(
 			WithStart(func(ctx context.Context) error {
-				started.add("task1")
+				items.add("start")
 				return nil
 			}),
 			WithStop(func(ctx context.Context) error {
-				stopped.add("task1")
+				items.add("stop")
 				return nil
 			}),
 		))
@@ -40,8 +39,7 @@ func TestManager(t *testing.T) {
 		err = sm.Run(t.Context())
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"task1"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-		assert.DeepEqual(t, []string{"task1"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+		items.assertDeepEqual(t, []string{"start", "stop"})
 	})
 }
 
@@ -182,6 +180,8 @@ func TestManagerWithoutTask(t *testing.T) {
 
 func TestManagerShutdownOptions(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
 		shutdownCtx := context.WithValue(t.Context(), "test-shutdown", 5)
 
 		sinit, err := New()
@@ -189,10 +189,12 @@ func TestManagerShutdownOptions(t *testing.T) {
 
 		sinit.AddTask(StageDefault, BuildTask(
 			WithStart(func(ctx context.Context) error {
+				items.add("start")
 				assert.Check(t, !cmp2.Equal(5, ctx.Value("test-shutdown")), "not expected context value")
 				return nil
 			}),
 			WithStop(func(ctx context.Context) error {
+				items.add("stop")
 				assert.Check(t, cmp2.Equal(5, ctx.Value("test-shutdown")), "expected context value is different")
 				return nil
 			}),
@@ -201,6 +203,7 @@ func TestManagerShutdownOptions(t *testing.T) {
 		// sinit.Shutdown()
 		err = sinit.Run(t.Context(), WithRunShutdownContext(shutdownCtx))
 		assert.NilError(t, err)
+		items.assertDeepEqual(t, []string{"start", "stop"})
 	})
 }
 
@@ -294,7 +297,7 @@ func TestManagerNilTask(t *testing.T) {
 
 func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		var isStart, isStop atomic.Bool
+		items := &testList[string]{}
 
 		mainCtx, mainCancel := context.WithCancel(t.Context())
 
@@ -308,11 +311,11 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 					case <-ctx.Done():
 					}
 					assert.Check(t, ctx.Err() != nil)
-					isStart.Store(true)
+					items.add("start")
 					return nil
 				}),
 				WithStop(func(ctx context.Context) error {
-					isStop.Store(true)
+					items.add("stop")
 					assert.Check(t, ctx.Err() == nil)
 					return nil
 				}),
@@ -324,42 +327,48 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 
 		err = sinit.Run(mainCtx)
 		assert.ErrorIs(t, err, context.Canceled)
-		assert.Equal(t, isStart.Load(), true)
-		assert.Equal(t, isStop.Load(), true)
+		items.assertDeepEqual(t, []string{"start", "stop"})
 	})
 }
 
 func TestManagerTaskHandler(t *testing.T) {
 	var (
 		err1 = errors.New("err1")
-		err2 = errors.New("err2")
 	)
 
 	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
 		sinit, err := New()
 		assert.NilError(t, err)
 
 		sinit.
 			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
+					items.add("start")
 					return sleepContext(ctx, time.Second,
 						withSleepContextTimeoutError(err1))
 				}),
 				WithStop(func(ctx context.Context) error {
+					items.add("stop")
 					return nil
 				}),
 			), WithHandler(func(ctx context.Context, task Task, step Step) error {
 				switch step {
 				case StepStart:
-					return sleepContext(ctx, time.Second,
-						withSleepContextTimeoutError(err2))
+					items.add("handler_start")
+					return task.Run(ctx, step)
+				case StepStop:
+					items.add("handler_stop")
+					return task.Run(ctx, step)
 				default:
 				}
 				return nil
 			}))
 
 		err = sinit.Run(t.Context())
-		assert.ErrorIs(t, err, err2)
+		assert.ErrorIs(t, err, err1)
+		items.assertDeepEqual(t, []string{"start", "stop", "handler_start", "handler_stop"})
 	})
 }
 
@@ -918,4 +927,12 @@ func (l *testList[T]) get() []T {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.list
+}
+
+func (l *testList[T]) assertDeepEqual(t *testing.T, expected []T) {
+	assert.DeepEqual(t, expected, l.get(), cmpopts.SortSlices(cmp.Less[string]))
+}
+
+func (l *testList[T]) checkDeepEqual(t *testing.T, expected []T) bool {
+	return assert.Check(t, cmp3.DeepEqual(expected, l.get(), cmpopts.SortSlices(cmp.Less[string])))
 }
