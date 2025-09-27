@@ -155,15 +155,17 @@ func (m *Manager) start(ctx context.Context) error {
 // shutdown runs the stop step.
 func (m *Manager) shutdown(ctx context.Context) (err error) {
 	startTime := time.Now()
+
+	shutdownCtx := ctx
 	var shutdownAttr []slog.Attr
 	if m.shutdownTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, m.shutdownTimeout)
+		shutdownCtx, cancel = context.WithTimeout(ctx, m.shutdownTimeout)
 		defer cancel()
 		shutdownAttr = append(shutdownAttr,
 			slog.Duration("timeout", m.shutdownTimeout))
 	}
-	m.logger.LogAttrs(ctx, slog.LevelInfo, "shutting down", shutdownAttr...)
+	m.logger.LogAttrs(shutdownCtx, slog.LevelInfo, "shutting down", shutdownAttr...)
 
 	eb := newMultiErrorBuilder()
 
@@ -172,41 +174,66 @@ func (m *Manager) shutdown(ctx context.Context) (err error) {
 		loggerStage := m.logger.With("stage", stage)
 
 		// run stop tasks
-		m.runStage(ctx, ctx, loggerStage, stage, StepStop, nil, m.enforceShutdownTimeout,
+		m.runStage(shutdownCtx, shutdownCtx, loggerStage, stage, StepStop, nil, m.enforceShutdownTimeout,
 			func(serr error) {
 				eb.add(serr)
 			})
 	}
 
 	// wait for all goroutines to finish
-	m.logger.LogAttrs(ctx, slog.LevelInfo, "waiting for tasks to shutdown", shutdownAttr...)
+	m.logger.LogAttrs(shutdownCtx, slog.LevelInfo, "waiting for tasks to shutdown", shutdownAttr...)
 	if m.enforceShutdownTimeout {
-		_ = waitGroupWaitWithContext(ctx, &m.tasksRunning)
+		_ = waitGroupWaitWithContext(shutdownCtx, &m.tasksRunning)
 	} else {
 		m.tasksRunning.Wait()
 	}
 	m.logger.
 		With("duration", time.Since(startTime).String()).
-		LogAttrs(ctx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
+		LogAttrs(shutdownCtx, slog.LevelDebug, "(finished) waiting for tasks to shutdown", shutdownAttr...)
+
+	isTeardownTimeout := m.teardownTimeout > 0
+
+	if isTeardownTimeout && shutdownCtx.Err() != nil {
+		ctxCause := context.Cause(shutdownCtx)
+		if errors.Is(ctxCause, context.DeadlineExceeded) {
+			ctxCause = ErrShutdownTimeout
+		}
+		eb.add(ctxCause)
+		m.logger.ErrorContext(shutdownCtx, "shutdown context error", slog2.ErrorKey, ctxCause)
+	}
+
+	teardownCtx := shutdownCtx
+
+	if isTeardownTimeout {
+		var cancel context.CancelFunc
+		teardownCtx, cancel = context.WithTimeout(ctx, m.teardownTimeout)
+		defer cancel()
+		shutdownAttr = append(shutdownAttr,
+			slog.Duration("teardown_timeout", m.teardownTimeout))
+	}
 
 	// run teardown tasks in reverse stage order
 	for stage := range stagesIter(m.stages, true) {
 		loggerStage := m.logger.With("stage", stage)
 
 		// run teardown tasks
-		m.runStage(ctx, ctx, loggerStage, stage, StepTeardown, nil, false,
+		m.runStage(teardownCtx, teardownCtx, loggerStage, stage, StepTeardown, nil, false,
 			func(serr error) {
 				eb.add(serr)
 			})
 	}
 
-	if ctx.Err() != nil {
-		ctxCause := context.Cause(ctx)
+	if teardownCtx.Err() != nil {
+		ctxCause := context.Cause(teardownCtx)
 		if errors.Is(ctxCause, context.DeadlineExceeded) {
 			ctxCause = ErrShutdownTimeout
 		}
 		eb.add(ctxCause)
-		m.logger.ErrorContext(ctx, "shutdown context error", slog2.ErrorKey, ctxCause)
+		if !isTeardownTimeout {
+			m.logger.ErrorContext(teardownCtx, "shutdown context error", slog2.ErrorKey, ctxCause)
+		} else {
+			m.logger.ErrorContext(teardownCtx, "teardown context error", slog2.ErrorKey, ctxCause)
+		}
 	}
 
 	m.logger.

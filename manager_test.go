@@ -208,32 +208,104 @@ func TestManagerShutdownOptions(t *testing.T) {
 }
 
 func TestManagerShutdownTimeout(t *testing.T) {
-	timeoutTest := func(taskStopSleep time.Duration, isError bool) {
-		synctest.Test(t, func(t *testing.T) {
-			sinit, err := New(WithShutdownTimeout(30 * time.Second))
-			assert.NilError(t, err)
+	for _, test := range []struct {
+		name          string
+		taskStopSleep time.Duration
+		isError       bool
+	}{
+		{
+			name:          "stop timeout",
+			taskStopSleep: 40 * time.Second,
+			isError:       true,
+		},
+		{
+			name:          "no timeout",
+			taskStopSleep: 10 * time.Second,
+			isError:       false,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sinit, err := New(WithShutdownTimeout(30 * time.Second))
+				assert.NilError(t, err)
 
-			sinit.AddTask(StageDefault, BuildTask(
-				WithStart(func(ctx context.Context) error {
-					return nil
-				}),
-				WithStop(func(ctx context.Context) error {
-					return sleepContext(ctx, taskStopSleep)
-				}),
-			))
+				sinit.AddTask(StageDefault, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						return nil
+					}),
+					WithStop(func(ctx context.Context) error {
+						return sleepContext(ctx, test.taskStopSleep)
+					}),
+				))
 
-			err, cleanupErr := sinit.RunWithStopErrors(t.Context())
-			assert.NilError(t, err)
-			if isError {
-				assert.ErrorIs(t, cleanupErr, ErrShutdownTimeout)
-			} else {
-				assert.NilError(t, cleanupErr)
-			}
+				err, cleanupErr := sinit.RunWithStopErrors(t.Context())
+				assert.NilError(t, err)
+				if test.isError {
+					assert.ErrorIs(t, cleanupErr, ErrShutdownTimeout)
+				} else {
+					assert.NilError(t, cleanupErr)
+				}
+			})
 		})
 	}
 
-	timeoutTest(40*time.Second, true)
-	timeoutTest(10*time.Second, false)
+}
+
+func TestManagerTeardownTimeout(t *testing.T) {
+	for _, test := range []struct {
+		name                             string
+		taskStopSleep, taskTeardownSleep time.Duration
+		isError                          bool
+	}{
+		{
+			name:              "stop timeout",
+			taskStopSleep:     40 * time.Second,
+			taskTeardownSleep: 5 * time.Second,
+			isError:           true,
+		},
+		{
+			name:              "teardown timeout",
+			taskStopSleep:     10 * time.Second,
+			taskTeardownSleep: 20 * time.Second,
+			isError:           true,
+		},
+		{
+			name:              "no timeout",
+			taskStopSleep:     10 * time.Second,
+			taskTeardownSleep: 5 * time.Second,
+			isError:           false,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sinit, err := New(
+					WithShutdownTimeout(30*time.Second),
+					WithTeardownTimeout(10*time.Second),
+				)
+				assert.NilError(t, err)
+
+				sinit.AddTask(StageDefault, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						return nil
+					}),
+					WithStop(func(ctx context.Context) error {
+						return sleepContext(ctx, test.taskStopSleep)
+					}),
+					WithTeardown(func(ctx context.Context) error {
+						return sleepContext(ctx, test.taskTeardownSleep)
+					}),
+				))
+
+				err, cleanupErr := sinit.RunWithStopErrors(t.Context())
+				assert.NilError(t, err)
+				if test.isError {
+					assert.ErrorIs(t, cleanupErr, ErrShutdownTimeout)
+				} else {
+					assert.NilError(t, cleanupErr)
+				}
+			})
+		})
+	}
 }
 
 func TestManagerNilTask(t *testing.T) {

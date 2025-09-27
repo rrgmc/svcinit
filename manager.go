@@ -15,6 +15,7 @@ type Manager struct {
 	stages                 []string
 	tasks                  *stageTasks
 	shutdownTimeout        time.Duration
+	teardownTimeout        time.Duration
 	enforceShutdownTimeout bool
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
@@ -123,6 +124,15 @@ func WithStages(stages ...string) Option {
 func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
 	return func(s *Manager) {
 		s.shutdownTimeout = shutdownTimeout
+	}
+}
+
+// WithTeardownTimeout sets a teardown timeout.
+// If less then or equal to 0, makes it continue using the timeout set for shutdown instead of creating a new one.
+// The default is 0.
+func WithTeardownTimeout(teardownTimeout time.Duration) Option {
+	return func(s *Manager) {
+		s.teardownTimeout = teardownTimeout
 	}
 }
 
