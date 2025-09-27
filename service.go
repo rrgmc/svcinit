@@ -21,6 +21,11 @@ type ServiceWithTeardown interface {
 	Teardown(ctx context.Context) error
 }
 
+// ServiceName allows services to have a name.
+type ServiceName interface {
+	TaskName
+}
+
 // ServiceTask allows getting the source Service of the Task.
 type ServiceTask interface {
 	Task
@@ -47,10 +52,9 @@ type serviceTask struct {
 	steps   []Step
 }
 
-var _ Task = (*serviceTask)(nil)
+var _ ServiceTask = (*serviceTask)(nil)
 var _ TaskName = (*serviceTask)(nil)
 var _ TaskSteps = (*serviceTask)(nil)
-var _ ServiceTask = (*serviceTask)(nil)
 
 func (t *serviceTask) Run(ctx context.Context, step Step) error {
 	switch step {
@@ -80,7 +84,7 @@ func (t *serviceTask) Service() Service {
 }
 
 func (t *serviceTask) TaskName() string {
-	if ts, ok := t.service.(TaskName); ok {
+	if ts, ok := t.service.(ServiceName); ok {
 		return ts.TaskName()
 	}
 	return ""
