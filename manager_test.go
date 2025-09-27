@@ -444,7 +444,7 @@ func TestManagerInitData(t *testing.T) {
 		err = sinit.Run(t.Context())
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"i1setup", "i2setup", "sstart"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+		items.assertDeepEqual(t, []string{"i1setup", "i2setup", "sstart"})
 	})
 }
 
@@ -560,24 +560,16 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:        "return error from s1 setup step",
 			expectedErr: err2,
 			expectedTasks: []testCallbackItem{
-				{1, "s1", StepSetup, CallbackStepBefore, nil},
 				{1, "s1", StepSetup, CallbackStepAfter, err2},
 			},
 			notExpectedTasks: []testCallbackItem{
-				{1, "s1", StepStart, CallbackStepBefore, nil},
 				{1, "s1", StepStart, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
 				{1, "s1", StepStop, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
 				{1, "s1", StepTeardown, CallbackStepAfter, err2},
 
-				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
@@ -595,20 +587,13 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:        "return error from start step",
 			expectedErr: err1,
 			expectedTasks: []testCallbackItem{
-				{1, "s1", StepStart, CallbackStepBefore, nil},
 				{1, "s1", StepStart, CallbackStepAfter, err1},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
 				{1, "s1", StepStop, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
 				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 
-				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
@@ -623,20 +608,13 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:            "return error from stop step",
 			expectedStopErr: []error{err1},
 			expectedTasks: []testCallbackItem{
-				{1, "s1", StepStart, CallbackStepBefore, nil},
 				{1, "s1", StepStart, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
 				{1, "s1", StepStop, CallbackStepAfter, err1},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
 				{1, "s1", StepTeardown, CallbackStepAfter, nil},
 
-				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
@@ -653,20 +631,13 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:            "return error from teardown step",
 			expectedStopErr: []error{err2},
 			expectedTasks: []testCallbackItem{
-				{1, "s1", StepSetup, CallbackStepBefore, nil},
 				{1, "s1", StepSetup, CallbackStepAfter, nil},
-				{1, "s1", StepStart, CallbackStepBefore, nil},
 				{1, "s1", StepStart, CallbackStepAfter, nil},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
 				{1, "s1", StepTeardown, CallbackStepAfter, err2},
 
-				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
@@ -683,20 +654,13 @@ func TestManagerErrorReturns(t *testing.T) {
 			name:            "return error from stop and teardown steps",
 			expectedStopErr: []error{err2, err3},
 			expectedTasks: []testCallbackItem{
-				{1, "s1", StepStart, CallbackStepBefore, nil},
 				{1, "s1", StepStart, CallbackStepAfter, nil},
-				{1, "s1", StepStop, CallbackStepBefore, nil},
 				{1, "s1", StepStop, CallbackStepAfter, err2},
-				{1, "s1", StepTeardown, CallbackStepBefore, nil},
 				{1, "s1", StepTeardown, CallbackStepAfter, err3},
 
-				{2, "s2", StepSetup, CallbackStepBefore, nil},
 				{2, "s2", StepSetup, CallbackStepAfter, nil},
-				{2, "s2", StepStart, CallbackStepBefore, nil},
-				{2, "s2", StepStop, CallbackStepBefore, nil},
 				{2, "s2", StepStop, CallbackStepAfter, nil},
 				{2, "s2", StepStart, CallbackStepAfter, nil},
-				{2, "s2", StepTeardown, CallbackStepBefore, nil},
 				{2, "s2", StepTeardown, CallbackStepAfter, nil},
 			},
 			setupFn: func(m *Manager) {
@@ -716,7 +680,9 @@ func TestManagerErrorReturns(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				ctx := t.Context()
 
-				testcb := &testCallback{}
+				testcb := &testCallback{
+					filterCallbackStep: ptr(CallbackStepAfter),
+				}
 
 				sopts := []Option{
 					WithStages("s1", "s2"),
@@ -745,8 +711,6 @@ func TestManagerErrorReturns(t *testing.T) {
 				for _, serr := range test.expectedStopErr {
 					assert.ErrorIs(t, stopErr, serr)
 				}
-				// assert.DeepEqual(t, test.expectedCounts, testcb.counts)
-				// assert.DeepEqual(t, test.expectedTasks, testcb.allTestTasks)
 				testcb.assertExpectedNotExpected(t, test.expectedTasks, test.notExpectedTasks)
 			})
 		})
