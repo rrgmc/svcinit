@@ -236,13 +236,11 @@ func run(ctx context.Context) error {
 			// cancellation, this is a context exclusive for this interaction.
 			// // ssm.ContextCancel(context.Canceled)
 
-			if !ssm.CanFinished() {
-				// if we can't wait for any reason, just return.
-				return nil
-			}
 			select {
 			case <-ctx.Done():
-			case <-ssm.Finished(): // will be signaled when the "start" step of this task ends.
+			case <-ssm.Finished():
+				// will be signaled when the "start" step of this task ends.
+				// "ssm.FinishedErr()" will contain the error that was returned from it.
 			}
 			return nil
 		}),
