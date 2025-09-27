@@ -51,7 +51,7 @@ func ExampleManager() {
 		// all tasks added to the same stage are started/stopped in parallel.
 		svcinit.WithStages(svcinit.StageDefault, "manage", "service"),
 		// use a context with a 20-second cancellation during shutdown.
-		svcinit.WithShutdownTimeout(10*time.Second),
+		svcinit.WithShutdownTimeout(20*time.Second),
 		// some tasks may not check context cancellation, set enforce to true to give up waiting after the shutdown timeout.
 		// The default is true.
 		svcinit.WithEnforceShutdownTimeout(true),
