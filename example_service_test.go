@@ -208,14 +208,38 @@ func Example() {
 			}
 			return NewMessagingServiceImpl(logger, initData.db), nil
 		},
-		svcinit.WithDataStart(func(ctx context.Context, data MessagingService) error {
-			return data.Start(ctx)
+		svcinit.WithDataStart(func(ctx context.Context, service MessagingService) error {
+			return service.Start(ctx)
 		}),
-		svcinit.WithDataStop(func(ctx context.Context, data MessagingService) error {
-			return data.Stop(ctx)
+		svcinit.WithDataStop(func(ctx context.Context, service MessagingService) error {
+			err := service.Stop(ctx)
+			if err != nil {
+				return err
+			}
+
+			// the stop method of TCP messaging service do not wait until the connection is shutdown to return.
+			// using the [svcinit.WithStartStepManager] task option, we have access to an interface from the context
+			// that we can use to cancel the "start" step context and/or wait for its completion.
+			ssm := svcinit.StartStepManagerFromContext(ctx)
+
+			// we could also cancel the context of the "start" step manually. As the Go TCP listener don't have
+			// context cancellation, it wouldn't do anything in this case.
+			// Note that the [svcinit.StartStepManager] context cancellation is not the same as the main/root context
+			// cancellation, this is a context exclusive for this interaction.
+			// // ssm.ContextCancel(context.Canceled)
+
+			if !ssm.CanFinished() {
+				// if we can't wait for any reason, just return.
+				return nil
+			}
+			select {
+			case <-ctx.Done():
+			case <-ssm.Finished(): // will be signaled then the "start" step of this task ends.
+			}
+			return nil
 		}),
 		svcinit.WithDataName[MessagingService]("Messaging service"),
-	))
+	), svcinit.WithStartStepManager())
 
 	//
 	// Signal handling
@@ -345,10 +369,10 @@ func (s *MessagingServiceImpl) Start(ctx context.Context) error {
 	for {
 		conn, err := s.server.Accept()
 		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to accept connection", "error", err)
 			if s.isStopped.Load() {
-				return err
+				return nil
 			}
+			s.logger.ErrorContext(ctx, "failed to accept connection", "error", err)
 			continue
 		}
 		go func(c net.Conn) {
