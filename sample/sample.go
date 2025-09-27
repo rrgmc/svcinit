@@ -30,7 +30,7 @@ type HealthService interface {
 	Stop(ctx context.Context) error
 	ServiceStarted()        // signal the startup / readiness probe that the service is ready
 	ServiceTerminating()    // signal the readiness probe that the service is terminating and not ready
-	AddDBHealth(db *sql.DB) // add the DB connection to be checked in the readiness probe...
+	AddDBHealth(db *sql.DB) // add the DB connection to be checked in the readiness probe
 }
 
 //
@@ -85,11 +85,11 @@ func run(ctx context.Context) error {
 	// initialize and close OpenTelemetry.
 	sinit.AddTask(StageManagement, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
-			// OpenTelemetry initialization...
+			// TODO: OpenTelemetry initialization
 			return nil
 		}),
 		svcinit.WithTeardown(func(ctx context.Context) error {
-			// OpenTelemetry closing/flushing...
+			// TODO: OpenTelemetry closing/flushing
 			return nil
 		}),
 		svcinit.WithName("telemetry"),
@@ -98,8 +98,8 @@ func run(ctx context.Context) error {
 	// flush the metrics as fast as possible on SIGTERM.
 	sinit.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
-			// flush the current metrics as fast a possible.
-			// We may not have enough time if the shutdown takes too long.
+			// TODO: flush the current metrics as fast a possible.
+			// We may not have enough time if the shutdown takes too long, so do it as early as possible.
 			return nil
 		}),
 		svcinit.WithName("telemetry flush"),

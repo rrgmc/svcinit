@@ -129,6 +129,16 @@ func ExampleManager() {
 
 ## Real world example
 
+This example starts HTTP and messaging (simulated) listeners which are the core function of the service.
+The service will have telemetry, a health HTTP server listening in a different port, and will follow the Kubernetes
+pattern of having startup, liveness and readiness probes with the correct states during the initialization.
+
+There is step-by-step description of the complete process after the source code.
+
+```go
+// TODO
+```
+
 - Start `management` stage:
   - run the `setup` step in parallel of these tasks and wait for the completion of all of them:
     - `telemetry`
@@ -153,14 +163,12 @@ func ExampleManager() {
     until some condition makes then exit.
     - `Messaging service`
     - `HTTP service`
-- Waits until the `start` step of any tasks returns an error (or nil).
-
-- The first task to return in this example is `Timeout 100ms`, with the error `timed out`.
+- **Waits until the `start` step of any task returns an error (or nil)**.
+- The first task `start` step to return in this example is `Timeout 100ms`, with the error `timed out`.
 - Cancel the context sent to all services which have the `WithCancelContext(true)` option set using this `timed out` 
   error that was returned (in this example, only the `Timeout 100ms` and `Signals [interrupt interrupt terminated]` tasks).
 - A context based on the root context (NOT the one sent to the tasks, that was just cancelled) with a deadline of
   20 seconds, is created and will be sent to all stopping jobs.
-
 - Stop `service` stage:
   - run the `stop` step in parallel of these tasks and wait for the completion of all of them:
     - `HTTP service`
@@ -170,9 +178,7 @@ func ExampleManager() {
 - Shutdown `management` stage:
     - run the `stop` step in parallel of these tasks and wait for the completion of all of them:
         - `health service`
-
-- Wait until all tasks' `start` step returns or for the shutdown timeout.
-
+- **Wait until the `start` step of all tasks returns or for the shutdown timeout.**
 - Teardown `initialize` stage:
   - run the `teardown` step in parallel of these tasks and wait for the completion of all of them:
     - `init data` - closes the DB connection.
