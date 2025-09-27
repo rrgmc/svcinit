@@ -146,26 +146,25 @@ There is step-by-step description of the complete process after the source code.
 ```
 
 - Start `management` stage:
-  - run the `setup` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `telemetry`
     - `health service`
-  - run the `start` step in parallel of these tasks but DON'T wait for their completion. They are expected to block
-    until some condition makes then exit. To avoid some possible race condition, this step waits until all goroutines 
-    START running to continue.
-    - `Timeout 100ms` (waits 100ms and exits, a debugging tool)
+  - run the `start` step of these tasks in parallel but DON'T wait for their completion. They are expected to block
+    until some condition makes then exit.
+    - `Timeout 100ms` - (waits 100ms and exits, a debugging tool)
     - `health service`
-    - `Signals [interrupt interrupt terminated]` (waits until an OS signal is received)
+    - `Signals [interrupt interrupt terminated]` - (waits until an OS signal is received)
 - Start `initialize` stage:
-  - run the `setup` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `init data`
 - Start `ready` stage:
-  - run the `setup` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `health server started probe` - signals the startup and readiness probe that the service is started. 
 - Start `service` stage:
-  - run the `setup` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `Messaging service`
     - `HTTP service`
-  - run the `start` step in parallel of these tasks but DON'T wait for their completion. They are expected to block
+  - run the `start` step of these tasks in parallel but DON'T wait for their completion. They are expected to block
     until some condition makes then exit.
     - `Messaging service`
     - `HTTP service`
@@ -176,20 +175,20 @@ There is step-by-step description of the complete process after the source code.
 - A context based on the root context (NOT the one sent to the tasks, that was just cancelled) with a deadline of
   20 seconds, is created and will be sent to all stopping jobs.
 - Stop `service` stage:
-  - run the `stop` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
     - `HTTP service`
     - `Messaging service`
     - `telemetry flush` - flushes the pending telemetry to avoid losing it in case the service is killed.
     - `health server terminating probe` - signals the readiness probe that the service is terminating.
-- Shutdown `management` stage:
-    - run the `stop` step in parallel of these tasks and wait for the completion of all of them:
+- Stop `management` stage:
+    - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
         - `health service`
-- **Wait until the `start` step of all tasks returns or for the shutdown timeout.**
+- **Wait until the `start` step of ALL tasks return or for the shutdown timeout.**
 - Teardown `initialize` stage:
-  - run the `teardown` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
     - `init data` - closes the DB connection.
 - Teardown `management` stage:
-  - run the `teardown` step in parallel of these tasks and wait for the completion of all of them:
+  - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
     - `telemetry`
 
 - The `Run` method will return the error `timed out`.
