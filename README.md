@@ -28,37 +28,32 @@ type healthService struct {
     server *http.Server
 }
 
-var _ svcinit.Task = (*healthService)(nil)
-
-func (s *healthService) Run(ctx context.Context, step svcinit.Step) error {
-    switch step {
-    case svcinit.StepSetup:
-        // initialize the service in the setup step.
-        s.server = &http.Server{
+func newHealthService() *healthService {
+    return &healthService{
+        server: &http.Server{
             Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
                 w.WriteHeader(http.StatusOK)
             }),
             Addr: ":8081",
-        }
-    case svcinit.StepStart:
-        s.server.BaseContext = func(net.Listener) context.Context {
-            return ctx
-        }
-        return s.server.ListenAndServe()
-    case svcinit.StepStop:
-        return s.server.Shutdown(ctx)
-    default:
+        },
     }
-    return nil
+}
+
+func (s *healthService) Start(ctx context.Context) error {
+    s.server.BaseContext = func(net.Listener) context.Context {
+        return ctx
+    }
+    return s.server.ListenAndServe()
+}
+
+func (s *healthService) Stop(ctx context.Context) error {
+    return s.server.Shutdown(ctx)
 }
 
 func ExampleManager() {
     ctx := context.Background()
 
-    // create health HTTP server
-    healthHTTPServer := &healthService{}
-
-    // create core HTTP server
+    // core HTTP server
     var httpServer *http.Server
 
     sinit, err := svcinit.New(
@@ -77,7 +72,18 @@ func ExampleManager() {
     }
 
     // add a task to start health HTTP server before the service, and stop it after.
-    sinit.AddTask("manage", healthHTTPServer)
+    sinit.AddTask("manage", svcinit.BuildDataTask[*healthService](
+        // the "BuildDataTask" setup callback returns an instance that is sent to all following steps.
+        func(ctx context.Context) (*healthService, error) {
+            return newHealthService(), nil
+        },
+        svcinit.WithDataStart(func(ctx context.Context, data *healthService) error {
+            return data.Start(ctx)
+        }),
+        svcinit.WithDataStop(func(ctx context.Context, data *healthService) error {
+            return data.Stop(ctx)
+        }),
+    ))
 
     // add a task to start the core HTTP server.
     sinit.
