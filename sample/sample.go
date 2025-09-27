@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"syscall"
 	"time"
@@ -61,12 +60,13 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := defaultLogger(os.Stdout)
 
 	sinit, err := svcinit.New(
 		svcinit.WithStages(allStages...),
 		svcinit.WithShutdownTimeout(20*time.Second),
 		svcinit.WithEnforceShutdownTimeout(true),
+		svcinit.WithLogger(logger),
 	)
 	if err != nil {
 		return err
