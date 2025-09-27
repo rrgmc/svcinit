@@ -799,9 +799,7 @@ func TestManagerSSMNotBlocked(t *testing.T) {
 					return err1
 				}
 			}),
-		),
-			// WithStartStepManager(), // not adding the parameter
-		)
+		) /* WithStartStepManager(), // not adding the parameter */)
 		assert.NilError(t, err)
 
 		err, stopErr := sm.RunWithStopErrors(t.Context())
