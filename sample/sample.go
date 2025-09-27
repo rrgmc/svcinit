@@ -45,6 +45,7 @@ type HTTPService interface {
 // Messaging service
 //
 // Simulates a messaging service receiving and processing messages.
+// This specific sample uses a TCP listener for the simulation.
 //
 
 type MessagingService interface {
