@@ -135,7 +135,7 @@ func ExampleManager() {
 
 ## Real world example
 
-This example starts HTTP and messaging (simulated) listeners which are the core function of the service.
+This example starts an HTTP and a (simulated) messaging listeners which are the core function of the service.
 The service will have telemetry, a health HTTP server listening in a different port, and will follow the Kubernetes
 pattern of having startup, liveness and readiness probes with the correct states during the initialization.
 
