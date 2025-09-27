@@ -80,7 +80,7 @@ func (s *startStepManager) Finished() <-chan struct{} {
 	if s.finished != nil {
 		return s.finished.Done()
 	}
-	return nil
+	return closedchan // channel can't block if checking for finished is not possible.
 }
 
 func (s *startStepManager) CanContextCancel() bool {

@@ -730,18 +730,24 @@ func TestManagerSSM(t *testing.T) {
 		items := &testList[string]{}
 
 		err1 := errors.New("err1")
+		err2 := errors.New("err2")
+		err3 := errors.New("err3")
 
 		sm, err := New()
 
 		sm.AddTask(StageDefault, BuildTask(
 			WithStart(func(ctx context.Context) error {
 				items.add("start")
-				return sleepContext(ctx, time.Second)
+				select {
+				case <-ctx.Done():
+					assert.Check(t, errors.Is(context.Cause(ctx), err3))
+					return nil
+				}
 			}),
 			WithStop(func(ctx context.Context) error {
 				items.add("stop")
 				ssm := StartStepManagerFromContext(ctx)
-				ssm.ContextCancel(context.Canceled)
+				ssm.ContextCancel(err3)
 				select {
 				case <-ctx.Done():
 					return context.Canceled
@@ -752,8 +758,54 @@ func TestManagerSSM(t *testing.T) {
 		), WithStartStepManager())
 		assert.NilError(t, err)
 
+		sm.AddTask(StageDefault, TimeoutTask(time.Second, WithTimeoutTaskError(err2)))
+
 		err, stopErr := sm.RunWithStopErrors(t.Context())
+		assert.ErrorIs(t, err, err2)
+		assert.ErrorIs(t, stopErr, err1)
+		assert.DeepEqual(t, []string{"start", "stop"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+	})
+}
+
+func TestManagerSSMNotBlocked(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
+		err1 := errors.New("err1")
+		err2 := errors.New("err2")
+
+		sm, err := New()
+
+		sm.AddTask(StageDefault, BuildTask(
+			WithStart(func(ctx context.Context) error {
+				items.add("start")
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(time.Second):
+					return err2
+				}
+			}),
+			WithStop(func(ctx context.Context) error {
+				items.add("stop")
+				ssm := StartStepManagerFromContext(ctx)
+				ssm.ContextCancel(context.Canceled)
+				select {
+				case <-ctx.Done():
+					return context.Canceled
+				case <-ssm.Finished():
+					// finished returns a closed channel if "ssm.CanFinished" is false, otherwise the step
+					// would be deadlocked.
+					return err1
+				}
+			}),
+		),
+			// WithStartStepManager(), // not adding the parameter
+		)
 		assert.NilError(t, err)
+
+		err, stopErr := sm.RunWithStopErrors(t.Context())
+		assert.ErrorIs(t, err, err2)
 		assert.ErrorIs(t, stopErr, err1)
 		assert.DeepEqual(t, []string{"start", "stop"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
