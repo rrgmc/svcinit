@@ -14,6 +14,10 @@ type Service interface {
 // ServiceWithSetup is a Service which has a Setup step.
 type ServiceWithSetup interface {
 	Setup(ctx context.Context) error
+}
+
+// ServiceWithTeardown is a Service which has a Teardown step.
+type ServiceWithTeardown interface {
 	Teardown(ctx context.Context) error
 }
 
@@ -30,7 +34,10 @@ func ServiceAsTask(service Service) ServiceTask {
 		steps:   []Step{StepStart, StepStop},
 	}
 	if _, ok := t.service.(ServiceWithSetup); ok {
-		t.steps = append(t.steps, StepSetup, StepTeardown)
+		t.steps = append(t.steps, StepSetup)
+	}
+	if _, ok := t.service.(ServiceWithTeardown); ok {
+		t.steps = append(t.steps, StepTeardown)
 	}
 	return t
 }
@@ -56,7 +63,7 @@ func (t *serviceTask) Run(ctx context.Context, step Step) error {
 	case StepStop:
 		return t.service.Stop(ctx)
 	case StepTeardown:
-		if tt, ok := t.service.(ServiceWithSetup); ok {
+		if tt, ok := t.service.(ServiceWithTeardown); ok {
 			return tt.Teardown(ctx)
 		}
 	default:
