@@ -52,8 +52,7 @@ type HTTPService interface {
 //
 
 type MessagingService interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
+	svcinit.Service // has Start(ctx) and Stop(ctx) methods.
 }
 
 func Example() {
@@ -200,21 +199,19 @@ func Example() {
 	//
 	// initialize and start the messaging service.
 	//
-	sinit.AddTask(StageService, svcinit.BuildDataTask[MessagingService](
-		func(ctx context.Context) (MessagingService, error) {
+	sinit.AddTask(StageService, svcinit.BuildDataTask[svcinit.Task](
+		func(ctx context.Context) (svcinit.Task, error) {
+			// using WithDataParentFromSetup, returning a [svcinit.Task] from this setup step sets it as the parent
+			// task, and all of its steps are added to this one.
+			// This makes Start and Stop be called automatically.
 			initData, err := initTask.Value()
 			if err != nil {
 				return nil, err
 			}
-			return NewMessagingServiceImpl(logger, initData.db), nil
+			return svcinit.ServiceAsTask(NewMessagingServiceImpl(logger, initData.db)), nil
 		},
-		svcinit.WithDataStart(func(ctx context.Context, data MessagingService) error {
-			return data.Start(ctx)
-		}),
-		svcinit.WithDataStop(func(ctx context.Context, data MessagingService) error {
-			return data.Stop(ctx)
-		}),
-		svcinit.WithDataName[MessagingService]("Messaging service"),
+		svcinit.WithDataParentFromSetup[svcinit.Task](true),
+		svcinit.WithDataName[svcinit.Task]("Messaging service"),
 	))
 
 	//
