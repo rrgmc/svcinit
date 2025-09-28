@@ -3,6 +3,7 @@ package k8sinit
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 )
@@ -10,10 +11,16 @@ import (
 type Manager struct {
 	manager        *svcinit.Manager
 	managerOptions []svcinit.Option
+
+	shutdownTimeout time.Duration
+	teardownTimeout time.Duration
 }
 
 func New(options ...Option) (*Manager, error) {
-	ret := &Manager{}
+	ret := &Manager{
+		shutdownTimeout: time.Second * 20,
+		teardownTimeout: time.Second * 5,
+	}
 	for _, option := range options {
 		option(ret)
 	}
@@ -21,6 +28,9 @@ func New(options ...Option) (*Manager, error) {
 	managerOptions := slices.Concat(ret.managerOptions,
 		[]svcinit.Option{
 			svcinit.WithStages(allStages...),
+			svcinit.WithEnforceShutdownTimeout(true),
+			svcinit.WithShutdownTimeout(ret.shutdownTimeout),
+			svcinit.WithTeardownTimeout(ret.teardownTimeout),
 		},
 	)
 
@@ -67,5 +77,22 @@ type Option func(*Manager)
 func WithManagerOptions(options ...svcinit.Option) Option {
 	return func(m *Manager) {
 		m.managerOptions = append(m.managerOptions, options...)
+	}
+}
+
+// WithShutdownTimeout sets a shutdown timeout. The default is 20 seconds.
+// If less then or equal to 0, no shutdown timeout will be set.
+func WithShutdownTimeout(shutdownTimeout time.Duration) Option {
+	return func(s *Manager) {
+		s.shutdownTimeout = shutdownTimeout
+	}
+}
+
+// WithTeardownTimeout sets a teardown timeout.
+// If less then or equal to 0, makes it continue using the timeout set for shutdown instead of creating a new one.
+// The default is 5 seconds.
+func WithTeardownTimeout(teardownTimeout time.Duration) Option {
+	return func(s *Manager) {
+		s.teardownTimeout = teardownTimeout
 	}
 }
