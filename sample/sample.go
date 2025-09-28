@@ -130,7 +130,7 @@ func run(ctx context.Context) error {
 	// startup probes that the service is ready.
 	sinit.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
-			healthServer, err := healthTask.Value()
+			healthServer, err := healthTask.Value() // get health server from future
 			if err != nil {
 				return fmt.Errorf("error getting health server: %w", err)
 			}
@@ -145,7 +145,7 @@ func run(ctx context.Context) error {
 	// This tasks signals the probes that the service is terminating.
 	sinit.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
-			healthServer, err := healthTask.Value()
+			healthServer, err := healthTask.Value() // get health server from future
 			if err != nil {
 				return fmt.Errorf("error getting health server: %s", err)
 			}

@@ -1,11 +1,56 @@
 # svcinit
 [![GoDoc](https://godoc.org/github.com/rrgmc/svcinit/v3?status.png)](https://godoc.org/github.com/rrgmc/svcinit/v3)
 
+`svcinit` is an initialization system for Go services.
+
+It manages starting and stopping tasks (like a web server), initialization order, correct context handling, free of
+race conditions and goroutine safe.
+
+It is NOT some kind of dependency injection or application framework like Uber's FX, it could be seen like a more
+advanced version of [https://github.com/oklog/run](https://github.com/oklog/run).
+
+The library makes it easy to follow common service initialization patterns, like making sure things start in a
+defined order, correctly doing startup, liveness and readiness probes, context cancellation where the shutdown context 
+is not the same as the startup one (otherwise shutdown tasks would also be cancelled), using resolvable futures to 
+provide data to dependent tasks, and much more.
+
+## Table of Contents
+
+- [Features](#features)
+- [Example](#example)
+- [Real-world example](#real-world-example)
+
 ## Features
 
-- manages start/stop ordering using stages.
+- stages for managing start/stop ordering. The next stage is only initialized once the previous one was fully started.
+- `start`, `stop`, `setup` and `teardown` task steps.
 - start tasks can stop with or without context cancellation.
-- ensures no race condition if any starting job returns before all jobs initialized.
+- setup and teardown steps to perform tasks initialization and finalization. Initialization is done in a goroutine,
+  so a health service can correctly manage a startup probe.
+- keeps track of all steps executed, so each step is guaranteed to be called at most once, and any initialization error
+  just calls the stopping steps of what was effectively started.
+- ensures no race condition, like tasks finishing before all initialization was done.
+- futures to manage task dependencies.
+- possibility of the `stop` step directly managing it's `start` step, like canceling its context and waiting for its
+  completion.
+- callbacks for all events that happens during execution. 
+
+## Data types
+
+```go
+type Step int
+
+const (
+    StepSetup Step = iota
+    StepStart
+    StepStop
+    StepTeardown
+)
+
+type Task interface {
+    Run(ctx context.Context, step Step) error
+}
+```
 
 ## Example
 

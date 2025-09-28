@@ -28,8 +28,7 @@ const (
 type Step int
 
 const (
-	StepInvalid Step = iota
-	StepSetup
+	StepSetup Step = iota
 	StepStart
 	StepStop
 	StepTeardown
@@ -37,8 +36,6 @@ const (
 
 func (s Step) String() string {
 	switch s {
-	case StepInvalid:
-		return "invalid"
 	case StepSetup:
 		return "setup"
 	case StepStart:
