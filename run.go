@@ -251,7 +251,7 @@ func (m *Manager) AddInitError(err error) {
 }
 
 // runStage runs all tasks for one step / stage.
-func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, stage string, step Step,
+func (m *Manager) runStage(ctx, taskDoneCtx context.Context, logger *slog.Logger, stage string, step Step,
 	waitWG *sync.WaitGroup, enforceWaitTimeout bool, onError func(serr error)) {
 	// run start tasks
 	loggerStep := logger.With("step", step.String())
@@ -264,7 +264,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 	var isStepCallback bool
 	cbStepFn := func() {
 		isStepCallback = true
-		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepBefore)
+		m.runManagerCallbacks(taskDoneCtx, stage, step, CallbackStepBefore)
 	}
 
 	isWait := false
@@ -273,7 +273,7 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 		waitWG = &sync.WaitGroup{}
 	}
 
-	taskCount := m.runStageStep(ctx, cancelCtx, stage, step, waitWG, !isWait, func(logOnly bool) {
+	taskCount := m.runStageStep(ctx, taskDoneCtx, stage, step, waitWG, !isWait, func(logOnly bool) {
 		loggerStepOnce.Do(loggerStepFn)
 		if !logOnly {
 			cbStepOnce.Do(cbStepFn)
@@ -295,11 +295,11 @@ func (m *Manager) runStage(ctx, cancelCtx context.Context, logger *slog.Logger, 
 	}
 
 	if isStepCallback {
-		m.runManagerCallbacks(cancelCtx, stage, step, CallbackStepAfter)
+		m.runManagerCallbacks(taskDoneCtx, stage, step, CallbackStepAfter)
 	}
 }
 
-func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
+func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
 	waitStart bool, onTask func(logOnly bool), onError func(err error)) int {
 	loggerStage := m.logger.With(
 		"stage", stage,
@@ -349,7 +349,7 @@ func (m *Manager) runStageStep(ctx, cancelCtx context.Context, stage string, ste
 			if waitStart {
 				startWg.Done()
 			}
-			taskCtx := cancelCtx
+			taskCtx := taskDoneCtx
 			var taskCancelOnStop context.CancelCauseFunc
 			switch step {
 			case StepStart:
