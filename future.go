@@ -15,8 +15,8 @@ var (
 
 // Future is a proxy for a result that will be resolved in the future.
 type Future[T any] interface {
-	// Value gets the resolved future value. By default, it does not wait the value to be resolved, use the
-	// WithFutureWait option to make it wait.
+	// Value gets the resolved future value.
+	// By default, it waits for the value to be resolved. Use the WithoutFutureWait option to prevent this.
 	Value(options ...FutureValueOption) (T, error)
 	// Done is a channel that is closed when the future value is resolved.
 	Done() <-chan struct{}
@@ -39,17 +39,18 @@ func NewFuture[T any]() FutureResolver[T] {
 
 type FutureValueOption func(*futureValueOptions)
 
-// WithFutureCtx adds a context to be checked if WithFutureWait is set.
+// WithFutureCtx adds a context to be checked if WithoutFutureWait is set.
 func WithFutureCtx(ctx context.Context) FutureValueOption {
 	return func(o *futureValueOptions) {
 		o.ctx = ctx
 	}
 }
 
-// WithFutureWait makes the [Future.Value] wait until the Future is resolved.
-func WithFutureWait() FutureValueOption {
+// WithoutFutureWait prevents [Future.Value] to wait for the future to be resolved.
+// If the future was not resolved yet, ErrNotResolved will be returned.
+func WithoutFutureWait() FutureValueOption {
 	return func(o *futureValueOptions) {
-		o.wait = true
+		o.nowait = true
 	}
 }
 
@@ -65,7 +66,7 @@ func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
 		option(&optns)
 	}
 
-	if !optns.wait {
+	if optns.nowait {
 		select {
 		case <-f.l.Done():
 			return f.v, f.err
@@ -106,8 +107,8 @@ func (f *future[T]) ResolveError(err error) {
 }
 
 type futureValueOptions struct {
-	ctx  context.Context
-	wait bool
+	ctx    context.Context
+	nowait bool
 }
 
 // closedchan is a reusable closed channel.

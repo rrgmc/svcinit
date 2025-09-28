@@ -12,7 +12,7 @@ advanced version of [github.com/oklog/run](https://github.com/oklog/run).
 The library makes it easy to follow common service initialization patterns, like making sure things start in a
 defined order, correctly doing startup, liveness and readiness probes, context cancellation where the shutdown context 
 is not the same as the startup one (otherwise shutdown tasks would also be cancelled), using resolvable futures to 
-provide data to dependent tasks, and much more.
+provide data to dependent tasks, and more.
 
 ## Install
 
