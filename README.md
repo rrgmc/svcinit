@@ -502,8 +502,8 @@ func run(ctx context.Context) error {
     - `telemetry flush` - flushes the pending telemetry to avoid losing it in case the service is killed.
     - `health server terminating probe` - signals the readiness probe that the service is terminating.
 - Stop `management` stage:
-    - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
-        - `health service`
+  - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
+    - `health service`
 - **Wait until the `start` step of ALL tasks return, or for the shutdown timeout.**
 - Teardown `initialize` stage:
   - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
@@ -511,7 +511,6 @@ func run(ctx context.Context) error {
 - Teardown `management` stage:
   - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
     - `telemetry`
-
 - The `Run` method will return the error `timed out`.
 
 ## Author
