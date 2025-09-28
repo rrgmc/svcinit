@@ -62,6 +62,17 @@ func NewHealthHTTPHandlerWrapper(handler http.Handler, healthHandler *HealthHTTP
 	return ret
 }
 
+func (h *HealthHTTPHandlerWrapper) Register(mux *http.ServeMux) {
+	mux.Handle("GET "+h.httpOptions.startupProbePath, h.healthHandler.StartupHandler)
+	mux.Handle("GET "+h.httpOptions.livenessProbePath, h.healthHandler.LivenessHandler)
+	mux.Handle("GET "+h.httpOptions.readinessProbePath, h.healthHandler.ReadinessHandler)
+}
+
+func (h *HealthHTTPHandlerWrapper) Paths() (startupProbePath string, livenessProbePath string,
+	readinessProbePath string) {
+	return h.httpOptions.startupProbePath, h.httpOptions.livenessProbePath, h.httpOptions.readinessProbePath
+}
+
 func (h *HealthHTTPHandlerWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if r.URL.Path == h.httpOptions.startupProbePath {

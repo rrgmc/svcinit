@@ -142,9 +142,9 @@ func (h *healthHTTPServerOption) applyHealthHTTPServerOption(server *HealthHTTPS
 }
 
 type healthHTTPOptions struct {
-	startupProbePath   string // /startup
-	livenessProbePath  string // /healthz
-	readinessProbePath string // /ready
+	startupProbePath   string
+	livenessProbePath  string
+	readinessProbePath string
 }
 
 func newHealthHTTPOptions() healthHTTPOptions {
