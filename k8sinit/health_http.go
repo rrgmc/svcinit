@@ -58,9 +58,7 @@ func (h *HealthHTTPServer) Run(ctx context.Context, step svcinit.Step) (err erro
 			}
 		}
 		mux := http.NewServeMux()
-		mux.Handle("GET "+h.handler.StartupProbePath, h.handler.StartupHandler)
-		mux.Handle("GET "+h.handler.LivenessProbePath, h.handler.LivenessHandler)
-		mux.Handle("GET "+h.handler.ReadinessProbePath, h.handler.ReadinessHandler)
+		h.handler.Register(mux)
 		h.server.Handler = mux
 	case svcinit.StepStart:
 		h.server.BaseContext = func(net.Listener) context.Context {
