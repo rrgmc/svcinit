@@ -3,7 +3,6 @@ package svcinit
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sync"
 )
@@ -57,7 +56,8 @@ func (t *taskWrapper) checkRunStep(step Step) bool {
 
 // run runs the task.
 // checkStartStep and checkRunStep must be called prior to calling this.
-func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string, step Step, callbacks []TaskCallback) (err error) {
+func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callbacks []TaskCallback,
+	taskErrorHandler TaskErrorHandler) (err error) {
 	t.runCallbacks(ctx, stage, step, CallbackStepBefore, nil, callbacks)
 	if step != StepSetup {
 		// setup is only added if no run error, so start and stop are not called in that case.
@@ -67,6 +67,9 @@ func (t *taskWrapper) run(ctx context.Context, logger *slog.Logger, stage string
 		err = t.options.handler(ctx, t.task, step)
 	} else {
 		err = t.task.Run(ctx, step)
+	}
+	if taskErrorHandler != nil {
+		err = taskErrorHandler(ctx, t.task, step, err)
 	}
 	if step == StepSetup && err == nil {
 		t.addStepDone(step)

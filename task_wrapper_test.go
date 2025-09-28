@@ -35,8 +35,6 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
 
-		logger := nullLogger()
-
 		testTask := BuildTask(
 			WithSetup(func(ctx context.Context) error {
 				return nil
@@ -59,7 +57,7 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 		assert.NilError(t, err)
 		canRun := tw.checkRunStep(StepSetup)
 		assert.Assert(t, canRun)
-		err = tw.run(ctx, logger, StageDefault, StepSetup, nil)
+		err = tw.run(ctx, StageDefault, StepSetup, nil, nil)
 		assert.NilError(t, err)
 
 		canStart, err = tw.checkStartStep(StepTeardown)
@@ -67,7 +65,7 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 		assert.NilError(t, err)
 		canRun = tw.checkRunStep(StepTeardown)
 		assert.Assert(t, canRun)
-		err = tw.run(ctx, logger, StageDefault, StepTeardown, nil)
+		err = tw.run(ctx, StageDefault, StepTeardown, nil, nil)
 		assert.NilError(t, err)
 
 		canStart, err = tw.checkStartStep(StepStop)
@@ -80,8 +78,6 @@ func TestTaskWrapper_duplicate(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
 
-		logger := nullLogger()
-
 		testTask := BuildTask(
 			WithSetup(func(ctx context.Context) error {
 				return nil
@@ -104,7 +100,7 @@ func TestTaskWrapper_duplicate(t *testing.T) {
 		assert.NilError(t, err)
 		canRun := tw.checkRunStep(StepSetup)
 		assert.Assert(t, canRun)
-		err = tw.run(ctx, logger, StageDefault, StepSetup, nil)
+		err = tw.run(ctx, StageDefault, StepSetup, nil, nil)
 		assert.NilError(t, err)
 
 		canStart, err = tw.checkStartStep(StepSetup)

@@ -20,6 +20,7 @@ type Manager struct {
 	enforceShutdownTimeout bool
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
+	taskErrorHandler       TaskErrorHandler
 	logger                 *slog.Logger
 
 	isRunning                     atomic.Bool
@@ -166,6 +167,14 @@ func WithManagerCallback(callbacks ...ManagerCallback) Option {
 func WithTaskCallback(callbacks ...TaskCallback) Option {
 	return func(s *Manager) {
 		s.taskCallbacks = append(s.taskCallbacks, callbacks...)
+	}
+}
+
+// WithTaskErrorHandler sets a callback that can change the error returned from a task.
+// This can be used for example to ignore errors that are not errors, like [http.ErrServerClosed].
+func WithTaskErrorHandler(handler TaskErrorHandler) Option {
+	return func(s *Manager) {
+		s.taskErrorHandler = handler
 	}
 }
 

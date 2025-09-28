@@ -27,3 +27,5 @@ type ManagerCallbackFunc func(ctx context.Context, stage string, step Step, call
 func (f ManagerCallbackFunc) Callback(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
 	f(ctx, stage, step, callbackStep)
 }
+
+type TaskErrorHandler func(ctx context.Context, task Task, step Step, err error) error
