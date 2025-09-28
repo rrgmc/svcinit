@@ -14,22 +14,18 @@ type HealthHTTPServer struct {
 	handler            *HealthHTTPHandler
 	address            string
 	httpServerProvider func(ctx context.Context, address string) (*http.Server, error)
-	startupProbePath   string // /startup
-	livenessProbePath  string // /healthz
-	readinessProbePath string // /ready
 	taskName           string
+	httpOptions        healthHTTPOptions
 }
 
 func NewHealthHTTPServer(options ...HealthHTTPServerOption) *HealthHTTPServer {
 	ret := &HealthHTTPServer{
-		address:            ":6060",
-		startupProbePath:   "/startup",
-		livenessProbePath:  "/healthz",
-		readinessProbePath: "/ready",
-		taskName:           "health handler",
+		address:     ":6060",
+		taskName:    "health handler",
+		httpOptions: newHealthHTTPOptions(),
 	}
 	for _, option := range options {
-		option(ret)
+		option.applyHealthHTTPServerOption(ret)
 	}
 	ret.handler = NewHealthHTTPHandler(ret.handlerOptions...)
 	return ret
@@ -64,9 +60,9 @@ func (h *HealthHTTPServer) Run(ctx context.Context, step svcinit.Step) (err erro
 			}
 		}
 		mux := http.NewServeMux()
-		mux.Handle("GET "+h.startupProbePath, h.handler.StartupHandler)
-		mux.Handle("GET "+h.livenessProbePath, h.handler.LivenessHandler)
-		mux.Handle("GET "+h.readinessProbePath, h.handler.ReadinessHandler)
+		mux.Handle("GET "+h.httpOptions.startupProbePath, h.handler.StartupHandler)
+		mux.Handle("GET "+h.httpOptions.livenessProbePath, h.handler.LivenessHandler)
+		mux.Handle("GET "+h.httpOptions.readinessProbePath, h.handler.ReadinessHandler)
 		h.server.Handler = mux
 	case svcinit.StepStart:
 		h.server.BaseContext = func(net.Listener) context.Context {
@@ -86,46 +82,75 @@ func (h *HealthHTTPServer) TaskName() string {
 
 // options
 
-type HealthHTTPServerOption func(*HealthHTTPServer)
-
-func WithHealthHTTPAddress(address string) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.address = address
+func WithHealthHTTPServerAddress(address string) HealthHTTPServerOption {
+	return &healthHTTPServerOption{
+		httpOption: nil,
+		serverOption: func(o *HealthHTTPServer) {
+			o.address = address
+		},
 	}
 }
 
 func WithHealthHTTPServerProvider(provider func(ctx context.Context, address string) (*http.Server, error)) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.httpServerProvider = provider
+	return &healthHTTPServerOption{
+		httpOption: nil,
+		serverOption: func(o *HealthHTTPServer) {
+			o.httpServerProvider = provider
+		},
 	}
 }
 
-func WithHealthStartupProbePath(path string) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.startupProbePath = path
+func WithHealthHTTPServerTaskName(name string) HealthHTTPServerOption {
+	return &healthHTTPServerOption{
+		httpOption: nil,
+		serverOption: func(o *HealthHTTPServer) {
+			o.taskName = name
+		},
 	}
 }
 
-func WithHealthLivenessProbePath(path string) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.livenessProbePath = path
+func WithHealthHTTPServerHandlerOptions(options ...HealthHTTPHandlerOption) HealthHTTPServerOption {
+	return &healthHTTPServerOption{
+		httpOption: nil,
+		serverOption: func(o *HealthHTTPServer) {
+			o.handlerOptions = append(o.handlerOptions, options...)
+		},
 	}
 }
 
-func WithHealthReadinessProbePath(path string) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.readinessProbePath = path
+type HealthHTTPServerOption interface {
+	applyHealthHTTPServerOption(*HealthHTTPServer)
+}
+
+// internal
+
+type healthHTTPServerOption struct {
+	httpOption   func(o *healthHTTPOptions)
+	serverOption func(o *HealthHTTPServer)
+}
+
+func (h *healthHTTPServerOption) applyHealthHTTPOption(options *healthHTTPOptions) {
+	if h.httpOption != nil {
+		h.httpOption(options)
 	}
 }
 
-func WithHealthTaskName(name string) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.taskName = name
+func (h *healthHTTPServerOption) applyHealthHTTPServerOption(server *HealthHTTPServer) {
+	if h.serverOption != nil {
+		h.serverOption(server)
 	}
 }
 
-func WithHealthHTTPHandlerOptions(options ...HealthHTTPHandlerOption) HealthHTTPServerOption {
-	return func(o *HealthHTTPServer) {
-		o.handlerOptions = append(o.handlerOptions, options...)
+type healthHTTPOptions struct {
+	startupProbePath   string // /startup
+	livenessProbePath  string // /healthz
+	readinessProbePath string // /ready
+}
+
+func newHealthHTTPOptions() healthHTTPOptions {
+	return healthHTTPOptions{
+		startupProbePath:   "/startup",
+		livenessProbePath:  "/healthz",
+		readinessProbePath: "/ready",
 	}
 }

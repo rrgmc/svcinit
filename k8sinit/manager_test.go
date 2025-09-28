@@ -19,7 +19,7 @@ func TestManager(t *testing.T) {
 
 		sm, err := New(
 			WithHealthMode(HealthModeHTTPServer),
-			WithHealthHTTPAddress(":6060"),
+			WithHealthHTTPServerAddress(":6060"),
 		)
 
 		sm.AddTask(StageService, svcinit.BuildTask(
