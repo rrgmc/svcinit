@@ -14,6 +14,12 @@ defined order, correctly doing startup, liveness and readiness probes, context c
 is not the same as the startup one (otherwise shutdown tasks would also be cancelled), using resolvable futures to 
 provide data to dependent tasks, and much more.
 
+## Install
+
+```shell
+go get github.com/rrgmc/svcinit/v3
+```
+
 ## Table of Contents
 
 - [Features](#features)
