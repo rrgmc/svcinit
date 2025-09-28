@@ -25,6 +25,7 @@ const (
 	StageDefault = "default"
 )
 
+// Step defines the possible task runnable steps.
 type Step int
 
 const (
@@ -49,6 +50,7 @@ func (s Step) String() string {
 	}
 }
 
+// CallbackStep defines the callback step (before or after the task step).
 type CallbackStep int
 
 const (
@@ -66,6 +68,8 @@ func (s CallbackStep) String() string {
 		return fmt.Sprintf("unknown-callback-step(%d)", s)
 	}
 }
+
+// internal
 
 func newInvalidStage(stage string) error {
 	if stage == "" {
