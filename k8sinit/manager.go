@@ -11,6 +11,7 @@ import (
 type Manager struct {
 	manager        *svcinit.Manager
 	managerOptions []svcinit.Option
+	healthOptions  []HealthOptions
 
 	shutdownTimeout time.Duration
 	teardownTimeout time.Duration
