@@ -10,6 +10,10 @@ type HealthHTTPHandler struct {
 	LivenessHandler  http.Handler
 	ReadinessHandler http.Handler
 
+	StartupProbePath   string
+	LivenessProbePath  string
+	ReadinessProbePath string
+
 	startupProbe             bool
 	isStarted, isTerminating atomic.Bool
 }
@@ -17,7 +21,11 @@ type HealthHTTPHandler struct {
 var _ HealthHandler = (*HealthHTTPHandler)(nil)
 
 func NewHealthHTTPHandler(options ...HealthHTTPHandlerOption) *HealthHTTPHandler {
-	ret := &HealthHTTPHandler{}
+	ret := &HealthHTTPHandler{
+		StartupProbePath:   "/startup",
+		LivenessProbePath:  "/healthz",
+		ReadinessProbePath: "/ready",
+	}
 	for _, option := range options {
 		option(ret)
 	}
@@ -41,47 +49,36 @@ func (h *HealthHTTPHandler) IsTerminating() bool {
 	return h.isTerminating.Load()
 }
 
+func (h *HealthHTTPHandler) Register(mux *http.ServeMux) {
+	mux.Handle("GET "+h.StartupProbePath, h.StartupHandler)
+	mux.Handle("GET "+h.LivenessProbePath, h.LivenessHandler)
+	mux.Handle("GET "+h.ReadinessProbePath, h.ReadinessHandler)
+}
+
 type HealthHTTPHandlerWrapper struct {
 	handler       http.Handler
 	healthHandler *HealthHTTPHandler
-	httpOptions   healthHTTPOptions
 }
 
 var _ http.Handler = (*HealthHTTPHandlerWrapper)(nil)
 
-func NewHealthHTTPHandlerWrapper(handler http.Handler, healthHandler *HealthHTTPHandler,
-	options ...HealthHTTPOption) *HealthHTTPHandlerWrapper {
+func NewHealthHTTPHandlerWrapper(handler http.Handler, healthHandler *HealthHTTPHandler) *HealthHTTPHandlerWrapper {
 	ret := &HealthHTTPHandlerWrapper{
 		handler:       handler,
 		healthHandler: healthHandler,
-		httpOptions:   newHealthHTTPOptions(),
-	}
-	for _, option := range options {
-		option.applyHealthHTTPOption(&ret.httpOptions)
 	}
 	return ret
 }
 
-func (h *HealthHTTPHandlerWrapper) Register(mux *http.ServeMux) {
-	mux.Handle("GET "+h.httpOptions.startupProbePath, h.healthHandler.StartupHandler)
-	mux.Handle("GET "+h.httpOptions.livenessProbePath, h.healthHandler.LivenessHandler)
-	mux.Handle("GET "+h.httpOptions.readinessProbePath, h.healthHandler.ReadinessHandler)
-}
-
-func (h *HealthHTTPHandlerWrapper) Paths() (startupProbePath string, livenessProbePath string,
-	readinessProbePath string) {
-	return h.httpOptions.startupProbePath, h.httpOptions.livenessProbePath, h.httpOptions.readinessProbePath
-}
-
 func (h *HealthHTTPHandlerWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		if r.URL.Path == h.httpOptions.startupProbePath {
+		if r.URL.Path == h.healthHandler.StartupProbePath {
 			h.healthHandler.StartupHandler.ServeHTTP(w, r)
 			return
-		} else if r.URL.Path == h.httpOptions.livenessProbePath {
+		} else if r.URL.Path == h.healthHandler.LivenessProbePath {
 			h.healthHandler.LivenessHandler.ServeHTTP(w, r)
 			return
-		} else if r.URL.Path == h.httpOptions.readinessProbePath {
+		} else if r.URL.Path == h.healthHandler.ReadinessProbePath {
 			h.healthHandler.ReadinessHandler.ServeHTTP(w, r)
 			return
 		}
@@ -93,46 +90,22 @@ func (h *HealthHTTPHandlerWrapper) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	h.handler.ServeHTTP(w, r)
 }
 
-func WithHealthStartupProbePath(path string) HealthHTTPOption {
-	return &healthHTTPServerOption{
-		httpOption: func(o *healthHTTPOptions) {
-			o.startupProbePath = path
-		},
-		serverOption: func(o *HealthHTTPServer) {
-			o.httpOptions.startupProbePath = path
-		},
+func WithHealthStartupProbePath(path string) HealthHTTPHandlerOption {
+	return func(h *HealthHTTPHandler) {
+		h.StartupProbePath = path
 	}
 }
 
-func WithHealthLivenessProbePath(path string) HealthHTTPOption {
-	return &healthHTTPServerOption{
-		httpOption: func(o *healthHTTPOptions) {
-			o.livenessProbePath = path
-		},
-		serverOption: func(o *HealthHTTPServer) {
-			o.httpOptions.livenessProbePath = path
-		},
+func WithHealthLivenessProbePath(path string) HealthHTTPHandlerOption {
+	return func(h *HealthHTTPHandler) {
+		h.LivenessProbePath = path
 	}
 }
 
-func WithHealthReadinessProbePath(path string) HealthHTTPOption {
-	return &healthHTTPServerOption{
-		httpOption: func(o *healthHTTPOptions) {
-			o.readinessProbePath = path
-		},
-		serverOption: func(o *HealthHTTPServer) {
-			o.httpOptions.readinessProbePath = path
-		},
+func WithHealthReadinessProbePath(path string) HealthHTTPHandlerOption {
+	return func(h *HealthHTTPHandler) {
+		h.ReadinessProbePath = path
 	}
-}
-
-type HealthHTTPBaseOption interface {
-	applyHealthHTTPOption(*healthHTTPOptions)
-}
-
-type HealthHTTPOption interface {
-	HealthHTTPBaseOption
-	HealthHTTPServerOption
 }
 
 // internal
