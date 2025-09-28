@@ -17,6 +17,7 @@ provide data to dependent tasks, and much more.
 ## Table of Contents
 
 - [Features](#features)
+- [Task type](#task-type)
 - [Example](#example)
 - [Real-world example](#real-world-example)
 
@@ -25,15 +26,16 @@ provide data to dependent tasks, and much more.
 - stages for managing start/stop ordering. The next stage is only initialized once the previous one was fully started.
 - `start`, `stop`, `setup` and `teardown` task steps.
 - start tasks can stop with or without context cancellation.
-- setup and teardown steps to perform tasks initialization and finalization. Initialization is done in a goroutine,
+- `setup` and `teardown` steps to perform task initialization and finalization. Initialization is done in a goroutine,
   so a health service can correctly manage a startup probe.
 - keeps track of all steps executed, so each step is guaranteed to be called at most once, and any initialization error
   just calls the stopping steps of what was effectively started.
 - ensures no race condition, like tasks finishing before all initialization was done.
-- futures to manage task dependencies.
+- "futures" to manage task dependencies.
 - possibility of the `stop` step directly managing it's `start` step, like canceling its context and waiting for its
   completion.
 - callbacks for all events that happens during execution. 
+- the application execution error result will be the error returned by the first task `start` step to finish.
 
 ## Task type
 
@@ -184,7 +186,7 @@ This example starts an HTTP and a (simulated) messaging listeners which are the 
 The service will have telemetry, a health HTTP server listening in a different port, and will follow the Kubernetes
 pattern of having startup, liveness and readiness probes with the correct states during the initialization.
 
-Full source code in the [sample][sample/] folder.
+Full source code in the [sample](sample/) folder.
 
 There is step-by-step description of the complete process after the source code.
 
