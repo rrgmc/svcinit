@@ -80,7 +80,7 @@ func (t *BaseOverloadedTask) String() string {
 	return getDefaultTaskDescription(t.Task)
 }
 
-// BaseWrappedTask wraps and task and forwards TaskOptions and TaskSteps.
+// BaseWrappedTask wraps a task and forwards the TaskOptions and TaskSteps methods.
 // It implements TaskWithWrapped.
 type BaseWrappedTask struct {
 	*BaseOverloadedTask
@@ -94,6 +94,7 @@ func NewBaseWrappedTask(task Task) *BaseWrappedTask {
 	}
 }
 
+var _ TaskName = (*BaseWrappedTask)(nil)
 var _ TaskSteps = (*BaseWrappedTask)(nil)
 var _ TaskWithOptions = (*BaseWrappedTask)(nil)
 var _ TaskWithWrapped = (*BaseWrappedTask)(nil)
