@@ -11,7 +11,7 @@ import (
 type Manager struct {
 	manager        *svcinit.Manager
 	managerOptions []svcinit.Option
-	healthOptions  []HealthOptions
+	healthOptions  healthOptions
 
 	shutdownTimeout time.Duration
 	teardownTimeout time.Duration
@@ -21,6 +21,13 @@ func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
 		shutdownTimeout: time.Second * 20,
 		teardownTimeout: time.Second * 5,
+		healthOptions: healthOptions{
+			mode:               HealthModeNone,
+			httpAddress:        ":6060",
+			startupProbePath:   "/startup",
+			livenessProbePath:  "/healthz",
+			readinessProbePath: "/ready",
+		},
 	}
 	for _, option := range options {
 		option(ret)
