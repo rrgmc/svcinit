@@ -33,6 +33,14 @@ func (h *HealthHTTPHandler) ServiceTerminating() {
 	h.isTerminating.Store(true)
 }
 
+func (h *HealthHTTPHandler) IsStarted() bool {
+	return h.isStarted.Load()
+}
+
+func (h *HealthHTTPHandler) IsTerminating() bool {
+	return h.isTerminating.Load()
+}
+
 func (h *HealthHTTPHandler) initHandlers() {
 	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.startupProbe && !h.isStarted.Load() {
