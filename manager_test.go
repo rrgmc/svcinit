@@ -498,6 +498,50 @@ func TestManagerTaskErrorHandler(t *testing.T) {
 	})
 }
 
+func TestManagerRunCallbacks(t *testing.T) {
+	var (
+		err1 = errors.New("err1")
+		err2 = errors.New("err2")
+	)
+
+	synctest.Test(t, func(t *testing.T) {
+		items := &testList[string]{}
+
+		cdataName := "run-test"
+		cdataValue := 15
+
+		sinit, err := New(
+			WithBeforeRun(func(ctx context.Context) (context.Context, error) {
+				return context.WithValue(context.Background(), cdataName, cdataValue), nil
+			}),
+			WithAfterRun(func(ctx context.Context, cause error, stopErr error) error {
+				if errors.Is(cause, err1) {
+					return err2
+				}
+				return cause
+			}),
+		)
+		assert.NilError(t, err)
+
+		sinit.
+			AddTask(StageDefault, BuildTask(
+				WithStart(func(ctx context.Context) error {
+					items.add("start")
+					assert.Check(t, cmp3.Equal(any(cdataValue), ctx.Value(cdataName)))
+					return err1
+				}),
+				WithStop(func(ctx context.Context) error {
+					items.add("stop")
+					return nil
+				}),
+			))
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, err2)
+		items.assertDeepEqual(t, []string{"start", "stop"})
+	})
+}
+
 func TestManagerInitData(t *testing.T) {
 	type idata1 struct {
 		value1 string
