@@ -158,6 +158,8 @@ func run(ctx context.Context) error {
 
 	//
 	// initialize data to be used by the service, like database and cache connections.
+	// A TaskFuture is a Task and a Future at the same time, where the task resolves the future.
+	// Following tasks can wait on this future to get the initialized data.
 	//
 	type initTaskData struct {
 		db *sql.DB
