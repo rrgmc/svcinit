@@ -2,17 +2,18 @@ package k8sinit
 
 import (
 	"context"
+	"os"
 	"slices"
+	"syscall"
 	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 )
 
 type Manager struct {
-	manager        *svcinit.Manager
-	managerOptions []svcinit.Option
-	healthHandler  HealthHandler
-
+	manager         *svcinit.Manager
+	managerOptions  []svcinit.Option
+	healthHandler   HealthHandler
 	shutdownTimeout time.Duration
 	teardownTimeout time.Duration
 }
@@ -21,6 +22,7 @@ func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
 		shutdownTimeout: time.Second * 20,
 		teardownTimeout: time.Second * 5,
+		healthHandler:   &noopHealthHandler{},
 	}
 	for _, option := range options {
 		option(ret)
@@ -40,7 +42,22 @@ func New(options ...Option) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = ret.initHealth()
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	// Signal handling
+	//
+	ret.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+
 	return ret, nil
+}
+
+func (m *Manager) HealthHandler() HealthHandler {
+	return m.healthHandler
 }
 
 // Stages returns the stages configured for execution.
@@ -66,6 +83,7 @@ func (m *Manager) AddService(stage string, service svcinit.Service, options ...s
 }
 
 func (m *Manager) Run(ctx context.Context) error {
+
 	return m.manager.Run(ctx)
 }
 
@@ -77,6 +95,9 @@ type Option func(*Manager)
 
 func WithHealthHandler(h HealthHandler) Option {
 	return func(manager *Manager) {
+		if h == nil {
+			return
+		}
 		manager.healthHandler = h
 	}
 }

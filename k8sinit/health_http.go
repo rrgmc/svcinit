@@ -17,6 +17,7 @@ type HealthHTTPServer struct {
 	startupProbePath   string // /startup
 	livenessProbePath  string // /healthz
 	readinessProbePath string // /ready
+	taskName           string
 }
 
 func NewHealthHTTPServer(options ...HealthHTTPServerOption) *HealthHTTPServer {
@@ -25,6 +26,7 @@ func NewHealthHTTPServer(options ...HealthHTTPServerOption) *HealthHTTPServer {
 		startupProbePath:   "/startup",
 		livenessProbePath:  "/healthz",
 		readinessProbePath: "/ready",
+		taskName:           "health handler",
 	}
 	for _, option := range options {
 		option(ret)
@@ -34,6 +36,7 @@ func NewHealthHTTPServer(options ...HealthHTTPServerOption) *HealthHTTPServer {
 }
 
 var _ svcinit.Task = (*HealthHTTPServer)(nil)
+var _ svcinit.TaskName = (*HealthHTTPServer)(nil)
 var _ HealthHandler = (*HealthHTTPServer)(nil)
 
 func (h *HealthHTTPServer) ServiceStarted() {
@@ -77,6 +80,10 @@ func (h *HealthHTTPServer) Run(ctx context.Context, step svcinit.Step) (err erro
 	return nil
 }
 
+func (h *HealthHTTPServer) TaskName() string {
+	return h.taskName
+}
+
 // options
 
 type HealthHTTPServerOption func(*HealthHTTPServer)
@@ -108,6 +115,12 @@ func WithHealthLivenessProbePath(path string) HealthHTTPServerOption {
 func WithHealthReadinessProbePath(path string) HealthHTTPServerOption {
 	return func(o *HealthHTTPServer) {
 		o.readinessProbePath = path
+	}
+}
+
+func WithHealthTaskName(name string) HealthHTTPServerOption {
+	return func(o *HealthHTTPServer) {
+		o.taskName = name
 	}
 }
 

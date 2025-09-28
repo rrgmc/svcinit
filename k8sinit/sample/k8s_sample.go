@@ -20,6 +20,7 @@ func run(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
 	sinit, err := k8sinit.New(
+		k8sinit.WithHealthHandler(k8sinit.NewHealthHTTPServer()),
 		k8sinit.WithManagerOptions(
 			svcinit.WithLogger(logger),
 		),
@@ -27,6 +28,15 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	sinit.AddTask(k8sinit.StageService, svcinit.BuildTask(
+		svcinit.WithStart(func(ctx context.Context) error {
+			select {
+			case <-ctx.Done():
+			}
+			return nil
+		}),
+	), svcinit.WithCancelContext(true))
 
 	return sinit.Run(ctx)
 }

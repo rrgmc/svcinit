@@ -55,6 +55,10 @@ func (m *Manager) Stages() []string {
 	return m.stages
 }
 
+func (m *Manager) Logger() *slog.Logger {
+	return m.logger
+}
+
 func (m *Manager) IsRunning() bool {
 	return m.isRunning.Load()
 }
