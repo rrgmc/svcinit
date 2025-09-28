@@ -35,7 +35,7 @@ provide data to dependent tasks, and much more.
   completion.
 - callbacks for all events that happens during execution. 
 
-## Data types
+## Task type
 
 ```go
 type Step int
