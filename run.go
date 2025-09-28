@@ -45,6 +45,15 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	ctx = loggerToContext(ctx, m.logger)
 
+	// run the beforeRun callbacks.
+	for _, beforeRun := range m.beforeRun {
+		var err error
+		ctx, err = beforeRun(ctx)
+		if err != nil {
+			return err, nil
+		}
+	}
+
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
 	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
@@ -104,6 +113,11 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 	cause = unwrapInternalErrors(cause)
 
+	// run the afterRun callbacks.
+	for _, afterRun := range m.afterRun {
+		cause = afterRun(ctx, cause, stopErr)
+	}
+
 	if cause == nil {
 		m.logger.InfoContext(ctx, "execution finished")
 	} else {
@@ -111,7 +125,7 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 
 	if stopErr != nil {
-		m.logger.WarnContext(ctx, "execution finished with stop error", slog2.ErrorKey, stopErr)
+		m.logger.WarnContext(ctx, "execution finished with stop errors", slog2.ErrorKey, stopErr)
 	}
 
 	return

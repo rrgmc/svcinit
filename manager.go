@@ -18,6 +18,8 @@ type Manager struct {
 	shutdownTimeout        time.Duration
 	teardownTimeout        time.Duration
 	enforceShutdownTimeout bool
+	beforeRun              []func(ctx context.Context) (context.Context, error)
+	afterRun               []func(ctx context.Context, cause error, stopErr error) error
 	managerCallbacks       []ManagerCallback
 	taskCallbacks          []TaskCallback
 	taskErrorHandler       TaskErrorHandler
@@ -153,6 +155,24 @@ func WithTeardownTimeout(teardownTimeout time.Duration) Option {
 func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 	return func(s *Manager) {
 		s.enforceShutdownTimeout = enforceShutdownTimeout
+	}
+}
+
+// WithBeforeRun adds a callback to be executed before stages are run.
+// Return a changed context, or the same one received.
+// Any error that is returned will abort the [Manager.Run] execution with the passed error.
+func WithBeforeRun(beforeRun func(ctx context.Context) (context.Context, error)) Option {
+	return func(s *Manager) {
+		s.beforeRun = append(s.beforeRun, beforeRun)
+	}
+}
+
+// WithAfterRun adds a callback to be executed after all stages run.
+// The returned error will be the cause returned from [Manager.Run]. Return the same cause parameter as error to
+// keep it.
+func WithAfterRun(afterRun func(ctx context.Context, cause error, stopErr error) error) Option {
+	return func(s *Manager) {
+		s.afterRun = append(s.afterRun, afterRun)
 	}
 }
 
