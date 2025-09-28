@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Manager manages the complete execution lifecycle.
 type Manager struct {
 	mu                     sync.Mutex
 	stages                 []string
@@ -46,6 +47,7 @@ func New(options ...Option) (*Manager, error) {
 	return ret, nil
 }
 
+// Stages returns the stages configured for execution.
 func (m *Manager) Stages() []string {
 	return m.stages
 }
@@ -54,6 +56,7 @@ func (m *Manager) IsRunning() bool {
 	return m.isRunning.Load()
 }
 
+// AddTask add a Task to be executed at the passed stage.
 func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	if m.isRunning.Load() {
 		if m.startupCancel != nil {
@@ -81,14 +84,17 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	m.tasks.add(stage, tw)
 }
 
+// AddTaskFunc add a Task to be executed at the passed stage.
 func (m *Manager) AddTaskFunc(stage string, f TaskFunc, options ...TaskOption) {
 	m.AddTask(stage, f, options...)
 }
 
+// AddService add a Service to be executed at the passed stage.
 func (m *Manager) AddService(stage string, service Service, options ...TaskOption) {
 	m.AddTask(stage, ServiceAsTask(service), options...)
 }
 
+// Run executes the initialization and returns the error of the first task stop step that returns.
 func (m *Manager) Run(ctx context.Context, options ...RunOption) error {
 	cause, _ := m.RunWithStopErrors(ctx, options...)
 	return cause
@@ -101,6 +107,8 @@ func (m *Manager) Shutdown() {
 	}
 }
 
+// RunWithStopErrors executes the initialization and returns the error of the first task stop step that returns, and
+// also any errors happening during shutdown in a wrapped error.
 func (m *Manager) RunWithStopErrors(ctx context.Context, options ...RunOption) (cause error, stopErr error) {
 	return m.runWithStopErrors(ctx, options...)
 }
@@ -113,6 +121,8 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
+// WithStages sets the initialization stages.
+// The default value is "[StageDEFAULT]".
 func WithStages(stages ...string) Option {
 	return func(m *Manager) {
 		m.stages = stages
@@ -145,12 +155,14 @@ func WithEnforceShutdownTimeout(enforceShutdownTimeout bool) Option {
 	}
 }
 
+// WithManagerCallback adds a manager callback. Multiple callbacks may be added.
 func WithManagerCallback(callbacks ...ManagerCallback) Option {
 	return func(s *Manager) {
 		s.managerCallbacks = append(s.managerCallbacks, callbacks...)
 	}
 }
 
+// WithTaskCallback adds a task callback. Multiple callbacks may be added.
 func WithTaskCallback(callbacks ...TaskCallback) Option {
 	return func(s *Manager) {
 		s.taskCallbacks = append(s.taskCallbacks, callbacks...)

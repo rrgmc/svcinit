@@ -13,15 +13,21 @@ var (
 	ErrNotResolved     = errors.New("not resolved")
 )
 
-// Future is a proxy for a result that is initially unknown.
+// Future is a proxy for a result that will be resolved in the future.
 type Future[T any] interface {
+	// Value gets the resolved future value. By default, it does not wait the value to be resolved, use the
+	// WithFutureWait option to make it wait.
 	Value(options ...FutureValueOption) (T, error)
+	// Done is a channel that is closed when the future value is resolved.
 	Done() <-chan struct{}
 }
 
+// FutureResolver is a resolvable Future.
 type FutureResolver[T any] interface {
 	Future[T]
+	// Resolve resolves the Future with the passed value.
 	Resolve(value T)
+	// ResolveError resolves the Future with the passed error.
 	ResolveError(err error)
 }
 
@@ -29,6 +35,22 @@ var _ FutureResolver[int] = (*future[int])(nil)
 
 func NewFuture[T any]() FutureResolver[T] {
 	return &future[T]{}
+}
+
+type FutureValueOption func(*futureValueOptions)
+
+// WithFutureCtx adds a context to be checked if WithFutureWait is set.
+func WithFutureCtx(ctx context.Context) FutureValueOption {
+	return func(o *futureValueOptions) {
+		o.ctx = ctx
+	}
+}
+
+// WithFutureWait makes the [Future.Value] wait until the Future is resolved.
+func WithFutureWait() FutureValueOption {
+	return func(o *futureValueOptions) {
+		o.wait = true
+	}
 }
 
 type future[T any] struct {
@@ -81,20 +103,6 @@ func (f *future[T]) ResolveError(err error) {
 	f.l.resolve(func() {
 		f.err = err
 	})
-}
-
-type FutureValueOption func(*futureValueOptions)
-
-func WithFutureCtx(ctx context.Context) FutureValueOption {
-	return func(o *futureValueOptions) {
-		o.ctx = ctx
-	}
-}
-
-func WithFutureWait() FutureValueOption {
-	return func(o *futureValueOptions) {
-		o.wait = true
-	}
 }
 
 type futureValueOptions struct {
