@@ -7,7 +7,7 @@ It manages starting and stopping tasks (like a web server), initialization order
 race conditions and goroutine safe.
 
 It is NOT some kind of dependency injection or application framework like Uber's FX, it could be seen like a more
-advanced version of [https://github.com/oklog/run](https://github.com/oklog/run).
+advanced version of [github.com/oklog/run](https://github.com/oklog/run).
 
 The library makes it easy to follow common service initialization patterns, like making sure things start in a
 defined order, correctly doing startup, liveness and readiness probes, context cancellation where the shutdown context 
