@@ -84,6 +84,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("GET "+h.ReadinessProbePath, h.ReadinessHandler)
 }
 
+// WithStartupProbe sets whether to check for startup initialization.
+// If this is true, until [Handler.ServiceStarted] is called:
+// - the startup probe will fail.
+// - the readiness probe will fail.
+// The default is false, which is the same as if [Handler.ServiceStarted] was already called.
 func WithStartupProbe(startupProbe bool) HandlerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
