@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
@@ -21,11 +22,8 @@ func main() {
 func run(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
-	healthHandler := health_http.NewHandler(health_http.WithStartupProbe(true))
-
 	sinit, err := k8sinit.New(
 		k8sinit.WithHealthHandlerTask(health_http.NewServer()),
-		// k8sinit.WithHealthHandler(healthHandler),
 		k8sinit.WithManagerOptions(
 			svcinit.WithLogger(logger),
 		),
@@ -34,10 +32,15 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+	sinit.AddTask(k8sinit.StageInitialize, svcinit.BuildTask(
+		svcinit.WithSetup(func(ctx context.Context) error {
+			return sleepContext(ctx, 10*time.Second)
+		}),
+	))
+
 	sinit.AddTask(k8sinit.StageService, svcinit.BuildDataTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			mux := http.NewServeMux()
-			healthHandler.Register(mux)
 			mux.Handle("GET /test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write([]byte("Hello World, test"))
@@ -48,15 +51,15 @@ func run(ctx context.Context) error {
 			}))
 
 			return &http.Server{
-				Handler: health_http.NewWrapper(mux, healthHandler),
+				Handler: mux,
 				Addr:    ":8080",
 			}, nil
 		},
-		svcinit.WithDataStart(func(ctx context.Context, data *http.Server) error {
-			return data.ListenAndServe()
+		svcinit.WithDataStart(func(ctx context.Context, service *http.Server) error {
+			return service.ListenAndServe()
 		}),
-		svcinit.WithDataStop(func(ctx context.Context, data *http.Server) error {
-			return data.Shutdown(ctx)
+		svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
+			return service.Shutdown(ctx)
 		}),
 	))
 

@@ -1,20 +1,26 @@
 package health_http
 
-import "net/http"
+import (
+	"net/http"
+	"sync/atomic"
+)
 
 type Wrapper struct {
-	httpHandler   http.Handler
+	httpHandler   atomic.Pointer[http.Handler]
 	healthHandler *Handler
 }
 
 var _ http.Handler = (*Wrapper)(nil)
 
-func NewWrapper(handler http.Handler, healthHandler *Handler) *Wrapper {
+func NewWrapper(healthHandler *Handler) *Wrapper {
 	ret := &Wrapper{
-		httpHandler:   handler,
 		healthHandler: healthHandler,
 	}
 	return ret
+}
+
+func (h *Wrapper) SetHTTPHandler(handler http.Handler) {
+	h.httpHandler.Store(&handler)
 }
 
 func (h *Wrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -35,5 +41,9 @@ func (h *Wrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("service not ready"))
 		return
 	}
-	h.httpHandler.ServeHTTP(w, r)
+	if httpHandler := h.httpHandler.Load(); httpHandler != nil {
+		(*httpHandler).ServeHTTP(w, r)
+		return
+	}
+	http.NotFoundHandler().ServeHTTP(w, r)
 }

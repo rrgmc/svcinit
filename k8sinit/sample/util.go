@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -39,4 +40,13 @@ func formatDuration(d time.Duration) string {
 	second := int(d.Seconds()) % 60
 	ms := int(d.Milliseconds()) % 1000
 	return fmt.Sprintf("%02d:%02d.%03d", minute, second, ms)
+}
+
+func sleepContext(ctx context.Context, duration time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	case <-time.After(duration):
+		return nil
+	}
 }
