@@ -63,6 +63,8 @@ func New(options ...Option) (*Manager, error) {
 	return ret, nil
 }
 
+// HealthHandler returns the svcinit.HealthHandler being used.
+// It is never nil.
 func (m *Manager) HealthHandler() svcinit.HealthHandler {
 	return m.healthHandler
 }
@@ -89,11 +91,18 @@ func (m *Manager) AddService(stage string, service svcinit.Service, options ...s
 	m.AddService(stage, service, options...)
 }
 
+// Run executes the initialization and returns the error of the first task stop step that returns.
 func (m *Manager) Run(ctx context.Context) error {
-
 	return m.manager.Run(ctx)
 }
 
+// Shutdown starts the shutdown process as if a task finished.
+func (m *Manager) Shutdown(ctx context.Context) {
+	m.manager.Shutdown()
+}
+
+// RunWithStopErrors executes the initialization and returns the error of the first task stop step that returns, and
+// also any errors happening during shutdown in a wrapped error.
 func (m *Manager) RunWithStopErrors(ctx context.Context) (cause error, stopErr error) {
 	return m.manager.RunWithStopErrors(ctx)
 }
