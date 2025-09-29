@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/health_http"
@@ -19,15 +20,18 @@ func runSingleHTTP(ctx context.Context) error {
 	// The real handler will be set in a following step.
 	httpHandlerWrapper := health_http.NewHTTPWrapper(healthHandler)
 
-	sinit, err := k8sinit.New()
+	sinit, err := k8sinit.New(
+		k8sinit.WithLogger(defaultLogger(os.Stdout)),
+	)
 	if err != nil {
 		return err
 	}
 
+	// sets the health handler, which will handle the ServiceStarted and ServiceTerminating calls.
 	sinit.SetHealthHandler(healthHandler)
 
-	// start the main HTTP server in the management stage, which is where the health service must run.
-	sinit.AddTask(k8sinit.StageManagement, svcinit.BuildDataTask[*http.Server](
+	// start the main HTTP server as the health task, so it starts at the right time.
+	sinit.SetHealthTask(svcinit.BuildDataTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			mux := http.NewServeMux()
 			healthHandler.Register(mux)
@@ -42,6 +46,7 @@ func runSingleHTTP(ctx context.Context) error {
 		svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
 			return service.Shutdown(ctx)
 		}),
+		svcinit.WithDataName[*http.Server](k8sinit.TaskNameHealth),
 	))
 
 	//
@@ -64,6 +69,7 @@ func runSingleHTTP(ctx context.Context) error {
 			httpHandlerWrapper.SetHTTPHandler(mux)
 			return nil
 		}),
+		svcinit.WithName("HTTP service"),
 	))
 
 	return sinit.Run(ctx)
