@@ -30,7 +30,7 @@ func (m *Manager) initHealth() error {
 	// startup probes that the service is ready.
 	m.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
-			m.manager.Logger().DebugContext(ctx, "service started, signaling probes")
+			m.logger.DebugContext(ctx, "service started, signaling probes")
 			m.healthHandler.ServiceStarted()
 			return nil
 		}),
@@ -41,7 +41,7 @@ func (m *Manager) initHealth() error {
 	// This tasks signals the probes that the service is terminating.
 	m.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
-			m.manager.Logger().DebugContext(ctx, "service terminating, signaling probes")
+			m.logger.DebugContext(ctx, "service terminating, signaling probes")
 			m.healthHandler.ServiceTerminating()
 			return nil
 		}),

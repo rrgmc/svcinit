@@ -17,10 +17,7 @@ func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		items := &testList[string]{}
 
-		sm, err := New(
-			WithHealthMode(HealthModeHTTPServer),
-			WithHealthHTTPServerAddress(":6060"),
-		)
+		sm, err := New()
 
 		sm.AddTask(StageService, svcinit.BuildTask(
 			svcinit.WithStart(func(ctx context.Context) error {

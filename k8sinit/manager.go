@@ -2,6 +2,7 @@ package k8sinit
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"slices"
 	"syscall"
@@ -12,6 +13,7 @@ import (
 
 type Manager struct {
 	manager         *svcinit.Manager
+	logger          *slog.Logger
 	managerOptions  []svcinit.Option
 	healthHandler   HealthHandler
 	healthTask      svcinit.Task
@@ -21,6 +23,7 @@ type Manager struct {
 
 func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
+		logger:          slog.New(slog.DiscardHandler),
 		shutdownTimeout: time.Second * 20,
 		teardownTimeout: time.Second * 5,
 	}
@@ -92,6 +95,13 @@ func (m *Manager) RunWithStopErrors(ctx context.Context) (cause error, stopErr e
 }
 
 type Option func(*Manager)
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(m *Manager) {
+		m.logger = logger
+		m.managerOptions = append(m.managerOptions, svcinit.WithLogger(logger))
+	}
+}
 
 // WithHealthHandler sets the HealthHandler.
 func WithHealthHandler(h HealthHandler) Option {
