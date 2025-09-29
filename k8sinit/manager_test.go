@@ -17,7 +17,10 @@ func TestManager(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		items := &testList[string]{}
 
-		sm, err := New()
+		sm, err := New(
+			// WithLogger(defaultLogger(os.Stdout)),
+			withDisableSignalHandling(), // not compatible with synctest.
+		)
 
 		sm.AddTask(StageService, svcinit.BuildTask(
 			svcinit.WithStart(func(ctx context.Context) error {

@@ -12,13 +12,14 @@ import (
 )
 
 type Manager struct {
-	manager         *svcinit.Manager
-	logger          *slog.Logger
-	managerOptions  []svcinit.Option
-	healthHandler   HealthHandler
-	healthTask      svcinit.Task
-	shutdownTimeout time.Duration
-	teardownTimeout time.Duration
+	manager               *svcinit.Manager
+	logger                *slog.Logger
+	managerOptions        []svcinit.Option
+	healthHandler         HealthHandler
+	healthTask            svcinit.Task
+	shutdownTimeout       time.Duration
+	teardownTimeout       time.Duration
+	disableSignalHandling bool
 }
 
 func New(options ...Option) (*Manager, error) {
@@ -51,10 +52,9 @@ func New(options ...Option) (*Manager, error) {
 		return nil, err
 	}
 
-	//
-	// Signal handling
-	//
-	ret.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
+	if !ret.disableSignalHandling {
+		ret.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+	}
 
 	return ret, nil
 }
@@ -146,5 +146,11 @@ func WithTeardownTimeout(teardownTimeout time.Duration) Option {
 func WithManagerOptions(options ...svcinit.Option) Option {
 	return func(m *Manager) {
 		m.managerOptions = append(m.managerOptions, options...)
+	}
+}
+
+func withDisableSignalHandling() Option {
+	return func(m *Manager) {
+		m.disableSignalHandling = true
 	}
 }
