@@ -9,10 +9,10 @@ type Wrapper struct {
 
 var _ http.Handler = (*Wrapper)(nil)
 
-func NewWrapper(handler http.Handler, options ...HandlerOption) *Wrapper {
+func NewWrapper(handler http.Handler, healthHandler *Handler) *Wrapper {
 	ret := &Wrapper{
 		httpHandler:   handler,
-		healthHandler: NewHandler(options...),
+		healthHandler: healthHandler,
 	}
 	return ret
 }
@@ -31,7 +31,8 @@ func (h *Wrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !h.healthHandler.IsStarted() {
-		w.WriteHeader(http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusPreconditionFailed)
+		_, _ = w.Write([]byte("service not ready"))
 		return
 	}
 	h.httpHandler.ServeHTTP(w, r)

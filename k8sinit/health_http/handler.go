@@ -110,23 +110,26 @@ func (h *Handler) init() {
 	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.startupProbe && !h.isStarted.Load() {
 			w.WriteHeader(http.StatusPreconditionFailed)
+			_, _ = w.Write([]byte("HTTP 412: service not ready"))
 			return
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	})
 	h.LivenessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	})
 	h.ReadinessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.startupProbe && !h.isStarted.Load() {
 			w.WriteHeader(http.StatusPreconditionFailed)
+			_, _ = w.Write([]byte("service not ready"))
 			return
 		}
 		if h.isTerminating.Load() {
 			w.WriteHeader(499) // https://www.webfx.com/web-development/glossary/http-status-codes/what-is-a-499-status-code/
+			_, _ = w.Write([]byte("service shutting down"))
 			return
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	})
 }
 
