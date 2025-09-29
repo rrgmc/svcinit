@@ -21,7 +21,10 @@ func run(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
 	sinit, err := k8sinit.New(
-		k8sinit.WithHealthHandler(health_http.NewServer()),
+		k8sinit.WithHealthHandler(health_http.NewServer(
+			health_http.WithLivenessProbePath("/healthz"),
+			health_http.WithServerAddress(":6060"),
+		)),
 		k8sinit.WithManagerOptions(
 			svcinit.WithLogger(logger),
 		),

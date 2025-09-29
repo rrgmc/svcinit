@@ -29,7 +29,7 @@ func NewHandler(options ...HandlerOption) *Handler {
 		ReadinessProbePath: "/ready",
 	}
 	for _, option := range options {
-		option(ret)
+		option.applyHandlerOption(ret)
 	}
 	ret.init()
 	return ret
@@ -58,26 +58,46 @@ func (h *Handler) Register(mux *http.ServeMux) {
 }
 
 func WithStartupProbe(startupProbe bool) HandlerOption {
-	return func(h *Handler) {
-		h.startupProbe = startupProbe
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.handlerOptions = append(server.handlerOptions, WithStartupProbe(startupProbe))
+		},
+		handlerOpt: func(handler *Handler) {
+			handler.startupProbe = startupProbe
+		},
 	}
 }
 
 func WithStartupProbePath(path string) HandlerOption {
-	return func(h *Handler) {
-		h.StartupProbePath = path
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.handlerOptions = append(server.handlerOptions, WithStartupProbePath(path))
+		},
+		handlerOpt: func(handler *Handler) {
+			handler.StartupProbePath = path
+		},
 	}
 }
 
 func WithLivenessProbePath(path string) HandlerOption {
-	return func(h *Handler) {
-		h.LivenessProbePath = path
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.handlerOptions = append(server.handlerOptions, WithLivenessProbePath(path))
+		},
+		handlerOpt: func(handler *Handler) {
+			handler.LivenessProbePath = path
+		},
 	}
 }
 
 func WithReadinessProbePath(path string) HandlerOption {
-	return func(h *Handler) {
-		h.ReadinessProbePath = path
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.handlerOptions = append(server.handlerOptions, WithReadinessProbePath(path))
+		},
+		handlerOpt: func(handler *Handler) {
+			handler.ReadinessProbePath = path
+		},
 	}
 }
 
@@ -110,4 +130,4 @@ func (h *Handler) init() {
 	})
 }
 
-type HandlerOption func(*Handler)
+// type HandlerOption func(*Handler)

@@ -24,7 +24,7 @@ func NewServer(options ...ServerOption) *Server {
 		taskName: "health handler",
 	}
 	for _, option := range options {
-		option(ret)
+		option.applyServerOption(ret)
 	}
 	ret.handler = NewHandler(ret.handlerOptions...)
 	return ret
@@ -79,28 +79,26 @@ func (h *Server) TaskName() string {
 
 // options
 
-type ServerOption func(*Server)
-
 func WithServerAddress(address string) ServerOption {
-	return func(h *Server) {
-		h.address = address
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.address = address
+		},
 	}
 }
 
 func WithServerProvider(provider func(ctx context.Context, address string) (*http.Server, error)) ServerOption {
-	return func(h *Server) {
-		h.httpServerProvider = provider
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.httpServerProvider = provider
+		},
 	}
 }
 
 func WithServerTaskName(name string) ServerOption {
-	return func(h *Server) {
-		h.taskName = name
-	}
-}
-
-func WithServerHandlerOptions(options ...HandlerOption) ServerOption {
-	return func(h *Server) {
-		h.handlerOptions = options
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.taskName = name
+		},
 	}
 }

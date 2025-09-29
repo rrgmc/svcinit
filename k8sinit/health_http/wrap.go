@@ -2,22 +2,22 @@ package health_http
 
 import "net/http"
 
-type HTTPHandlerWrapper struct {
-	handler       http.Handler
+type Wrapper struct {
+	httpHandler   http.Handler
 	healthHandler *Handler
 }
 
-var _ http.Handler = (*HTTPHandlerWrapper)(nil)
+var _ http.Handler = (*Wrapper)(nil)
 
-func NewHTTPHandlerWrapper(handler http.Handler, healthHandler *Handler) *HTTPHandlerWrapper {
-	ret := &HTTPHandlerWrapper{
-		handler:       handler,
-		healthHandler: healthHandler,
+func NewWrapper(handler http.Handler, options ...HandlerOption) *Wrapper {
+	ret := &Wrapper{
+		httpHandler:   handler,
+		healthHandler: NewHandler(options...),
 	}
 	return ret
 }
 
-func (h *HTTPHandlerWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Wrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if r.URL.Path == h.healthHandler.StartupProbePath {
 			h.healthHandler.StartupHandler.ServeHTTP(w, r)
@@ -34,5 +34,5 @@ func (h *HTTPHandlerWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
-	h.handler.ServeHTTP(w, r)
+	h.httpHandler.ServeHTTP(w, r)
 }
