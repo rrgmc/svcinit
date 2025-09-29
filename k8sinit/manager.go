@@ -64,6 +64,12 @@ func (m *Manager) HealthHandler() svcinit.HealthHandler {
 	return m.healthHandler
 }
 
+// TelemetryHandler returns the TelemetryHandler being used.
+// It is never nil.
+func (m *Manager) TelemetryHandler() TelemetryHandler {
+	return m.telemetryHandler
+}
+
 // Stages returns the stages configured for execution.
 func (m *Manager) Stages() []string {
 	return m.manager.Stages()
@@ -88,10 +94,8 @@ func (m *Manager) AddService(stage string, service svcinit.Service, options ...s
 
 // Run executes the initialization and returns the error of the first task stop step that returns.
 func (m *Manager) Run(ctx context.Context) error {
-	err := m.initRunHealth()
-	if err != nil {
-		return err
-	}
+	m.initRunHealth()
+	m.initRunTelemetry()
 	return m.manager.Run(ctx)
 }
 
@@ -112,29 +116,6 @@ func WithLogger(logger *slog.Logger) Option {
 	return func(m *Manager) {
 		m.logger = logger
 		m.managerOptions = append(m.managerOptions, svcinit.WithLogger(logger))
-	}
-}
-
-// WithTelemetryHandler sets the TelemetryHandler.
-func WithTelemetryHandler(h TelemetryHandler) Option {
-	return func(manager *Manager) {
-		manager.telemetryHandler = h
-	}
-}
-
-// WithTelemetryHandlerTask sets the TelemetryHandler which is also a [svcinit.Task] to be initialized.
-func WithTelemetryHandlerTask(h TelemetryHandlerTask) Option {
-	return func(manager *Manager) {
-		manager.telemetryHandler = h
-		manager.telemetryTask = h
-	}
-}
-
-// WithTelemetryTask sets a [svcinit.Task] to be started in the corresponding stage.
-// It does NOT set a TelemetryHandler, it must be set separately.
-func WithTelemetryTask(h svcinit.Task) Option {
-	return func(manager *Manager) {
-		manager.telemetryTask = h
 	}
 }
 

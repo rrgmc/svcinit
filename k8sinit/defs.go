@@ -19,4 +19,6 @@ const (
 	TaskNameHealth                 = "health"
 	TaskNameHealthStartedProbe     = "health: started probe"
 	TaskNameHealthTerminatingProbe = "health: terminating probe"
+	TaskNameTelemetry              = "telemetry"
+	TaskNameTelemetryFlush         = "telemetry: flush"
 )

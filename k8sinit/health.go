@@ -12,7 +12,7 @@ type HealthHandlerTask interface {
 	svcinit.Task
 }
 
-// SetHealthHandler sets a health handler. The task options will be set to all internal "management" tasks.
+// SetHealthHandler sets a health handler. The task options will be set to all internal tasks.
 func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svcinit.TaskOption) {
 	if handler == nil {
 		m.manager.AddInitError(fmt.Errorf("%w: health handler cannot be nil", svcinit.ErrInitialization))
@@ -70,11 +70,10 @@ func (m *Manager) SetHealthTask(task svcinit.Task, options ...svcinit.TaskOption
 	m.AddTask(StageManagement, task, options...)
 }
 
-func (m *Manager) initRunHealth() error {
+func (m *Manager) initRunHealth() {
 	if m.healthHandler == nil {
 		m.healthHandler = &noopHealthHandler{}
 	}
-	return nil
 }
 
 type noopHealthHandler struct {

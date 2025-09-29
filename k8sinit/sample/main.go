@@ -55,14 +55,29 @@ func run(ctx context.Context) error {
 
 	sinit, err := k8sinit.New(
 		k8sinit.WithLogger(defaultLogger(os.Stdout)),
-		// k8sinit.WithHealthHandlerTask(health_http.NewServer(
-		// 	health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
-		// 	health_http.WithProbeHandler(healthHelper),
-		// )),
 	)
 	if err != nil {
 		return err
 	}
+
+	//
+	// OpenTelemetry
+	//
+
+	// initialize and close OpenTelemetry.
+	sinit.SetTelemetryTask(svcinit.BuildTask(
+		svcinit.WithSetup(func(ctx context.Context) error {
+			// TODO: OpenTelemetry initialization
+			return nil
+		}),
+		svcinit.WithTeardown(func(ctx context.Context) error {
+			// TODO: OpenTelemetry closing/flushing
+			return nil
+		}),
+		svcinit.WithName(k8sinit.TaskNameTelemetry),
+	))
+	// handle flushing metrics when service starts shutdown.
+	sinit.SetTelemetryHandler(NewTelemetryHandlerImpl())
 
 	//
 	// Health service
@@ -74,6 +89,7 @@ func run(ctx context.Context) error {
 	sinit.SetHealthHandlerTask(health_http.NewServer(
 		health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
 		health_http.WithProbeHandler(healthHelper),
+		health_http.WithServerTaskName(k8sinit.TaskNameHealth),
 	))
 
 	//
