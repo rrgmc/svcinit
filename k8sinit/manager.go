@@ -15,7 +15,7 @@ type Manager struct {
 	manager               *svcinit.Manager
 	logger                *slog.Logger
 	managerOptions        []svcinit.Option
-	healthHandler         HealthHandler
+	healthHandler         svcinit.HealthHandler
 	healthTask            svcinit.Task
 	telemetryHandler      TelemetryHandler
 	telemetryTask         svcinit.Task
@@ -61,7 +61,7 @@ func New(options ...Option) (*Manager, error) {
 	return ret, nil
 }
 
-func (m *Manager) HealthHandler() HealthHandler {
+func (m *Manager) HealthHandler() svcinit.HealthHandler {
 	return m.healthHandler
 }
 
@@ -105,14 +105,14 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithHealthHandler sets the HealthHandler.
-func WithHealthHandler(h HealthHandler) Option {
+// WithHealthHandler sets the [svcinit.HealthHandler].
+func WithHealthHandler(h svcinit.HealthHandler) Option {
 	return func(manager *Manager) {
 		manager.healthHandler = h
 	}
 }
 
-// WithHealthHandlerTask sets the HealthHandler which is also a [svcinit.Task] to be initialized.
+// WithHealthHandlerTask sets the [svcinit.HealthHandler] which is also a [svcinit.Task] to be initialized.
 func WithHealthHandlerTask(h HealthHandlerTask) Option {
 	return func(manager *Manager) {
 		manager.healthHandler = h
@@ -121,7 +121,7 @@ func WithHealthHandlerTask(h HealthHandlerTask) Option {
 }
 
 // WithHealthTask sets a [svcinit.Task] to be started in the corresponding stage.
-// It does NOT set a HealthHandler, it must be set separately.
+// It does NOT set a [svcinit.HealthHandler], it must be set separately.
 func WithHealthTask(h svcinit.Task) Option {
 	return func(manager *Manager) {
 		manager.healthTask = h

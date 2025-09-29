@@ -6,13 +6,8 @@ import (
 	"github.com/rrgmc/svcinit/v3"
 )
 
-type HealthHandler interface {
-	ServiceStarted()
-	ServiceTerminating()
-}
-
 type HealthHandlerTask interface {
-	HealthHandler
+	svcinit.HealthHandler
 	svcinit.Task
 }
 

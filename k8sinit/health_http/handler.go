@@ -3,6 +3,8 @@ package health_http
 import (
 	"net/http"
 	"sync/atomic"
+
+	"github.com/rrgmc/svcinit/v3"
 )
 
 type Probe int
@@ -42,7 +44,7 @@ type Handler struct {
 	isStarted, isTerminating atomic.Bool
 }
 
-var _ HealthHandler = (*Handler)(nil)
+var _ svcinit.HealthHandler = (*Handler)(nil)
 
 func NewHandler(options ...HandlerOption) *Handler {
 	ret := &Handler{

@@ -31,7 +31,7 @@ func NewServer(options ...ServerOption) *Server {
 
 var _ svcinit.Task = (*Server)(nil)
 var _ svcinit.TaskName = (*Server)(nil)
-var _ HealthHandler = (*Server)(nil)
+var _ svcinit.HealthHandler = (*Server)(nil)
 
 func (h *Server) ServiceStarted() {
 	h.handler.ServiceStarted()
