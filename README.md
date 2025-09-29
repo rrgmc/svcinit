@@ -112,7 +112,7 @@ func ExampleManager() {
     var httpServer *http.Server
 
     sinit, err := svcinit.New(
-        // initialization in 2 stages. Initialization is done in stage order, and shutdown in reverse stage order.
+        // initialization in 3 stages. Initialization is done in stage order, and shutdown in reverse stage order.
         // all tasks added to the same stage are started/stopped in parallel.
         svcinit.WithStages(svcinit.StageDefault, "manage", "service"),
         // use a context with a 20-second cancellation during shutdown.
