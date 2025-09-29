@@ -19,6 +19,10 @@ func (t TaskFunc) String() string {
 	return getDefaultTaskDescription(t)
 }
 
+// TaskHandler should call task.Run(ctx, step) and return its error. It can do any processing it needs before and
+// after the call.
+// WARNING: not calling the method, or calling it for any other step, will break the promise of never calling
+// the steps out of order or multiple times.
 type TaskHandler func(ctx context.Context, task Task, step Step) error
 
 // TaskSteps returns the steps that the task implements. They will be the only ones called.
