@@ -10,7 +10,8 @@ import (
 	"github.com/rrgmc/svcinit/v3/k8sinit/health_http"
 )
 
-func runHealth(ctx context.Context) error {
+// runSingleHTTP uses the same HTTP server for both health and the service itself.
+func runSingleHTTP(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
 	healthHandler := health_http.NewHandler(health_http.WithStartupProbe(true))
