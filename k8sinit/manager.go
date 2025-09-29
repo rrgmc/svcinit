@@ -21,12 +21,14 @@ type Manager struct {
 	telemetryTask         svcinit.Task
 	shutdownTimeout       time.Duration
 	teardownTimeout       time.Duration
+	handleSignals         []os.Signal
 	disableSignalHandling bool
 }
 
 func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
 		logger:          slog.New(slog.DiscardHandler),
+		handleSignals:   []os.Signal{os.Interrupt, syscall.SIGTERM},
 		shutdownTimeout: time.Second * 20,
 		teardownTimeout: time.Second * 5,
 	}
@@ -54,8 +56,8 @@ func New(options ...Option) (*Manager, error) {
 		return nil, err
 	}
 
-	if !ret.disableSignalHandling {
-		ret.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+	if !ret.disableSignalHandling && len(ret.handleSignals) > 0 {
+		ret.AddTask(StageManagement, svcinit.SignalTask(ret.handleSignals...))
 	}
 
 	return ret, nil
@@ -168,13 +170,23 @@ func WithTeardownTimeout(teardownTimeout time.Duration) Option {
 	}
 }
 
+// WithManagerOptions sets [svcinit.Manager] options manually. Some options are required and can't be overridden.
 func WithManagerOptions(options ...svcinit.Option) Option {
 	return func(m *Manager) {
 		m.managerOptions = append(m.managerOptions, options...)
 	}
 }
 
-func withDisableSignalHandling() Option {
+// WithHandleSignals sets the OS signals to be handled.
+// The default is "{os.Interrupt, syscall.SIGTERM}".
+func WithHandleSignals(signals ...os.Signal) Option {
+	return func(m *Manager) {
+		m.handleSignals = signals
+	}
+}
+
+// WithDisableSignalHandling disables signal handling.
+func WithDisableSignalHandling() Option {
 	return func(m *Manager) {
 		m.disableSignalHandling = true
 	}

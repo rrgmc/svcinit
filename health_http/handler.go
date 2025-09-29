@@ -30,6 +30,8 @@ func (f ProbeHandlerFunc) ServeHTTP(probe Probe, status Status, w http.ResponseW
 	f(probe, status, w, r)
 }
 
+// Handler is a container for HTTP health handlers.
+// The handlers must be added to some HTTP server, using Register or other custom method.
 type Handler struct {
 	StartupHandler   http.Handler
 	LivenessHandler  http.Handler
@@ -62,22 +64,27 @@ func NewHandler(options ...HandlerOption) *Handler {
 	return ret
 }
 
+// ServiceStarted signals the handler that the service has started.
 func (h *Handler) ServiceStarted() {
 	h.isStarted.Store(true)
 }
 
+// ServiceTerminating signals the handler that the service is terminating.
 func (h *Handler) ServiceTerminating() {
 	h.isTerminating.Store(true)
 }
 
+// IsStarted returns whether ServiceStarted was called.
 func (h *Handler) IsStarted() bool {
 	return h.isStarted.Load()
 }
 
+// IsTerminating returns whether ServiceTerminating was called.
 func (h *Handler) IsTerminating() bool {
 	return h.isTerminating.Load()
 }
 
+// Register adds the health handlers to an [http.ServeMux].
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("GET "+h.StartupProbePath, h.StartupHandler)
 	mux.Handle("GET "+h.LivenessProbePath, h.LivenessHandler)
@@ -100,6 +107,8 @@ func WithStartupProbe(startupProbe bool) HandlerOption {
 	}
 }
 
+// WithStartupProbePath sets the HTTP startup probe path.
+// The default is "/startup".
 func WithStartupProbePath(path string) HandlerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
@@ -111,6 +120,8 @@ func WithStartupProbePath(path string) HandlerOption {
 	}
 }
 
+// WithLivenessProbePath sets the HTTP liveness probe path.
+// The default is "/healthz".
 func WithLivenessProbePath(path string) HandlerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
@@ -122,6 +133,8 @@ func WithLivenessProbePath(path string) HandlerOption {
 	}
 }
 
+// WithReadinessProbePath sets the HTTP readiness probe path.
+// The default is "/ready".
 func WithReadinessProbePath(path string) HandlerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
@@ -134,6 +147,7 @@ func WithReadinessProbePath(path string) HandlerOption {
 }
 
 // WithProbeHandler sets the handler to use for probe HTTP responses.
+// If not set, DefaultProbeHandler will be used.
 func WithProbeHandler(h ProbeHandler) HandlerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {

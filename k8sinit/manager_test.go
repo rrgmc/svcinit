@@ -19,7 +19,7 @@ func TestManager(t *testing.T) {
 
 		sm, err := New(
 			// WithLogger(defaultLogger(os.Stdout)),
-			withDisableSignalHandling(), // not compatible with synctest.
+			WithDisableSignalHandling(), // not compatible with synctest.
 		)
 
 		sm.AddTask(StageService, svcinit.BuildTask(
