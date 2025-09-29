@@ -3,8 +3,8 @@
 
 `svcinit` is an initialization system for Go services.
 
-It manages starting and stopping tasks (like a web server), initialization order, correct context handling, free of
-race conditions and goroutine safe.
+It manages starting and stopping tasks (like a web server), initialization order, correct context handling, without
+race conditions and goroutine-safe.
 
 It is NOT some kind of dependency injection or application framework like Uber's FX, it could be seen like a more
 advanced version of [github.com/oklog/run](https://github.com/oklog/run).
