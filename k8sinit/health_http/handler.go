@@ -7,6 +7,21 @@ import (
 	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
+type Probe int
+
+const (
+	ProbeStartup Probe = iota
+	ProbeLiveness
+	ProbeReadiness
+)
+
+type Status struct {
+	IsStarted     bool
+	IsTerminating bool
+}
+
+type ProbeHandler func(Probe, Status, http.ResponseWriter, *http.Request)
+
 type Handler struct {
 	StartupHandler   http.Handler
 	LivenessHandler  http.Handler
@@ -17,6 +32,7 @@ type Handler struct {
 	ReadinessProbePath string
 
 	startupProbe             bool
+	probeHandler             ProbeHandler
 	isStarted, isTerminating atomic.Bool
 }
 
@@ -30,6 +46,9 @@ func NewHandler(options ...HandlerOption) *Handler {
 	}
 	for _, option := range options {
 		option.applyHandlerOption(ret)
+	}
+	if ret.probeHandler == nil {
+		ret.probeHandler = DefaultProbeHandler
 	}
 	ret.init()
 	return ret
@@ -101,6 +120,18 @@ func WithReadinessProbePath(path string) HandlerOption {
 	}
 }
 
+// WithProbeHandler sets the handler to use for probe HTTP responses.
+func WithProbeHandler(h ProbeHandler) HandlerOption {
+	return &optionImpl{
+		serverOpt: func(server *Server) {
+			server.handlerOptions = append(server.handlerOptions, WithProbeHandler(h))
+		},
+		handlerOpt: func(handler *Handler) {
+			handler.probeHandler = h
+		},
+	}
+}
+
 // internal
 
 func (h *Handler) init() {
@@ -108,27 +139,41 @@ func (h *Handler) init() {
 		h.isStarted.Store(true)
 	}
 	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if h.startupProbe && !h.isStarted.Load() {
-			w.WriteHeader(http.StatusPreconditionFailed)
-			_, _ = w.Write([]byte("service not ready"))
-			return
-		}
-		w.WriteHeader(http.StatusOK)
+		h.probeHandler(ProbeStartup, Status{
+			IsStarted:     h.isStarted.Load(),
+			IsTerminating: h.isTerminating.Load(),
+		}, w, r)
 	})
 	h.LivenessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		h.probeHandler(ProbeLiveness, Status{
+			IsStarted:     h.isStarted.Load(),
+			IsTerminating: h.isTerminating.Load(),
+		}, w, r)
 	})
 	h.ReadinessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if h.startupProbe && !h.isStarted.Load() {
-			w.WriteHeader(http.StatusPreconditionFailed)
-			_, _ = w.Write([]byte("service not ready"))
-			return
-		}
-		if h.isTerminating.Load() {
+		h.probeHandler(ProbeReadiness, Status{
+			IsStarted:     h.isStarted.Load(),
+			IsTerminating: h.isTerminating.Load(),
+		}, w, r)
+	})
+}
+
+func DefaultProbeHandler(probe Probe, status Status, w http.ResponseWriter, r *http.Request) {
+	if probe == ProbeLiveness {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if !status.IsStarted {
+		w.WriteHeader(http.StatusPreconditionFailed)
+		_, _ = w.Write([]byte("service not ready"))
+		return
+	}
+	if probe == ProbeReadiness {
+		if status.IsTerminating {
 			w.WriteHeader(499) // https://www.webfx.com/web-development/glossary/http-status-codes/what-is-a-499-status-code/
 			_, _ = w.Write([]byte("service shutting down"))
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-	})
+	}
+	w.WriteHeader(http.StatusOK)
 }
