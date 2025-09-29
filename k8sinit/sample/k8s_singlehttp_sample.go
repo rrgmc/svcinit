@@ -17,7 +17,7 @@ func runSingleHTTP(ctx context.Context) error {
 	)
 	// HTTP handler wrapper which handles the health requests, and forward the other to the real handler.
 	// The real handler will be set in a following step.
-	httpHandlerWrapper := health_http.NewWrapper(healthHandler)
+	httpHandlerWrapper := health_http.NewHTTPWrapper(healthHandler)
 
 	sinit, err := k8sinit.New(
 		k8sinit.WithHealthHandler(healthHandler),

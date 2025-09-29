@@ -5,26 +5,26 @@ import (
 	"sync/atomic"
 )
 
-type Wrapper struct {
+type HTTPWrapper struct {
 	httpHandler   atomic.Pointer[http.Handler]
 	healthHandler *Handler
 }
 
-var _ http.Handler = (*Wrapper)(nil)
+var _ http.Handler = (*HTTPWrapper)(nil)
 
-// NewWrapper returns an http.Handler which handles the probes before calling the final http handler.
-func NewWrapper(healthHandler *Handler) *Wrapper {
-	ret := &Wrapper{
+// NewHTTPWrapper returns an http.Handler which handles the probes before calling the final http handler.
+func NewHTTPWrapper(healthHandler *Handler) *HTTPWrapper {
+	ret := &HTTPWrapper{
 		healthHandler: healthHandler,
 	}
 	return ret
 }
 
-func (h *Wrapper) SetHTTPHandler(handler http.Handler) {
+func (h *HTTPWrapper) SetHTTPHandler(handler http.Handler) {
 	h.httpHandler.Store(&handler)
 }
 
-func (h *Wrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if r.URL.Path == h.healthHandler.StartupProbePath {
 			h.healthHandler.StartupHandler.ServeHTTP(w, r)
