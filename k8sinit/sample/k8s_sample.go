@@ -56,6 +56,7 @@ func run(ctx context.Context) error {
 	sinit, err := k8sinit.New(
 		k8sinit.WithLogger(defaultLogger(os.Stdout)),
 		k8sinit.WithHealthHandlerTask(health_http.NewServer(
+			health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
 			health_http.WithProbeHandler(healthService),
 		)),
 	)

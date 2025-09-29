@@ -12,14 +12,15 @@ import (
 // runSingleHTTP uses the same HTTP server for both health and the service itself.
 func runSingleHTTP(ctx context.Context) error {
 	// handler for the health endpoints
-	healthHandler := health_http.NewHandler(health_http.WithStartupProbe(true))
+	healthHandler := health_http.NewHandler(
+		health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
+	)
 	// HTTP handler wrapper which handles the health requests, and forward the other to the real handler.
 	// The real handler will be set in a following step.
 	httpHandlerWrapper := health_http.NewWrapper(healthHandler)
 
 	sinit, err := k8sinit.New(
 		k8sinit.WithHealthHandler(healthHandler),
-		// k8sinit.WithLogger(defaultLogger(os.Stdout)),
 	)
 	if err != nil {
 		return err
