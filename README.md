@@ -108,9 +108,6 @@ func (s *healthService) Stop(ctx context.Context) error {
 func ExampleManager() {
     ctx := context.Background()
 
-    // core HTTP server
-    var httpServer *http.Server
-
     sinit, err := svcinit.New(
         // initialization in 3 stages. Initialization is done in stage order, and shutdown in reverse stage order.
         // all tasks added to the same stage are started/stopped in parallel.
@@ -132,45 +129,40 @@ func ExampleManager() {
         func(ctx context.Context) (*healthService, error) {
             return newHealthService(), nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, data *healthService) error {
-            return data.Start(ctx)
+        svcinit.WithDataStart(func(ctx context.Context, service *healthService) error {
+            return service.Start(ctx)
         }),
-        svcinit.WithDataStop(func(ctx context.Context, data *healthService) error {
-            return data.Stop(ctx)
+        svcinit.WithDataStop(func(ctx context.Context, service *healthService) error {
+            return service.Stop(ctx)
         }),
     ))
 
     // add a task to start the core HTTP server.
-    sinit.
-        AddTask("service", svcinit.BuildTask(
-            svcinit.WithSetup(func(ctx context.Context) error {
-                // initialize the service in the setup step.
-                // as this may take some time in bigger services, initializing here allows other tasks to initialize
-                // at the same time.
-                httpServer = &http.Server{
-                    Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                        w.WriteHeader(http.StatusOK)
-                    }),
-                    Addr: ":8080",
-                }
-                return nil
-            }),
-            svcinit.WithStart(func(ctx context.Context) error {
-                httpServer.BaseContext = func(net.Listener) context.Context {
-                    return ctx
-                }
-                return httpServer.ListenAndServe()
-            }),
-            // stop the service. By default, the context is NOT cancelled, this method must arrange for the start
-            // function to end.
-            // Use [svcinit.WithCancelContext] if you want the context to be cancelled automatically after the
-            // first task finishes.
-            svcinit.WithStop(func(ctx context.Context) error {
-                return httpServer.Shutdown(ctx)
-            }),
-        ),
-        // svcinit.WithCancelContext(true), // would cancel the "WithStart" context before calling "WithStop".
-        )
+    sinit.AddTask("service", svcinit.BuildDataTask[*http.Server](
+        func(ctx context.Context) (*http.Server, error) {
+            // initialize the service in the setup step.
+            // as this may take some time in bigger services, initializing here allows other tasks to initialize
+            // at the same time.
+            server := &http.Server{
+                Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                    w.WriteHeader(http.StatusOK)
+                }),
+                Addr: ":8080",
+            }
+            return server, nil
+        },
+        svcinit.WithDataStart(func(ctx context.Context, service *http.Server) error {
+            service.BaseContext = func(net.Listener) context.Context {
+                return ctx
+            }
+            return service.ListenAndServe()
+        }),
+        // stop the service. By default, the context is NOT cancelled, this method must arrange for the start
+        // function to end.
+        svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
+            return service.Shutdown(ctx)
+        }),
+    ))
 
     // shutdown on OS signal.
     sinit.AddTask(svcinit.StageDefault, svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
@@ -586,14 +578,40 @@ func run(ctx context.Context) error {
 
     sinit, err := k8sinit.New(
         k8sinit.WithLogger(defaultLogger(os.Stdout)),
-        k8sinit.WithHealthHandlerTask(health_http.NewServer(
-            health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
-            health_http.WithProbeHandler(healthHelper),
-        )),
     )
     if err != nil {
         return err
     }
+
+    //
+    // OpenTelemetry
+    //
+
+    // initialize and close OpenTelemetry.
+    sinit.SetTelemetryTask(svcinit.BuildTask(
+        svcinit.WithSetup(func(ctx context.Context) error {
+            // TODO: OpenTelemetry initialization
+            return nil
+        }),
+        svcinit.WithTeardown(func(ctx context.Context) error {
+            // TODO: OpenTelemetry closing/flushing
+            return nil
+        }),
+        svcinit.WithName(k8sinit.TaskNameTelemetry),
+    ))
+    // handle flushing metrics when service begins shutdown.
+    sinit.SetTelemetryHandler(NewTelemetryHandlerImpl())
+
+    //
+    // Health service
+    //
+
+    // set a health handler which is also a task to be started/stopped.
+    sinit.SetHealthHandlerTask(health_http.NewServer(
+        health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
+        health_http.WithProbeHandler(healthHelper),
+        health_http.WithServerTaskName(k8sinit.TaskNameHealth),
+    ))
 
     //
     // initialize data to be used by the service, like database and cache connections.
@@ -712,6 +730,7 @@ This is an example of using the same HTTP server for both health and the HTTP se
 import (
     "context"
     "net/http"
+    "os"
 
     "github.com/rrgmc/svcinit/v3"
     "github.com/rrgmc/svcinit/v3/health_http"
@@ -729,14 +748,17 @@ func runSingleHTTP(ctx context.Context) error {
     httpHandlerWrapper := health_http.NewHTTPWrapper(healthHandler)
 
     sinit, err := k8sinit.New(
-        k8sinit.WithHealthHandler(healthHandler),
+        k8sinit.WithLogger(defaultLogger(os.Stdout)),
     )
     if err != nil {
         return err
     }
 
-    // start the main HTTP server in the management stage, which is where the health service must run.
-    sinit.AddTask(k8sinit.StageManagement, svcinit.BuildDataTask[*http.Server](
+    // sets the health handler, which will handle the ServiceStarted and ServiceTerminating calls.
+    sinit.SetHealthHandler(healthHandler)
+
+    // start the main HTTP server as the health task, so it starts at the right time.
+    sinit.SetHealthTask(svcinit.BuildDataTask[*http.Server](
         func(ctx context.Context) (*http.Server, error) {
             mux := http.NewServeMux()
             healthHandler.Register(mux)
@@ -751,6 +773,7 @@ func runSingleHTTP(ctx context.Context) error {
         svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
             return service.Shutdown(ctx)
         }),
+        svcinit.WithDataName[*http.Server](k8sinit.TaskNameHealth),
     ))
 
     //
@@ -773,6 +796,7 @@ func runSingleHTTP(ctx context.Context) error {
             httpHandlerWrapper.SetHTTPHandler(mux)
             return nil
         }),
+        svcinit.WithName("HTTP service"),
     ))
 
     return sinit.Run(ctx)
