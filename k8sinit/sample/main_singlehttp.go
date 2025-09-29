@@ -19,12 +19,12 @@ func runSingleHTTP(ctx context.Context) error {
 	// The real handler will be set in a following step.
 	httpHandlerWrapper := health_http.NewHTTPWrapper(healthHandler)
 
-	sinit, err := k8sinit.New(
-		k8sinit.WithHealthHandler(healthHandler),
-	)
+	sinit, err := k8sinit.New()
 	if err != nil {
 		return err
 	}
+
+	sinit.SetHealthHandler(healthHandler)
 
 	// start the main HTTP server in the management stage, which is where the health service must run.
 	sinit.AddTask(k8sinit.StageManagement, svcinit.BuildDataTask[*http.Server](

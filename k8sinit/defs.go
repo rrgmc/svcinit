@@ -12,3 +12,11 @@ var allStages = []string{StageManagement, StageInitialize, StageReady, StageServ
 func AllStages() []string {
 	return allStages
 }
+
+// task names
+
+const (
+	TaskNameHealth                 = "health"
+	TaskNameHealthStartedProbe     = "health: started probe"
+	TaskNameHealthTerminatingProbe = "health: terminating probe"
+)

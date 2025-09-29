@@ -51,11 +51,6 @@ func New(options ...Option) (*Manager, error) {
 		return nil, err
 	}
 
-	err = ret.initHealth()
-	if err != nil {
-		return nil, err
-	}
-
 	if !ret.disableSignalHandling && len(ret.handleSignals) > 0 {
 		ret.AddTask(StageManagement, svcinit.SignalTask(ret.handleSignals...))
 	}
@@ -93,6 +88,10 @@ func (m *Manager) AddService(stage string, service svcinit.Service, options ...s
 
 // Run executes the initialization and returns the error of the first task stop step that returns.
 func (m *Manager) Run(ctx context.Context) error {
+	err := m.initRunHealth()
+	if err != nil {
+		return err
+	}
 	return m.manager.Run(ctx)
 }
 
@@ -113,29 +112,6 @@ func WithLogger(logger *slog.Logger) Option {
 	return func(m *Manager) {
 		m.logger = logger
 		m.managerOptions = append(m.managerOptions, svcinit.WithLogger(logger))
-	}
-}
-
-// WithHealthHandler sets the [svcinit.HealthHandler].
-func WithHealthHandler(h svcinit.HealthHandler) Option {
-	return func(manager *Manager) {
-		manager.healthHandler = h
-	}
-}
-
-// WithHealthHandlerTask sets the [svcinit.HealthHandler] which is also a [svcinit.Task] to be initialized.
-func WithHealthHandlerTask(h HealthHandlerTask) Option {
-	return func(manager *Manager) {
-		manager.healthHandler = h
-		manager.healthTask = h
-	}
-}
-
-// WithHealthTask sets a [svcinit.Task] to be started in the corresponding stage.
-// It does NOT set a [svcinit.HealthHandler], it must be set separately.
-func WithHealthTask(h svcinit.Task) Option {
-	return func(manager *Manager) {
-		manager.healthTask = h
 	}
 }
 

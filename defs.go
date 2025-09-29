@@ -69,6 +69,11 @@ func (s CallbackStep) String() string {
 	}
 }
 
+const (
+	TaskNameSignals = "signals"
+	TaskNameTimeout = "timeout"
+)
+
 // internal
 
 func newInvalidStage(stage string) error {

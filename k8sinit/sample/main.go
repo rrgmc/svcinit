@@ -55,14 +55,26 @@ func run(ctx context.Context) error {
 
 	sinit, err := k8sinit.New(
 		k8sinit.WithLogger(defaultLogger(os.Stdout)),
-		k8sinit.WithHealthHandlerTask(health_http.NewServer(
-			health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
-			health_http.WithProbeHandler(healthHelper),
-		)),
+		// k8sinit.WithHealthHandlerTask(health_http.NewServer(
+		// 	health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
+		// 	health_http.WithProbeHandler(healthHelper),
+		// )),
 	)
 	if err != nil {
 		return err
 	}
+
+	//
+	// Health service
+	//
+
+	//
+	// set a health handler which is also a task to be started/stopped.
+	//
+	sinit.SetHealthHandlerTask(health_http.NewServer(
+		health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
+		health_http.WithProbeHandler(healthHelper),
+	))
 
 	//
 	// initialize data to be used by the service, like database and cache connections.

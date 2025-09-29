@@ -2,6 +2,7 @@ package k8sinit
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rrgmc/svcinit/v3"
 )
@@ -11,39 +12,68 @@ type HealthHandlerTask interface {
 	svcinit.Task
 }
 
-func (m *Manager) initHealth() error {
-	if m.healthTask != nil {
-		// health server must be the first to start and last to stop.
-		m.AddTask(StageManagement, m.healthTask)
+// SetHealthHandler sets a health handler. The task options will be set to all internal "management" tasks.
+func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svcinit.TaskOption) {
+	if handler == nil {
+		m.manager.AddInitError(fmt.Errorf("%w: health handler cannot be nil", svcinit.ErrInitialization))
+		return
 	}
-
-	if m.healthHandler == nil {
-		m.healthHandler = &noopHealthHandler{}
-		return nil
+	if m.healthHandler != nil {
+		m.manager.AddInitError(fmt.Errorf("%w: health handler was already set", svcinit.ErrAlreadyInitialized))
+		return
 	}
+	m.healthHandler = handler
 
 	// the "ready" stage is executed after all initialization already happened. It is used to signal the
 	// startup probes that the service is ready.
 	m.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			m.logger.DebugContext(ctx, "service started, signaling probes")
-			m.healthHandler.ServiceStarted()
+			m.HealthHandler().ServiceStarted()
 			return nil
 		}),
-		svcinit.WithName("health handler: started probe"),
-	))
+		svcinit.WithName(TaskNameHealthStartedProbe),
+	), options...)
 
 	// add a task in the "service" stage, so the stop step is called in parallel with the service stopping ones.
 	// This tasks signals the probes that the service is terminating.
 	m.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
 			m.logger.DebugContext(ctx, "service terminating, signaling probes")
-			m.healthHandler.ServiceTerminating()
+			m.HealthHandler().ServiceTerminating()
 			return nil
 		}),
-		svcinit.WithName("health server: terminating probe"),
-	))
+		svcinit.WithName(TaskNameHealthTerminatingProbe),
+	), options...)
+}
 
+// SetHealthHandlerTask uses the same instance on both SetHealthHandler and SetHealthTask.
+func (m *Manager) SetHealthHandlerTask(handlerTask HealthHandlerTask, options ...svcinit.TaskOption) {
+	if m.healthHandler != nil || m.healthTask != nil {
+		m.manager.AddInitError(fmt.Errorf("%w: health handler and/or task was already set", svcinit.ErrAlreadyInitialized))
+		return
+	}
+	m.SetHealthHandler(handlerTask, options...)
+	m.SetHealthTask(handlerTask, options...)
+}
+
+// SetHealthTask sets the health task. It will be added to the "management" stage.
+// The passed task options will be set to this task.
+func (m *Manager) SetHealthTask(task svcinit.Task, options ...svcinit.TaskOption) {
+	if m.healthTask != nil {
+		m.manager.AddInitError(fmt.Errorf("%w: health task was already set", svcinit.ErrAlreadyInitialized))
+		return
+	}
+	m.healthTask = task
+
+	// health server must be the first to start and last to stop.
+	m.AddTask(StageManagement, task, options...)
+}
+
+func (m *Manager) initRunHealth() error {
+	if m.healthHandler == nil {
+		m.healthHandler = &noopHealthHandler{}
+	}
 	return nil
 }
 

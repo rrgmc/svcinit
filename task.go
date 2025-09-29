@@ -44,15 +44,15 @@ func GetTaskName(task Task) string {
 	return ""
 }
 
-// GetTaskDescription returns the task description, be it a task name, String method, or its variable type.
+// GetTaskDescription returns the task description, be it the String method, a task name, or its variable type.
 func GetTaskDescription(task Task) string {
-	if tn := GetTaskName(task); tn != "" {
-		return tn
-	}
 	if ts, ok := task.(fmt.Stringer); ok {
 		return ts.String()
 	}
-	return fmt.Sprintf("%T", task)
+	if tn := GetTaskName(task); tn != "" {
+		return tn
+	}
+	return getDefaultTaskDescription(task)
 }
 
 // TaskWithOptions allows the task to set some of the task options. They have priority over options set via

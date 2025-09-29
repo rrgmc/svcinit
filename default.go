@@ -65,6 +65,10 @@ func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
 }
 
 func (t *TaskSignalTask) TaskName() string {
+	return TaskNameSignals
+}
+
+func (t *TaskSignalTask) String() string {
 	return fmt.Sprintf("Signals %v", t.signals)
 }
 
@@ -114,14 +118,11 @@ func (t *TaskTimeoutTask) TaskOptions() []TaskInstanceOption {
 }
 
 func (t *TaskTimeoutTask) TaskName() string {
-	return fmt.Sprintf("Timeout %v", t.timeout)
+	return TaskNameTimeout
 }
 
 func (t *TaskTimeoutTask) String() string {
-	if tn := t.TaskName(); tn != "" {
-		return tn
-	}
-	return getDefaultTaskDescription(t)
+	return fmt.Sprintf("Timeout %v", t.timeout)
 }
 
 type TimeoutTaskOption func(task *TaskTimeoutTask)

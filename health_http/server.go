@@ -24,7 +24,7 @@ type Server struct {
 func NewServer(options ...ServerOption) *Server {
 	ret := &Server{
 		address:  ":6060",
-		taskName: "health handler",
+		taskName: "health",
 	}
 	for _, option := range options {
 		option.applyServerOption(ret)
