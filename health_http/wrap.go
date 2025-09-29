@@ -12,6 +12,7 @@ type Wrapper struct {
 
 var _ http.Handler = (*Wrapper)(nil)
 
+// NewWrapper returns an http.Handler which handles the probes before calling the final http handler.
 func NewWrapper(healthHandler *Handler) *Wrapper {
 	ret := &Wrapper{
 		healthHandler: healthHandler,

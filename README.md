@@ -580,6 +580,8 @@ func main() {
 func run(ctx context.Context) error {
     logger := defaultLogger(os.Stdout)
 
+    // healthService is created in advance because it supports setting a DB instance for the readiness probe to use.
+    // Otherwise, [health_http.WithProbeHandler] would not need to be added, a default implementation would be used.
     healthService := NewHealthServiceImpl()
 
     sinit, err := k8sinit.New(
