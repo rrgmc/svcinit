@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/rrgmc/svcinit/v3"
+	"github.com/rrgmc/svcinit/v3/health_http"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
-	"github.com/rrgmc/svcinit/v3/k8sinit/health_http"
 )
 
 // runSingleHTTP uses the same HTTP server for both health and the service itself.

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/rrgmc/svcinit/v3/k8sinit/health_http"
+	"github.com/rrgmc/svcinit/v3/health_http"
 )
 
 //
