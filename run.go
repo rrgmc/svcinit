@@ -74,13 +74,18 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	if setupErr == nil {
 		m.logger.InfoContext(ctx, "waiting for first task to return")
 	}
-	<-m.startupCtx.Done()
+
 	// get the error returned by the first exiting task. It will be the cause of exit.
-	if setupErr == nil {
+	select {
+	case <-ctx.Done():
+		cause = context.Cause(ctx)
+	case <-m.startupCtx.Done():
 		cause = context.Cause(m.startupCtx)
-	} else {
+	}
+	if setupErr != nil {
 		cause = setupErr
 	}
+
 	m.logger.WarnContext(ctx, "first task returned", slog.String("cause", cause.Error()))
 	m.logger.Log(ctx, slog2.LevelTrace, "cancelling start task context")
 	// cancel the context of all tasks with cancelContext = true
