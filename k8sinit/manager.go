@@ -17,6 +17,8 @@ type Manager struct {
 	managerOptions        []svcinit.Option
 	healthHandler         HealthHandler
 	healthTask            svcinit.Task
+	telemetryHandler      TelemetryHandler
+	telemetryTask         svcinit.Task
 	shutdownTimeout       time.Duration
 	teardownTimeout       time.Duration
 	disableSignalHandling bool
@@ -119,10 +121,33 @@ func WithHealthHandlerTask(h HealthHandlerTask) Option {
 }
 
 // WithHealthTask sets a [svcinit.Task] to be started in the corresponding stage.
-// It does NOT sets a HealthHandler, it must be set separately.
+// It does NOT set a HealthHandler, it must be set separately.
 func WithHealthTask(h svcinit.Task) Option {
 	return func(manager *Manager) {
 		manager.healthTask = h
+	}
+}
+
+// WithTelemetryHandler sets the TelemetryHandler.
+func WithTelemetryHandler(h TelemetryHandler) Option {
+	return func(manager *Manager) {
+		manager.telemetryHandler = h
+	}
+}
+
+// WithTelemetryHandlerTask sets the TelemetryHandler which is also a [svcinit.Task] to be initialized.
+func WithTelemetryHandlerTask(h TelemetryHandlerTask) Option {
+	return func(manager *Manager) {
+		manager.telemetryHandler = h
+		manager.telemetryTask = h
+	}
+}
+
+// WithTelemetryTask sets a [svcinit.Task] to be started in the corresponding stage.
+// It does NOT set a TelemetryHandler, it must be set separately.
+func WithTelemetryTask(h svcinit.Task) Option {
+	return func(manager *Manager) {
+		manager.telemetryTask = h
 	}
 }
 
