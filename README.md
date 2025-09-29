@@ -543,10 +543,10 @@ import (
 )
 
 //
-// Health webservice
+// Health helper
 //
 
-type HealthService interface {
+type HealthHelper interface {
     AddDBHealth(db *sql.DB) // add the DB connection to be checked in the readiness probe
 }
 
@@ -580,15 +580,15 @@ func main() {
 func run(ctx context.Context) error {
     logger := defaultLogger(os.Stdout)
 
-    // healthService is created in advance because it supports setting a DB instance for the readiness probe to use.
+    // healthHelper is created in advance because it supports setting a DB instance for the readiness probe to use.
     // Otherwise, [health_http.WithProbeHandler] would not need to be added, a default implementation would be used.
-    healthService := NewHealthServiceImpl()
+    healthHelper := NewHealthHelperImpl()
 
     sinit, err := k8sinit.New(
         k8sinit.WithLogger(defaultLogger(os.Stdout)),
         k8sinit.WithHealthHandlerTask(health_http.NewServer(
             health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
-            health_http.WithProbeHandler(healthService),
+            health_http.WithProbeHandler(healthHelper),
         )),
     )
     if err != nil {
@@ -615,7 +615,7 @@ func run(ctx context.Context) error {
             }
 
             // send the initialized DB connection to the health service to be used by the readiness probe.
-            healthService.AddDBHealth(data.db)
+            healthHelper.AddDBHealth(data.db)
 
             logger.InfoContext(ctx, "data initialization finished")
             return

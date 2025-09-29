@@ -15,22 +15,22 @@ import (
 // Health webservice
 //
 
-type HealthServiceImpl struct {
+type HealthHelperImpl struct {
 	db *sql.DB
 }
 
-var _ HealthService = (*HealthServiceImpl)(nil)
-var _ health_http.ProbeHandler = (*HealthServiceImpl)(nil)
+var _ HealthHelper = (*HealthHelperImpl)(nil)
+var _ health_http.ProbeHandler = (*HealthHelperImpl)(nil)
 
-func NewHealthServiceImpl() *HealthServiceImpl {
-	return &HealthServiceImpl{}
+func NewHealthHelperImpl() *HealthHelperImpl {
+	return &HealthHelperImpl{}
 }
 
-func (s *HealthServiceImpl) AddDBHealth(db *sql.DB) {
+func (s *HealthHelperImpl) AddDBHealth(db *sql.DB) {
 	s.db = db
 }
 
-func (s *HealthServiceImpl) ServeHTTP(probe health_http.Probe, status health_http.Status, w http.ResponseWriter, r *http.Request) {
+func (s *HealthHelperImpl) ServeHTTP(probe health_http.Probe, status health_http.Status, w http.ResponseWriter, r *http.Request) {
 	if probe != health_http.ProbeReadiness {
 		health_http.DefaultProbeHandler(probe, status, w, r)
 		return
