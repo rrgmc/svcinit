@@ -110,7 +110,7 @@ func (h *Handler) init() {
 	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.startupProbe && !h.isStarted.Load() {
 			w.WriteHeader(http.StatusPreconditionFailed)
-			_, _ = w.Write([]byte("HTTP 412: service not ready"))
+			_, _ = w.Write([]byte("service not ready"))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -132,5 +132,3 @@ func (h *Handler) init() {
 		w.WriteHeader(http.StatusOK)
 	})
 }
-
-// type HandlerOption func(*Handler)

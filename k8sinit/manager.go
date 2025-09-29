@@ -14,6 +14,7 @@ type Manager struct {
 	manager         *svcinit.Manager
 	managerOptions  []svcinit.Option
 	healthHandler   HealthHandler
+	healthTask      svcinit.Task
 	shutdownTimeout time.Duration
 	teardownTimeout time.Duration
 }
@@ -22,7 +23,6 @@ func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
 		shutdownTimeout: time.Second * 20,
 		teardownTimeout: time.Second * 5,
-		healthHandler:   &noopHealthHandler{},
 	}
 	for _, option := range options {
 		option(ret)
@@ -93,12 +93,26 @@ func (m *Manager) RunWithStopErrors(ctx context.Context) (cause error, stopErr e
 
 type Option func(*Manager)
 
+// WithHealthHandler sets the HealthHandler.
 func WithHealthHandler(h HealthHandler) Option {
 	return func(manager *Manager) {
-		if h == nil {
-			return
-		}
 		manager.healthHandler = h
+	}
+}
+
+// WithHealthHandlerTask sets the HealthHandler which is also a [svcinit.Task] to be initialized.
+func WithHealthHandlerTask(h HealthHandlerTask) Option {
+	return func(manager *Manager) {
+		manager.healthHandler = h
+		manager.healthTask = h
+	}
+}
+
+// WithHealthTask sets a [svcinit.Task] to be started in the corresponding stage.
+// It does NOT sets a HealthHandler, it must be set separately.
+func WithHealthTask(h svcinit.Task) Option {
+	return func(manager *Manager) {
+		manager.healthTask = h
 	}
 }
 

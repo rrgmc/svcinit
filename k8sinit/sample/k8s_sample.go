@@ -24,8 +24,8 @@ func run(ctx context.Context) error {
 	healthHandler := health_http.NewHandler(health_http.WithStartupProbe(true))
 
 	sinit, err := k8sinit.New(
-		// k8sinit.WithHealthHandler(health_http.NewServer()),
-		k8sinit.WithHealthHandler(healthHandler),
+		k8sinit.WithHealthHandlerTask(health_http.NewServer()),
+		// k8sinit.WithHealthHandler(healthHandler),
 		k8sinit.WithManagerOptions(
 			svcinit.WithLogger(logger),
 		),

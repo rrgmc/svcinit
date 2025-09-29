@@ -11,11 +11,19 @@ type HealthHandler interface {
 	ServiceTerminating()
 }
 
+type HealthHandlerTask interface {
+	HealthHandler
+	svcinit.Task
+}
+
 func (m *Manager) initHealth() error {
-	healthTask, isHealthTask := m.healthHandler.(svcinit.Task)
-	if isHealthTask {
+	if m.healthHandler == nil {
+		m.healthHandler = &noopHealthHandler{}
+	}
+
+	if m.healthTask != nil {
 		// health server must be the first to start and last to stop.
-		m.AddTask(StageManagement, healthTask)
+		m.AddTask(StageManagement, m.healthTask)
 	}
 
 	// the "ready" stage is executed after all initialization already happened. It is used to signal the
