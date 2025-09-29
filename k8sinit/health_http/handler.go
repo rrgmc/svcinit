@@ -3,8 +3,6 @@ package health_http
 import (
 	"net/http"
 	"sync/atomic"
-
-	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
 type Probe int
@@ -44,7 +42,7 @@ type Handler struct {
 	isStarted, isTerminating atomic.Bool
 }
 
-var _ k8sinit.HealthHandler = (*Handler)(nil)
+var _ HealthHandler = (*Handler)(nil)
 
 func NewHandler(options ...HandlerOption) *Handler {
 	ret := &Handler{

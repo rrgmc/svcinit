@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/rrgmc/svcinit/v3"
-	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
 type Server struct {
@@ -32,7 +31,7 @@ func NewServer(options ...ServerOption) *Server {
 
 var _ svcinit.Task = (*Server)(nil)
 var _ svcinit.TaskName = (*Server)(nil)
-var _ k8sinit.HealthHandler = (*Server)(nil)
+var _ HealthHandler = (*Server)(nil)
 
 func (h *Server) ServiceStarted() {
 	h.handler.ServiceStarted()
