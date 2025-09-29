@@ -192,7 +192,7 @@ func ExampleManager() {
 
 This example starts an HTTP server and a (simulated) messaging listener which are the core function of the service.
 The service will have telemetry, a health HTTP server listening in a different port, and will follow the Kubernetes
-pattern of having startup, liveness and readiness probes with the correct states during the initialization.
+pattern of having startup, liveness and readiness probes with the correct states at all times.
 
 Full source code in the [sample](sample/) folder.
 
