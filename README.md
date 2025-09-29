@@ -32,17 +32,17 @@ go get github.com/rrgmc/svcinit/v3
 
 - stages for managing start/stop ordering. The next stage is only initialized once the previous one was fully started.
 - `start`, `stop`, `setup` and `teardown` task steps.
-- start tasks can stop with or without context cancellation.
+- `start` steps can stop with or without context cancellation.
 - `setup` and `teardown` steps to perform task initialization and finalization. Initialization is done in a goroutine,
-  so a health service can correctly manage a startup probe.
+  so for example a health service can correctly manage a startup probe.
 - keeps track of all steps executed, so each step is guaranteed to be called at most once, and any initialization error
   just calls the stopping steps of what was effectively started.
-- ensures no race condition, like tasks finishing before all initialization was done.
+- ensures no race conditions, like tasks finishing before all initialization was done.
 - "futures" to manage task dependencies.
 - possibility of the `stop` step directly managing it's `start` step, like canceling its context and waiting for its
   completion.
 - callbacks for all events that happens during execution. 
-- the application execution error result will be the error returned by the first task `start` step to finish.
+- the application execution error result will be the error returned by the first `start` step that finishes.
 - specific implementation using Kubernetes initialization patterns.
 
 ## Task type
@@ -467,18 +467,18 @@ func run(ctx context.Context) error {
 - Start `management` stage:
   - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `telemetry`
-    - `health service`
+    - `health`
   - run the `start` step of these tasks in parallel but DON'T wait for their completion. They are expected to block
     until some condition makes then exit.
-    - `health service`
-    - `Timeout 100ms` - (waits 100ms and exits, a debugging tool)
-    - `Signals [interrupt interrupt terminated]` - (waits until an OS signal is received)
+    - `health`
+    - `timeout` - (waits 100ms and exits, a debugging tool)
+    - `signals` - (waits until an OS signal is received)
 - Start `initialize` stage:
   - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `init data` - opens the DB connection.
 - Start `ready` stage:
   - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
-    - `health server started probe` - signals the startup and readiness probe that the service is started. 
+    - `health: started probe` - signals the startup and readiness probe that the service is started. 
 - Start `service` stage:
   - run the `setup` step of these tasks in parallel and wait for the completion of all of them:
     - `HTTP service`
@@ -488,22 +488,21 @@ func run(ctx context.Context) error {
     - `HTTP service`
     - `Messaging service`
 - **Wait until the `start` step of any task returns (with an error or nil)**.
-- The first task `start` step to return in this example is `Timeout 100ms`, with the error `timed out`.
-- Cancel the context sent to all tasks' `start` step which have the `WithCancelContext(true)` option set, 
-  using this `timed out` error that was returned (in this example, only `Timeout 100ms` 
-  and `Signals [interrupt interrupt terminated]`).
+- The first `start` step to return in this example will be `timeout`, with the error `timed out`.
+- Cancel the context sent to all `start` steps which have the `WithCancelContext(true)` option set, 
+  using this `timed out` error that was returned (in this example, only `timeout` and `signals`).
 - A context based on the root context (NOT the one sent to the tasks, that was just cancelled) with a deadline of
-  20 seconds, is created and will be sent to all stopping jobs.
+  20 seconds, is created and will be sent to all `stop` and `teardown` steps.
 - Stop `service` stage:
   - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
     - `HTTP service`
     - `Messaging service`
-    - `telemetry flush` - flushes the pending telemetry to avoid losing it in case the service is killed.
-    - `health server terminating probe` - signals the readiness probe that the service is terminating.
+    - `telemetry: flush` - flushes the pending telemetry to avoid losing it in case the service is killed.
+    - `health: terminating probe` - signals the readiness probe that the service is terminating.
 - Stop `management` stage:
   - run the `stop` step of these tasks in parallel and wait for the completion of all of them:
     - `health service`
-- **Wait until the `start` step of ALL tasks return, or for the shutdown timeout.**
+- **Wait until the `start` step of ALL tasks return, or the shutdown deadline ends.**
 - Teardown `initialize` stage:
   - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
     - `init data` - closes the DB connection.
@@ -511,7 +510,6 @@ func run(ctx context.Context) error {
   - run the `teardown` step of these tasks in parallel and wait for the completion of all of them:
     - `telemetry`
 - The `Run` method will return the error `timed out`.
-
 
 ## Real world example - Kubernetes
 
