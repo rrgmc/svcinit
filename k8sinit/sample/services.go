@@ -19,6 +19,7 @@ type HealthServiceImpl struct {
 	db *sql.DB
 }
 
+var _ HealthService = (*HealthServiceImpl)(nil)
 var _ health_http.ProbeHandler = (*HealthServiceImpl)(nil)
 
 func NewHealthServiceImpl() *HealthServiceImpl {
@@ -46,6 +47,8 @@ type HTTPServiceImpl struct {
 	server *http.Server
 	db     *sql.DB
 }
+
+var _ HTTPService = (*HTTPServiceImpl)(nil)
 
 func NewHTTPServiceImpl(db *sql.DB) *HTTPServiceImpl {
 	mux := http.NewServeMux()
@@ -90,6 +93,8 @@ type MessagingServiceImpl struct {
 	db        *sql.DB
 	isStopped atomic.Bool
 }
+
+var _ MessagingService = (*MessagingServiceImpl)(nil)
 
 func NewMessagingServiceImpl(logger *slog.Logger, db *sql.DB) *MessagingServiceImpl {
 	return &MessagingServiceImpl{

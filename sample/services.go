@@ -17,6 +17,8 @@ type HealthServiceImpl struct {
 	server *http.Server
 }
 
+var _ HealthService = (*HealthServiceImpl)(nil)
+
 func NewHealthServiceImpl() *HealthServiceImpl {
 	return &HealthServiceImpl{
 		server: &http.Server{
@@ -60,6 +62,8 @@ type HTTPServiceImpl struct {
 	db     *sql.DB
 }
 
+var _ HTTPService = (*HTTPServiceImpl)(nil)
+
 func NewHTTPServiceImpl(db *sql.DB) *HTTPServiceImpl {
 	mux := http.NewServeMux()
 	mux.Handle("GET /test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +100,8 @@ func (s *HTTPServiceImpl) Stop(ctx context.Context) error {
 //
 // Simulates a messaging service receiving and forwarding messages.
 //
+
+var _ MessagingService = (*MessagingServiceImpl)(nil)
 
 type MessagingServiceImpl struct {
 	logger    *slog.Logger
