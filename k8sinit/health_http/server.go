@@ -1,4 +1,4 @@
-package k8sinit
+package health_http
 
 import (
 	"context"
@@ -6,42 +6,43 @@ import (
 	"net/http"
 
 	"github.com/rrgmc/svcinit/v3"
+	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
-type HealthHTTPServer struct {
+type Server struct {
 	server             *http.Server
-	handlerOptions     []HealthHTTPHandlerOption
-	handler            *HealthHTTPHandler
+	handlerOptions     []HandlerOption
+	handler            *Handler
 	address            string
 	httpServerProvider func(ctx context.Context, address string) (*http.Server, error)
 	taskName           string
 }
 
-func NewHealthHTTPServer(options ...HealthHTTPServerOption) *HealthHTTPServer {
-	ret := &HealthHTTPServer{
+func NewServer(options ...ServerOption) *Server {
+	ret := &Server{
 		address:  ":6060",
 		taskName: "health handler",
 	}
 	for _, option := range options {
 		option(ret)
 	}
-	ret.handler = NewHealthHTTPHandler(ret.handlerOptions...)
+	ret.handler = NewHandler(ret.handlerOptions...)
 	return ret
 }
 
-var _ svcinit.Task = (*HealthHTTPServer)(nil)
-var _ svcinit.TaskName = (*HealthHTTPServer)(nil)
-var _ HealthHandler = (*HealthHTTPServer)(nil)
+var _ svcinit.Task = (*Server)(nil)
+var _ svcinit.TaskName = (*Server)(nil)
+var _ k8sinit.HealthHandler = (*Server)(nil)
 
-func (h *HealthHTTPServer) ServiceStarted() {
+func (h *Server) ServiceStarted() {
 	h.handler.ServiceStarted()
 }
 
-func (h *HealthHTTPServer) ServiceTerminating() {
+func (h *Server) ServiceTerminating() {
 	h.handler.ServiceTerminating()
 }
 
-func (h *HealthHTTPServer) Run(ctx context.Context, step svcinit.Step) (err error) {
+func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 	switch step {
 	case svcinit.StepSetup:
 		if h.httpServerProvider != nil {
@@ -72,34 +73,34 @@ func (h *HealthHTTPServer) Run(ctx context.Context, step svcinit.Step) (err erro
 	return nil
 }
 
-func (h *HealthHTTPServer) TaskName() string {
+func (h *Server) TaskName() string {
 	return h.taskName
 }
 
 // options
 
-type HealthHTTPServerOption func(*HealthHTTPServer)
+type ServerOption func(*Server)
 
-func WithHealthHTTPServerAddress(address string) HealthHTTPServerOption {
-	return func(h *HealthHTTPServer) {
+func WithServerAddress(address string) ServerOption {
+	return func(h *Server) {
 		h.address = address
 	}
 }
 
-func WithHealthHTTPServerProvider(provider func(ctx context.Context, address string) (*http.Server, error)) HealthHTTPServerOption {
-	return func(h *HealthHTTPServer) {
+func WithServerProvider(provider func(ctx context.Context, address string) (*http.Server, error)) ServerOption {
+	return func(h *Server) {
 		h.httpServerProvider = provider
 	}
 }
 
-func WithHealthHTTPServerTaskName(name string) HealthHTTPServerOption {
-	return func(h *HealthHTTPServer) {
+func WithServerTaskName(name string) ServerOption {
+	return func(h *Server) {
 		h.taskName = name
 	}
 }
 
-func WithHealthHTTPServerHandlerOptions(options ...HealthHTTPHandlerOption) HealthHTTPServerOption {
-	return func(h *HealthHTTPServer) {
+func WithServerHandlerOptions(options ...HandlerOption) ServerOption {
+	return func(h *Server) {
 		h.handlerOptions = options
 	}
 }

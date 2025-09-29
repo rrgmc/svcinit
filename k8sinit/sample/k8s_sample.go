@@ -7,6 +7,7 @@ import (
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
+	"github.com/rrgmc/svcinit/v3/k8sinit/health_http"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func run(ctx context.Context) error {
 	logger := defaultLogger(os.Stdout)
 
 	sinit, err := k8sinit.New(
-		k8sinit.WithHealthHandler(k8sinit.NewHealthHTTPServer()),
+		k8sinit.WithHealthHandler(health_http.NewServer()),
 		k8sinit.WithManagerOptions(
 			svcinit.WithLogger(logger),
 		),
