@@ -381,11 +381,13 @@ func TestManagerNilTask(t *testing.T) {
 	}
 }
 
-func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
+func TestManagerShutdownMainContextCancellation(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		items := &testList[string]{}
 
-		mainCtx, mainCancel := context.WithCancel(t.Context())
+		var err1 = errors.New("err1")
+
+		mainCtx, mainCancel := context.WithCancelCause(t.Context())
 
 		sinit, err := New()
 		assert.NilError(t, err)
@@ -393,26 +395,28 @@ func TestManagerShutdownContextNotCancelledByMainContext(t *testing.T) {
 		sinit.
 			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
+					items.add("start")
 					select {
 					case <-ctx.Done():
 					}
 					assert.Check(t, ctx.Err() != nil)
-					items.add("start")
+					assert.Check(t, errors.Is(context.Cause(ctx), err1))
 					return nil
 				}),
 				WithStop(func(ctx context.Context) error {
 					items.add("stop")
+					// shutdown context MUST NOT be cancelled at this step.
 					assert.Check(t, ctx.Err() == nil)
 					return nil
 				}),
 			))
 
 		time.AfterFunc(10*time.Second, func() {
-			mainCancel()
+			mainCancel(err1)
 		})
 
 		err = sinit.Run(mainCtx)
-		assert.ErrorIs(t, err, context.Canceled)
+		assert.ErrorIs(t, err, err1)
 		items.assertDeepEqual(t, []string{"start", "stop"})
 	})
 }
