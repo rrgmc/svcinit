@@ -52,12 +52,10 @@ func run(ctx context.Context) error {
 	healthService := NewHealthServiceImpl()
 
 	sinit, err := k8sinit.New(
+		k8sinit.WithLogger(defaultLogger(os.Stdout)),
 		k8sinit.WithHealthHandlerTask(health_http.NewServer(
 			health_http.WithProbeHandler(healthService),
 		)),
-		k8sinit.WithManagerOptions(
-			svcinit.WithLogger(logger),
-		),
 	)
 	if err != nil {
 		return err
