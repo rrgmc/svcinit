@@ -83,9 +83,7 @@ func run(ctx context.Context) error {
 	// Health service
 	//
 
-	//
 	// set a health handler which is also a task to be started/stopped.
-	//
 	sinit.SetHealthHandlerTask(health_http.NewServer(
 		health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
 		health_http.WithProbeHandler(healthHelper),
