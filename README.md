@@ -526,6 +526,8 @@ func run(ctx context.Context) error {
 The `github.com/rrgmc/svcinit/v3/k8sinit` package contains a Kubernetes service initialization pattern, which is the
 same as the above real world example.
 
+Full example source code in the [k8sinit/sample](k8sinit/sample/) folder.
+
 Here is the implementation of the same service above using this package:
 
 ```go
