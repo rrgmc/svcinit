@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"syscall"
@@ -261,11 +260,11 @@ func run(ctx context.Context) error {
 	//
 	sinit.AddTask(StageManagement, svcinit.SignalTask(os.Interrupt, syscall.SIGINT, syscall.SIGTERM))
 
-	//
-	// debug step: sleep 100ms and shutdown.
-	//
-	sinit.AddTask(StageManagement, svcinit.TimeoutTask(100*time.Millisecond,
-		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
+	// //
+	// // debug step: sleep 100ms and shutdown.
+	// //
+	// sinit.AddTask(StageManagement, svcinit.TimeoutTask(100*time.Millisecond,
+	// 	svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
 	//
 	// start execution

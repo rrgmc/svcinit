@@ -20,7 +20,15 @@ type Status struct {
 	IsTerminating bool
 }
 
-type ProbeHandler func(Probe, Status, http.ResponseWriter, *http.Request)
+type ProbeHandler interface {
+	ServeHTTP(Probe, Status, http.ResponseWriter, *http.Request)
+}
+
+type ProbeHandlerFunc func(Probe, Status, http.ResponseWriter, *http.Request)
+
+func (f ProbeHandlerFunc) ServeHTTP(probe Probe, status Status, w http.ResponseWriter, r *http.Request) {
+	f(probe, status, w, r)
+}
 
 type Handler struct {
 	StartupHandler   http.Handler
@@ -48,7 +56,7 @@ func NewHandler(options ...HandlerOption) *Handler {
 		option.applyHandlerOption(ret)
 	}
 	if ret.probeHandler == nil {
-		ret.probeHandler = DefaultProbeHandler
+		ret.probeHandler = ProbeHandlerFunc(DefaultProbeHandler)
 	}
 	ret.init()
 	return ret
@@ -139,19 +147,19 @@ func (h *Handler) init() {
 		h.isStarted.Store(true)
 	}
 	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler(ProbeStartup, Status{
+		h.probeHandler.ServeHTTP(ProbeStartup, Status{
 			IsStarted:     h.isStarted.Load(),
 			IsTerminating: h.isTerminating.Load(),
 		}, w, r)
 	})
 	h.LivenessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler(ProbeLiveness, Status{
+		h.probeHandler.ServeHTTP(ProbeLiveness, Status{
 			IsStarted:     h.isStarted.Load(),
 			IsTerminating: h.isTerminating.Load(),
 		}, w, r)
 	})
 	h.ReadinessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler(ProbeReadiness, Status{
+		h.probeHandler.ServeHTTP(ProbeReadiness, Status{
 			IsStarted:     h.isStarted.Load(),
 			IsTerminating: h.isTerminating.Load(),
 		}, w, r)

@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"sync/atomic"
+
+	"github.com/rrgmc/svcinit/v3/k8sinit/health_http"
 )
 
 //
@@ -14,41 +16,26 @@ import (
 //
 
 type HealthServiceImpl struct {
-	server *http.Server
+	db *sql.DB
 }
+
+var _ health_http.ProbeHandler = (*HealthServiceImpl)(nil)
 
 func NewHealthServiceImpl() *HealthServiceImpl {
-	return &HealthServiceImpl{
-		server: &http.Server{
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			}),
-			Addr: ":6060",
-		},
-	}
-}
-
-func (s *HealthServiceImpl) Start(ctx context.Context) error {
-	s.server.BaseContext = func(net.Listener) context.Context {
-		return ctx
-	}
-	return s.server.ListenAndServe()
-}
-
-func (s *HealthServiceImpl) Stop(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	return &HealthServiceImpl{}
 }
 
 func (s *HealthServiceImpl) AddDBHealth(db *sql.DB) {
-	// add the DB connection to be checked in the readiness probe...
+	s.db = db
 }
 
-func (s *HealthServiceImpl) ServiceStarted() {
-	// signal the startup / readiness probe that the service is ready...
-}
-
-func (s *HealthServiceImpl) ServiceTerminating() {
-	// signal the readiness probe that the service is terminating and not ready...
+func (s *HealthServiceImpl) ServeHTTP(probe health_http.Probe, status health_http.Status, w http.ResponseWriter, r *http.Request) {
+	if probe != health_http.ProbeReadiness {
+		health_http.DefaultProbeHandler(probe, status, w, r)
+		return
+	}
+	// TODO: use the DB handle to check for readiness
+	health_http.DefaultProbeHandler(probe, status, w, r)
 }
 
 //
