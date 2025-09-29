@@ -16,12 +16,13 @@ type TelemetryHandlerTask interface {
 }
 
 func (m *Manager) initTelemetry() error {
-	if m.telemetryHandler == nil {
-		m.telemetryHandler = &noopTelemetryHandler{}
-	}
-
 	if m.telemetryTask != nil {
 		m.AddTask(StageManagement, m.telemetryTask)
+	}
+
+	if m.telemetryHandler == nil {
+		m.telemetryHandler = &noopTelemetryHandler{}
+		return nil
 	}
 
 	// flush the metrics as fast as possible on SIGTERM.

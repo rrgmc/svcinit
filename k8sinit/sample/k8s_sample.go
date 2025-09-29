@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
@@ -31,12 +30,6 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	sinit.AddTask(k8sinit.StageInitialize, svcinit.BuildTask(
-		svcinit.WithSetup(func(ctx context.Context) error {
-			return sleepContext(ctx, 10*time.Second)
-		}),
-	))
 
 	sinit.AddTask(k8sinit.StageService, svcinit.BuildDataTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {

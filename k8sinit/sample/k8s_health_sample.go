@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
@@ -42,12 +41,6 @@ func runHealth(ctx context.Context) error {
 		}),
 		svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
 			return service.Shutdown(ctx)
-		}),
-	))
-
-	sinit.AddTask(k8sinit.StageInitialize, svcinit.BuildTask(
-		svcinit.WithSetup(func(ctx context.Context) error {
-			return sleepContext(ctx, 10*time.Second)
 		}),
 	))
 

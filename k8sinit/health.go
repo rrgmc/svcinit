@@ -17,13 +17,14 @@ type HealthHandlerTask interface {
 }
 
 func (m *Manager) initHealth() error {
-	if m.healthHandler == nil {
-		m.healthHandler = &noopHealthHandler{}
-	}
-
 	if m.healthTask != nil {
 		// health server must be the first to start and last to stop.
 		m.AddTask(StageManagement, m.healthTask)
+	}
+
+	if m.healthHandler == nil {
+		m.healthHandler = &noopHealthHandler{}
+		return nil
 	}
 
 	// the "ready" stage is executed after all initialization already happened. It is used to signal the
