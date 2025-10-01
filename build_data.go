@@ -6,13 +6,18 @@ import (
 	"sync/atomic"
 )
 
+type TaskWithData[T any] interface {
+	Task
+	TaskData() (T, error)
+}
+
 type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
 
 type TaskBuildDataSetupFunc[T any] func(ctx context.Context) (T, error)
 
 // BuildDataTask creates a task from callback functions, where some data is created in the "setup" step and passed
 // to all other steps.
-func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
+func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) TaskWithData[T] {
 	return newTaskBuildData[T](setupFunc, options...)
 }
 
@@ -73,13 +78,13 @@ type taskBuildData[T any] struct {
 	tbOptions       []TaskBuildOption
 }
 
-var _ Task = (*taskBuildData[int])(nil)
+var _ TaskWithData[int] = (*taskBuildData[int])(nil)
 var _ TaskName = (*taskBuildData[int])(nil)
 var _ TaskSteps = (*taskBuildData[int])(nil)
 var _ TaskWithOptions = (*taskBuildData[int])(nil)
 var _ TaskWithInitError = (*taskBuildData[int])(nil)
 
-func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) Task {
+func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) TaskWithData[T] {
 	ret := &taskBuildData[T]{
 		setupFunc: setupFunc,
 		stepFunc:  make(map[Step]TaskBuildDataFunc[T]),
@@ -118,6 +123,15 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 	ret.tb = newTaskBuild(ret.tbOptions...)
 
 	return ret
+}
+
+func (t *taskBuildData[T]) TaskData() (T, error) {
+	if data := t.data.Load(); data == nil {
+		var empty T
+		return empty, fmt.Errorf("%w: data not initialized", ErrNotInitialized)
+	} else {
+		return *data, nil
+	}
 }
 
 func (t *taskBuildData[T]) TaskSteps() []Step {
