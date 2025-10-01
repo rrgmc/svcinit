@@ -9,26 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rrgmc/svcinit/v3/health_http"
-	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
-
-//
-// OpenTelemetry handler
-//
-
-type TelemetryHandlerImpl struct {
-}
-
-var _ k8sinit.TelemetryHandler = (*TelemetryHandlerImpl)(nil)
-
-func NewTelemetryHandlerImpl() *TelemetryHandlerImpl {
-	return &TelemetryHandlerImpl{}
-}
-
-func (h *TelemetryHandlerImpl) FlushTelemetry(context.Context) error {
-	// TODO: flush metrics
-	return nil
-}
 
 //
 // Health webservice

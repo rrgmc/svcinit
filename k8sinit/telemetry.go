@@ -66,49 +66,36 @@ func (m *Manager) initRunTelemetry() {
 	}
 }
 
-func BuildTelemetryHandlerTask[T any](task svcinit.TaskWithData[T], options ...BuildTelemetryHandlerTaskOption[T]) TelemetryHandlerTask {
-	ret := &taskBuildTelemetryHandler[T]{
-		privateBaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{
-			Task: task,
-		},
-	}
+// BuildTelemetryHandler builds a TelemetryHandler from callback functions.
+func BuildTelemetryHandler(options ...BuildTelemetryHandlerOption) TelemetryHandler {
+	ret := &buildTelemetryHandler{}
 	for _, option := range options {
 		option(ret)
 	}
 	return ret
 }
 
-type BuildTelemetryHandlerTaskOption[T any] func(*taskBuildTelemetryHandler[T])
+type BuildTelemetryHandlerOption func(*buildTelemetryHandler)
 
-func WithDataFlushTelemetry[T any](f svcinit.TaskBuildDataFunc[T]) BuildTelemetryHandlerTaskOption[T] {
-	return func(build *taskBuildTelemetryHandler[T]) {
+func WithTelemetryHandlerFlushTelemetry(f svcinit.TaskBuildFunc) BuildTelemetryHandlerOption {
+	return func(build *buildTelemetryHandler) {
 		build.flushTelemetry = f
 	}
 }
 
 // internal
 
-type taskBuildTelemetryHandler[T any] struct {
-	*privateBaseOverloadedTask[svcinit.TaskWithData[T]]
-	flushTelemetry svcinit.TaskBuildDataFunc[T]
+type buildTelemetryHandler struct {
+	flushTelemetry svcinit.TaskBuildFunc
 }
 
-var _ svcinit.Task = (*taskBuildTelemetryHandler[svcinit.Task])(nil)
-var _ TelemetryHandler = (*taskBuildTelemetryHandler[svcinit.Task])(nil)
+var _ TelemetryHandler = (*buildTelemetryHandler)(nil)
 
-func (t *taskBuildTelemetryHandler[T]) Run(ctx context.Context, step svcinit.Step) error {
-	return t.Task.Run(ctx, step)
-}
-
-func (t *taskBuildTelemetryHandler[T]) FlushTelemetry(ctx context.Context) error {
+func (t *buildTelemetryHandler) FlushTelemetry(ctx context.Context) error {
 	if t.flushTelemetry == nil {
 		return nil
 	}
-	data, err := t.Task.TaskData()
-	if err != nil {
-		return err
-	}
-	return t.flushTelemetry(ctx, data)
+	return t.flushTelemetry(ctx)
 }
 
 type noopTelemetryHandler struct {
