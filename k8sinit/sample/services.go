@@ -25,7 +25,7 @@ func NewTelemetryHandlerImpl() *TelemetryHandlerImpl {
 	return &TelemetryHandlerImpl{}
 }
 
-func (h *TelemetryHandlerImpl) Flush(ctx context.Context) error {
+func (h *TelemetryHandlerImpl) FlushTelemetry(context.Context) error {
 	// TODO: flush metrics
 	return nil
 }

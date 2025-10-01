@@ -8,7 +8,7 @@ import (
 )
 
 type TelemetryHandler interface {
-	Flush(ctx context.Context) error
+	FlushTelemetry(ctx context.Context) error
 }
 
 type TelemetryHandlerTask interface {
@@ -32,7 +32,7 @@ func (m *Manager) SetTelemetryHandler(handler TelemetryHandler, options ...svcin
 	m.AddTask(StageService, svcinit.BuildTask(
 		// flush the current metrics as fast a possible.
 		// We may not have enough time if the shutdown takes too long.
-		svcinit.WithStop(m.TelemetryHandler().Flush),
+		svcinit.WithStop(m.TelemetryHandler().FlushTelemetry),
 		svcinit.WithName(TaskNameTelemetryFlush),
 	), options...)
 }
@@ -71,6 +71,6 @@ func (m *Manager) initRunTelemetry() {
 type noopTelemetryHandler struct {
 }
 
-func (h *noopTelemetryHandler) Flush(ctx context.Context) error {
+func (h *noopTelemetryHandler) FlushTelemetry(context.Context) error {
 	return nil
 }
