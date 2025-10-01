@@ -37,12 +37,12 @@ var _ svcinit.Task = (*Server)(nil)
 var _ svcinit.TaskName = (*Server)(nil)
 var _ svcinit.HealthHandler = (*Server)(nil)
 
-func (h *Server) ServiceStarted() {
-	h.handler.ServiceStarted()
+func (h *Server) ServiceStarted(ctx context.Context) {
+	h.handler.ServiceStarted(ctx)
 }
 
-func (h *Server) ServiceTerminating() {
-	h.handler.ServiceTerminating()
+func (h *Server) ServiceTerminating(ctx context.Context) {
+	h.handler.ServiceTerminating(ctx)
 }
 
 func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {

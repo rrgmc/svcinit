@@ -1,6 +1,7 @@
 package health_http
 
 import (
+	"context"
 	"net/http"
 	"sync/atomic"
 
@@ -65,12 +66,12 @@ func NewHandler(options ...HandlerOption) *Handler {
 }
 
 // ServiceStarted signals the handler that the service has started.
-func (h *Handler) ServiceStarted() {
+func (h *Handler) ServiceStarted(context.Context) {
 	h.isStarted.Store(true)
 }
 
 // ServiceTerminating signals the handler that the service is terminating.
-func (h *Handler) ServiceTerminating() {
+func (h *Handler) ServiceTerminating(context.Context) {
 	h.isTerminating.Store(true)
 }
 

@@ -29,7 +29,7 @@ func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svc
 	m.AddTask(StageReady, svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			m.logger.DebugContext(ctx, "service started, signaling probes")
-			m.HealthHandler().ServiceStarted()
+			m.HealthHandler().ServiceStarted(ctx)
 			return nil
 		}),
 		svcinit.WithName(TaskNameHealthStartedProbe),
@@ -40,7 +40,7 @@ func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svc
 	m.AddTask(StageService, svcinit.BuildTask(
 		svcinit.WithStop(func(ctx context.Context) error {
 			m.logger.DebugContext(ctx, "service terminating, signaling probes")
-			m.HealthHandler().ServiceTerminating()
+			m.HealthHandler().ServiceTerminating(ctx)
 			return nil
 		}),
 		svcinit.WithName(TaskNameHealthTerminatingProbe),
@@ -79,5 +79,5 @@ func (m *Manager) initRunHealth() {
 type noopHealthHandler struct {
 }
 
-func (h *noopHealthHandler) ServiceStarted()     {}
-func (h *noopHealthHandler) ServiceTerminating() {}
+func (h *noopHealthHandler) ServiceStarted(context.Context)     {}
+func (h *noopHealthHandler) ServiceTerminating(context.Context) {}
