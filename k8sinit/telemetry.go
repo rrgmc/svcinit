@@ -66,7 +66,50 @@ func (m *Manager) initRunTelemetry() {
 	}
 }
 
+func BuildTelemetryHandlerTask[T any](task svcinit.TaskWithData[T], options ...BuildTelemetryHandlerTaskOption[T]) TelemetryHandlerTask {
+	ret := &taskBuildTelemetryHandler[T]{
+		privateBaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{
+			Task: task,
+		},
+	}
+	for _, option := range options {
+		option(ret)
+	}
+	return ret
+}
+
+type BuildTelemetryHandlerTaskOption[T any] func(*taskBuildTelemetryHandler[T])
+
+func WithDataFlushTelemetry[T any](f svcinit.TaskBuildDataFunc[T]) BuildTelemetryHandlerTaskOption[T] {
+	return func(build *taskBuildTelemetryHandler[T]) {
+		build.flushTelemetry = f
+	}
+}
+
 // internal
+
+type taskBuildTelemetryHandler[T any] struct {
+	*privateBaseOverloadedTask[svcinit.TaskWithData[T]]
+	flushTelemetry svcinit.TaskBuildDataFunc[T]
+}
+
+var _ svcinit.Task = (*taskBuildTelemetryHandler[svcinit.Task])(nil)
+var _ TelemetryHandler = (*taskBuildTelemetryHandler[svcinit.Task])(nil)
+
+func (t *taskBuildTelemetryHandler[T]) Run(ctx context.Context, step svcinit.Step) error {
+	return t.Task.Run(ctx, step)
+}
+
+func (t *taskBuildTelemetryHandler[T]) FlushTelemetry(ctx context.Context) error {
+	if t.flushTelemetry == nil {
+		return nil
+	}
+	data, err := t.Task.TaskData()
+	if err != nil {
+		return err
+	}
+	return t.flushTelemetry(ctx, data)
+}
 
 type noopTelemetryHandler struct {
 }
@@ -74,3 +117,5 @@ type noopTelemetryHandler struct {
 func (h *noopTelemetryHandler) FlushTelemetry(context.Context) error {
 	return nil
 }
+
+type privateBaseOverloadedTask[T svcinit.Task] = svcinit.BaseOverloadedTask[T]

@@ -65,6 +65,8 @@ func run(ctx context.Context) error {
 	//
 
 	// initialize and close OpenTelemetry.
+	sinit.SetTelemetryHandlerTask(k8sinit.BuildTelemetryHandlerTask(svcinit.BuildDataTask[int]()))
+
 	sinit.SetTelemetryTask(svcinit.BuildTask(
 		svcinit.WithSetup(func(ctx context.Context) error {
 			// TODO: OpenTelemetry initialization
