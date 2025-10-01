@@ -598,7 +598,12 @@ func run(ctx context.Context) error {
         svcinit.WithName(k8sinit.TaskNameTelemetry),
     ))
     // handle flushing metrics when service begins shutdown.
-    sinit.SetTelemetryHandler(NewTelemetryHandlerImpl())
+    sinit.SetTelemetryHandler(k8sinit.BuildTelemetryHandler(
+        k8sinit.WithTelemetryHandlerFlushTelemetry(func(ctx context.Context) error {
+            // TODO: flush metrics
+            return nil
+        }),
+    ))
 
     //
     // Health service
