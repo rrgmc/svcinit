@@ -14,7 +14,7 @@ type TaskFuture[T any] interface {
 func NewTaskFuture[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) TaskFuture[T] {
 	dr := NewFuture[T]()
 	return &taskFuture[T]{
-		BaseOverloadedTask: &BaseOverloadedTask{BuildDataTask[T](func(ctx context.Context) (T, error) {
+		BaseOverloadedTask: &BaseOverloadedTask[TaskWithData[T]]{BuildDataTask[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				dr.ResolveError(err)
@@ -31,7 +31,7 @@ func NewTaskFuture[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBu
 // internal
 
 type taskFuture[T any] struct {
-	*BaseOverloadedTask
+	*BaseOverloadedTask[TaskWithData[T]]
 	future FutureResolver[T]
 }
 
