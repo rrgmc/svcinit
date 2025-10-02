@@ -89,12 +89,14 @@ func run(ctx context.Context) error {
 	// It also allows customization of the probe HTTP responses.
 	healthHelper := NewHealthHelperImpl()
 
-	// set a health handler which is also a task to be started/stopped.
-	sinit.SetHealthHandlerTask(health_http.NewServer(
+	// set a health handler and task. [health_http.Server] supports both using the same object.
+	healthTask := health_http.NewServer(
 		health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
 		health_http.WithProbeHandler(healthHelper),
 		health_http.WithServerTaskName(k8sinit.TaskNameHealth),
-	))
+	)
+	sinit.SetHealthTask(healthTask)
+	sinit.SetHealthHandler(healthTask)
 
 	//
 	// initialize data to be used by the service, like database and cache connections.

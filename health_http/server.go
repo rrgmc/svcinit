@@ -18,9 +18,8 @@ type Server struct {
 }
 
 // NewServer creates a separate http server for using as a health handler.
-// If implements [svcinit.HealthHandler] and [svcinit.Task], so besides being used as a [svcinit.HealthHandler],
-// it must be started as a [svcinit.Task].
-// If using `k8sinit`, it must be added with [k8sinit.Manager.SetHealthHandlerTask].
+// It implements [svcinit.HealthHandler] and [svcinit.Task], so besides being used as a [svcinit.HealthHandler],
+// it must also be started as a [svcinit.Task].
 func NewServer(options ...ServerOption) *Server {
 	ret := &Server{
 		address:  ":6060",

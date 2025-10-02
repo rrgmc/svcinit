@@ -7,11 +7,6 @@ import (
 	"github.com/rrgmc/svcinit/v3"
 )
 
-type HealthHandlerTask interface {
-	svcinit.HealthHandler
-	svcinit.Task
-}
-
 // SetHealthHandler sets a health handler. The task options will be set to all internal tasks.
 func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svcinit.TaskOption) {
 	if handler == nil {
@@ -45,16 +40,6 @@ func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svc
 		}),
 		svcinit.WithName(TaskNameHealthTerminatingProbe),
 	), options...)
-}
-
-// SetHealthHandlerTask uses the same instance on both SetHealthHandler and SetHealthTask.
-func (m *Manager) SetHealthHandlerTask(handlerTask HealthHandlerTask, options ...svcinit.TaskOption) {
-	if m.healthHandler != nil || m.healthTask != nil {
-		m.manager.AddInitError(fmt.Errorf("%w: health handler and/or task was already set", svcinit.ErrAlreadyInitialized))
-		return
-	}
-	m.SetHealthHandler(handlerTask, options...)
-	m.SetHealthTask(handlerTask, options...)
 }
 
 // SetHealthTask sets the health task. It will be added to the "management" stage.

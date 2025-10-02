@@ -11,11 +11,6 @@ type TelemetryHandler interface {
 	FlushTelemetry(ctx context.Context) error
 }
 
-type TelemetryHandlerTask interface {
-	TelemetryHandler
-	svcinit.Task
-}
-
 // SetTelemetryHandler sets a telemetry handler. The task options will be set to all internal tasks.
 func (m *Manager) SetTelemetryHandler(handler TelemetryHandler, options ...svcinit.TaskOption) {
 	if handler == nil {
@@ -35,16 +30,6 @@ func (m *Manager) SetTelemetryHandler(handler TelemetryHandler, options ...svcin
 		svcinit.WithStop(m.TelemetryHandler().FlushTelemetry),
 		svcinit.WithName(TaskNameTelemetryFlush),
 	), options...)
-}
-
-// SetTelemetryHandlerTask uses the same instance on both SetTelemetryHandler and SetTelemetryTask.
-func (m *Manager) SetTelemetryHandlerTask(handlerTask TelemetryHandlerTask, options ...svcinit.TaskOption) {
-	if m.telemetryHandler != nil || m.telemetryTask != nil {
-		m.manager.AddInitError(fmt.Errorf("%w: telemetry handler and/or task was already set", svcinit.ErrAlreadyInitialized))
-		return
-	}
-	m.SetTelemetryHandler(handlerTask, options...)
-	m.SetTelemetryTask(handlerTask, options...)
 }
 
 // SetTelemetryTask sets the telemetry task. It will be added to the "management" stage.
