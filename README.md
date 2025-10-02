@@ -570,10 +570,6 @@ func main() {
 func run(ctx context.Context) error {
     logger := defaultLogger(os.Stdout)
 
-    // healthHelper is created in advance because it supports setting a DB instance for the readiness probe to use.
-    // Otherwise, [health_http.WithProbeHandler] would not need to be added, a default implementation would be used.
-    healthHelper := NewHealthHelperImpl()
-
     sinit, err := k8sinit.New(
         k8sinit.WithLogger(defaultLogger(os.Stdout)),
     )
@@ -609,12 +605,19 @@ func run(ctx context.Context) error {
     // Health service
     //
 
-    // set a health handler which is also a task to be started/stopped.
-    sinit.SetHealthHandlerTask(health_http.NewServer(
+    // healthHelper is created in advance because it supports setting a DB instance for the readiness probe to use.
+    // Otherwise, [health_http.WithProbeHandler] would not need to be added, a default implementation would be used.
+    // It also allows customization of the probe HTTP responses.
+    healthHelper := NewHealthHelperImpl()
+
+    // set a health handler and task. [health_http.Server] supports both using the same object.
+    healthTask := health_http.NewServer(
         health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
         health_http.WithProbeHandler(healthHelper),
         health_http.WithServerTaskName(k8sinit.TaskNameHealth),
-    ))
+    )
+    sinit.SetHealthTask(healthTask)
+    sinit.SetHealthHandler(healthTask)
 
     //
     // initialize data to be used by the service, like database and cache connections.
