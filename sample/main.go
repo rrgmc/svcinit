@@ -200,6 +200,7 @@ func run(ctx context.Context) error {
 	//
 	sinit.AddTask(StageService, instancetask.Provider(
 		func(ctx context.Context) (svcinit.Task, error) {
+			// Provide the task to be executed.
 			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {
 				return nil, err
