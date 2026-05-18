@@ -8,7 +8,7 @@ import (
 	"github.com/rrgmc/svcinit/v3/instancetask"
 )
 
-func NewTaskFuture[T any](setupFunc instancetask.BuildSetupFunc[T],
+func New[T any](setupFunc instancetask.BuildSetupFunc[T],
 	options ...instancetask.BuildOption[T]) svcinit.TaskFuture[T] {
 	dr := svcinit.NewFuture[T]()
 	return &taskFuture[T]{

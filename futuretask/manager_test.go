@@ -32,7 +32,7 @@ func TestManagerInitData(t *testing.T) {
 		)
 		assert.NilError(t, err)
 
-		initTask1 := NewTaskFuture[*idata1](
+		initTask1 := New[*idata1](
 			func(ctx context.Context) (*idata1, error) {
 				items.Add("i1setup")
 				ivalue := idata1{
@@ -44,7 +44,7 @@ func TestManagerInitData(t *testing.T) {
 			instancetask.WithName[*idata1]("idata1"))
 		sinit.AddTask("init", initTask1)
 
-		initTask2 := NewTaskFuture[*idata2](
+		initTask2 := New[*idata2](
 			func(ctx context.Context) (*idata2, error) {
 				items.Add("i2setup")
 				ivalue := idata2{

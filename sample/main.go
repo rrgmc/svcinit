@@ -113,7 +113,7 @@ func run(ctx context.Context) error {
 	// health server must be the first to start and last to stop.
 	// created as a future task so it can be accessed by other tasks.
 	// other tasks can wait for it to become available.
-	healthTask := futuretask.NewTaskFuture[HealthService](
+	healthTask := futuretask.New[HealthService](
 		func(ctx context.Context) (HealthService, error) {
 			return NewHealthServiceImpl(), nil
 		},
@@ -165,7 +165,7 @@ func run(ctx context.Context) error {
 	type initTaskData struct {
 		db *sql.DB
 	}
-	initTask := futuretask.NewTaskFuture[*initTaskData](
+	initTask := futuretask.New[*initTaskData](
 		func(ctx context.Context) (data *initTaskData, err error) {
 			data = &initTaskData{}
 

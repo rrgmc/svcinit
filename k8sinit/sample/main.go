@@ -108,7 +108,7 @@ func run(ctx context.Context) error {
 	type initTaskData struct {
 		db *sql.DB
 	}
-	initTask := futuretask.NewTaskFuture[*initTaskData](
+	initTask := futuretask.New[*initTaskData](
 		func(ctx context.Context) (data *initTaskData, err error) {
 			data = &initTaskData{}
 
