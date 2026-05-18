@@ -76,6 +76,7 @@ import (
     "time"
 
     "github.com/rrgmc/svcinit/v3"
+    "github.com/rrgmc/svcinit/v3/instancetask"
 )
 
 // healthService implements an HTTP server used to serve health probes.
@@ -124,21 +125,21 @@ func ExampleManager() {
     }
 
     // add a task to start health HTTP server before the service, and stop it after.
-    sinit.AddTask("manage", svcinit.BuildDataTask[*healthService](
+    sinit.AddTask("manage", instancetask.Build[*healthService](
         // the "BuildDataTask" setup callback returns an instance that is sent to all following steps.
         func(ctx context.Context) (*healthService, error) {
             return newHealthService(), nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, service *healthService) error {
+        instancetask.WithStart(func(ctx context.Context, service *healthService) error {
             return service.Start(ctx)
         }),
-        svcinit.WithDataStop(func(ctx context.Context, service *healthService) error {
+        instancetask.WithStop(func(ctx context.Context, service *healthService) error {
             return service.Stop(ctx)
         }),
     ))
 
     // add a task to start the core HTTP server.
-    sinit.AddTask("service", svcinit.BuildDataTask[*http.Server](
+    sinit.AddTask("service", instancetask.Build[*http.Server](
         func(ctx context.Context) (*http.Server, error) {
             // initialize the service in the setup step.
             // as this may take some time in bigger services, initializing here allows other tasks to initialize
@@ -151,7 +152,7 @@ func ExampleManager() {
             }
             return server, nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, service *http.Server) error {
+        instancetask.WithStart(func(ctx context.Context, service *http.Server) error {
             service.BaseContext = func(net.Listener) context.Context {
                 return ctx
             }
@@ -159,7 +160,7 @@ func ExampleManager() {
         }),
         // stop the service. By default, the context is NOT cancelled, this method must arrange for the start
         // function to end.
-        svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
+        instancetask.WithStop(func(ctx context.Context, service *http.Server) error {
             return service.Shutdown(ctx)
         }),
     ))
@@ -200,6 +201,8 @@ import (
     "time"
 
     "github.com/rrgmc/svcinit/v3"
+    "github.com/rrgmc/svcinit/v3/futuretask"
+    "github.com/rrgmc/svcinit/v3/instancetask"
 )
 
 const (
@@ -302,17 +305,17 @@ func run(ctx context.Context) error {
     // health server must be the first to start and last to stop.
     // created as a future task so it can be accessed by other tasks.
     // other tasks can wait for it to become available.
-    healthTask := svcinit.NewTaskFuture[HealthService](
+    healthTask := futuretask.New[HealthService](
         func(ctx context.Context) (HealthService, error) {
             return NewHealthServiceImpl(), nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, service HealthService) error {
+        instancetask.WithStart(func(ctx context.Context, service HealthService) error {
             return service.Start(ctx)
         }),
-        svcinit.WithDataStop(func(ctx context.Context, service HealthService) error {
+        instancetask.WithStop(func(ctx context.Context, service HealthService) error {
             return service.Stop(ctx)
         }),
-        svcinit.WithDataName[HealthService]("health service"),
+        instancetask.WithName[HealthService]("health service"),
     )
     sinit.AddTask(StageManagement, healthTask)
 
@@ -354,7 +357,7 @@ func run(ctx context.Context) error {
     type initTaskData struct {
         db *sql.DB
     }
-    initTask := svcinit.NewTaskFuture[*initTaskData](
+    initTask := futuretask.New[*initTaskData](
         func(ctx context.Context) (data *initTaskData, err error) {
             data = &initTaskData{}
 
@@ -375,37 +378,34 @@ func run(ctx context.Context) error {
             logger.InfoContext(ctx, "data initialization finished")
             return
         },
-        svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
+        instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
             logger.InfoContext(ctx, "closing database connection")
             // return data.db.Close()
             return nil
         }),
-        svcinit.WithDataName[*initTaskData]("init data"),
+        instancetask.WithName[*initTaskData]("init data"),
     )
     sinit.AddTask(StageInitialize, initTask)
 
     //
     // initialize and start the HTTP service.
     //
-    sinit.AddTask(StageService, svcinit.BuildDataTask[svcinit.Task](
+    sinit.AddTask(StageService, instancetask.Provider(
         func(ctx context.Context) (svcinit.Task, error) {
-            // using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
-            // sets it as the parent task, and all of its steps are added to this one.
-            // This makes Start and Stop be called automatically.
+            // Provide the task to be executed.
             initData, err := initTask.Value() // get the init value from the future declared above.
             if err != nil {
                 return nil, err
             }
             return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
         },
-        svcinit.WithDataParentFromSetup[svcinit.Task](true),
-        svcinit.WithDataName[svcinit.Task]("HTTP service"),
+        instancetask.WithName[svcinit.Task]("HTTP service"),
     ))
 
     //
     // initialize and start the messaging service.
     //
-    sinit.AddTask(StageService, svcinit.BuildDataTask[MessagingService](
+    sinit.AddTask(StageService, instancetask.Build[MessagingService](
         func(ctx context.Context) (MessagingService, error) {
             initData, err := initTask.Value() // get the init value from the future declared above.
             if err != nil {
@@ -413,11 +413,11 @@ func run(ctx context.Context) error {
             }
             return NewMessagingServiceImpl(logger, initData.db), nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, service MessagingService) error {
+        instancetask.WithStart(func(ctx context.Context, service MessagingService) error {
             // service is the object returned from the setup step function above.
             return service.Start(ctx)
         }),
-        svcinit.WithDataStop(func(ctx context.Context, service MessagingService) error {
+        instancetask.WithStop(func(ctx context.Context, service MessagingService) error {
             // service is the object returned from the setup step function above.
             err := service.Stop(ctx)
             if err != nil {
@@ -443,7 +443,7 @@ func run(ctx context.Context) error {
             }
             return nil
         }),
-        svcinit.WithDataName[MessagingService]("Messaging service"),
+        instancetask.WithName[MessagingService]("Messaging service"),
     ), svcinit.WithStartStepManager())
 
     //
