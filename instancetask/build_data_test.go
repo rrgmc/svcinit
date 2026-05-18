@@ -3,7 +3,6 @@ package instancetask
 import (
 	"cmp"
 	"context"
-	"errors"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -115,11 +114,38 @@ func (l *testList[T]) checkDeepEqual(t *testing.T, expected []T) bool {
 }
 
 // sleepContext sleeps while checking for context cancellation.
-func sleepContext(ctx context.Context, duration time.Duration) error {
+// Returns nil for any option by default. These can be changed by options.
+func sleepContext(ctx context.Context, duration time.Duration, options ...sleepContextOption) error {
+	var optns sleepContextOptions
+	for _, opt := range options {
+		opt(&optns)
+	}
 	select {
 	case <-ctx.Done():
-		return context.Cause(ctx)
+		if optns.contextError {
+			return context.Cause(ctx)
+		}
+		return nil
 	case <-time.After(duration):
-		return errors.New("timeout")
+		return optns.timeoutErr
 	}
+}
+
+type sleepContextOption func(*sleepContextOptions)
+
+func withSleepContextError(contextError bool) sleepContextOption {
+	return func(opts *sleepContextOptions) {
+		opts.contextError = contextError
+	}
+}
+
+func withSleepContextTimeoutError(timeoutErr error) sleepContextOption {
+	return func(o *sleepContextOptions) {
+		o.timeoutErr = timeoutErr
+	}
+}
+
+type sleepContextOptions struct {
+	contextError bool
+	timeoutErr   error
 }
