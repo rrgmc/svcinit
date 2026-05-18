@@ -11,6 +11,7 @@ import (
 	cmp2 "github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/rrgmc/svcinit/v3"
+	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
 	cmp3 "gotest.tools/v3/assert/cmp"
 )
@@ -71,7 +72,7 @@ func TestBuildDataTask(t *testing.T) {
 					items.add("start")
 					assert.Check(t, cmp2.Equal("test", data.value1))
 					assert.Check(t, cmp2.Equal(13, data.value2))
-					return sleepContext(ctx, time.Second)
+					return testutils.SleepContext(ctx, time.Second)
 				}),
 				WithDataStop(func(ctx context.Context, data *data) error {
 					items.add("stop")
@@ -111,41 +112,4 @@ func (l *testList[T]) assertDeepEqual(t *testing.T, expected []T) {
 
 func (l *testList[T]) checkDeepEqual(t *testing.T, expected []T) bool {
 	return assert.Check(t, cmp3.DeepEqual(expected, l.get(), cmpopts.SortSlices(cmp.Less[string])))
-}
-
-// sleepContext sleeps while checking for context cancellation.
-// Returns nil for any option by default. These can be changed by options.
-func sleepContext(ctx context.Context, duration time.Duration, options ...sleepContextOption) error {
-	var optns sleepContextOptions
-	for _, opt := range options {
-		opt(&optns)
-	}
-	select {
-	case <-ctx.Done():
-		if optns.contextError {
-			return context.Cause(ctx)
-		}
-		return nil
-	case <-time.After(duration):
-		return optns.timeoutErr
-	}
-}
-
-type sleepContextOption func(*sleepContextOptions)
-
-func withSleepContextError(contextError bool) sleepContextOption {
-	return func(opts *sleepContextOptions) {
-		opts.contextError = contextError
-	}
-}
-
-func withSleepContextTimeoutError(timeoutErr error) sleepContextOption {
-	return func(o *sleepContextOptions) {
-		o.timeoutErr = timeoutErr
-	}
-}
-
-type sleepContextOptions struct {
-	contextError bool
-	timeoutErr   error
 }
