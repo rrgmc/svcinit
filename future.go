@@ -13,6 +13,12 @@ var (
 	ErrNotResolved     = errors.New("not resolved")
 )
 
+// TaskFuture is a Task with data where the return of the setup step will resolve the Future.
+type TaskFuture[T any] interface {
+	Task
+	Future[T]
+}
+
 // Future is a proxy for a result that will be resolved in the future.
 type Future[T any] interface {
 	// Value gets the resolved future value.
