@@ -67,7 +67,7 @@ func WithDataTaskOptions[T any](options ...svcinit.TaskInstanceOption) TaskBuild
 // internal
 
 type taskBuildData[T any] struct {
-	tb              *taskBuild
+	tb              svcinit.TaskBuild
 	data            atomic.Pointer[T]
 	setupFunc       TaskBuildDataSetupFunc[T]
 	stepFunc        map[svcinit.Step]TaskBuildDataFunc[T]
@@ -117,7 +117,7 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 		}
 	}
 
-	ret.tb = svcinit.newTaskBuild(ret.tbOptions...)
+	ret.tb = svcinit.BuildTask(ret.tbOptions...)
 
 	return ret
 }
@@ -154,7 +154,7 @@ func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
 	t.data.Store(&data)
 	if t.parentFromSetup {
 		if tt, ok := any(data).(svcinit.Task); ok {
-			err := t.tb.setParent(tt)
+			err := t.tb.SetParent(tt)
 			if err != nil {
 				return err
 			}
@@ -169,7 +169,7 @@ func (t *taskBuildData[T]) runStep(ctx context.Context, step svcinit.Step) error
 	if fn, ok := t.stepFunc[step]; ok {
 		return fn(ctx, *t.data.Load())
 	}
-	return svcinit.newInvalidTaskStep(step)
+	return fmt.Errorf("%w: %s", svcinit.ErrInvalidTaskStep, step)
 }
 
 func (t *taskBuildData[T]) Run(ctx context.Context, step svcinit.Step) error {

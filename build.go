@@ -10,10 +10,20 @@ import (
 	"sync/atomic"
 )
 
+type TaskBuild interface {
+	Task
+	TaskName
+	TaskSteps
+	TaskWithOptions
+	TaskWithInitError
+	SetParent(parent Task) error
+	String() string
+}
+
 type TaskBuildFunc func(ctx context.Context) error
 
 // BuildTask creates a task from callback functions.
-func BuildTask(options ...TaskBuildOption) Task {
+func BuildTask(options ...TaskBuildOption) TaskBuild {
 	return newTaskBuild(options...)
 }
 
@@ -163,7 +173,7 @@ func (t *taskBuild) isEmpty() bool {
 	return false
 }
 
-func (t *taskBuild) setParent(parent Task) error {
+func (t *taskBuild) SetParent(parent Task) error {
 	if parent == nil {
 		t.parent.Store(nil)
 	} else {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/health_http"
+	"github.com/rrgmc/svcinit/v3/instancetask"
 	"github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
@@ -31,7 +32,7 @@ func runSingleHTTP(ctx context.Context) error {
 	sinit.SetHealthHandler(healthHandler)
 
 	// start the main HTTP server as the health task, so it starts at the right time.
-	sinit.SetHealthTask(svcinit.BuildDataTask[*http.Server](
+	sinit.SetHealthTask(instancetask.BuildDataTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			mux := http.NewServeMux()
 			healthHandler.Register(mux)
@@ -40,13 +41,13 @@ func runSingleHTTP(ctx context.Context) error {
 				Addr:    ":8080",
 			}, nil
 		},
-		svcinit.WithDataStart(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithDataStart(func(ctx context.Context, service *http.Server) error {
 			return service.ListenAndServe()
 		}),
-		svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithDataStop(func(ctx context.Context, service *http.Server) error {
 			return service.Shutdown(ctx)
 		}),
-		svcinit.WithDataName[*http.Server](k8sinit.TaskNameHealth),
+		instancetask.WithDataName[*http.Server](k8sinit.TaskNameHealth),
 	))
 
 	//
