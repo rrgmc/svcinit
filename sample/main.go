@@ -198,18 +198,14 @@ func run(ctx context.Context) error {
 	//
 	// initialize and start the HTTP service.
 	//
-	sinit.AddTask(StageService, instancetask.Build[svcinit.Task](
+	sinit.AddTask(StageService, instancetask.Provider(
 		func(ctx context.Context) (svcinit.Task, error) {
-			// using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
-			// sets it as the parent task, and all of its steps are added to this one.
-			// This makes Start and Stop be called automatically.
 			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {
 				return nil, err
 			}
 			return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
 		},
-		instancetask.WithParentFromSetup[svcinit.Task](true),
 		instancetask.WithName[svcinit.Task]("HTTP service"),
 	))
 
