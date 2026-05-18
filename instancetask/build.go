@@ -8,42 +8,42 @@ import (
 	"github.com/rrgmc/svcinit/v3"
 )
 
-type TaskBuildFunc[T any] func(ctx context.Context, data T) error
+type BuildFunc[T any] func(ctx context.Context, data T) error
 
-type TaskBuildSetupFunc[T any] func(ctx context.Context) (T, error)
+type BuildSetupFunc[T any] func(ctx context.Context) (T, error)
 
-// BuildTask creates a task from callback functions, where some data is created in the "setup" step and passed
+// Build creates a task from callback functions, where some data is created in the "setup" step and passed
 // to all other steps.
-func BuildTask[T any](setupFunc TaskBuildSetupFunc[T], options ...TaskBuildOption[T]) svcinit.TaskWithData[T] {
+func Build[T any](setupFunc BuildSetupFunc[T], options ...BuildOption[T]) svcinit.TaskWithData[T] {
 	return newTaskBuild[T](setupFunc, options...)
 }
 
-type TaskBuildOption[T any] func(*taskBuild[T])
+type BuildOption[T any] func(*taskBuild[T])
 
 // WithName sets the task name.
-func WithName[T any](name string) TaskBuildOption[T] {
+func WithName[T any](name string) BuildOption[T] {
 	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithName(name))
 	}
 }
 
 // WithStart sets a callback for the "start" step.
-func WithStart[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+func WithStart[T any](f BuildFunc[T]) BuildOption[T] {
 	return withStep(svcinit.StepStart, f)
 }
 
 // WithStop sets a callback for the "stop" step.
-func WithStop[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+func WithStop[T any](f BuildFunc[T]) BuildOption[T] {
 	return withStep(svcinit.StepStop, f)
 }
 
 // WithTeardown sets a callback for the "teardown" step.
-func WithTeardown[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+func WithTeardown[T any](f BuildFunc[T]) BuildOption[T] {
 	return withStep(svcinit.StepTeardown, f)
 }
 
 // WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
-func WithParent[T any](parent svcinit.Task) TaskBuildOption[T] {
+func WithParent[T any](parent svcinit.Task) BuildOption[T] {
 	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithParent(parent))
 	}
@@ -51,14 +51,14 @@ func WithParent[T any](parent svcinit.Task) TaskBuildOption[T] {
 
 // WithParentFromSetup sets a parent task from the result of the "setup" task.
 // If this value doesn't implement Task, an initialization error will be issued.
-func WithParentFromSetup[T any](parentFromSetup bool) TaskBuildOption[T] {
+func WithParentFromSetup[T any](parentFromSetup bool) BuildOption[T] {
 	return func(build *taskBuild[T]) {
 		build.parentFromSetup = parentFromSetup
 	}
 }
 
 // WithTaskOptions sets default task options for the TaskOption interface.
-func WithTaskOptions[T any](options ...svcinit.TaskInstanceOption) TaskBuildOption[T] {
+func WithTaskOptions[T any](options ...svcinit.TaskInstanceOption) BuildOption[T] {
 	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithTaskOptions(options...))
 	}
@@ -69,8 +69,8 @@ func WithTaskOptions[T any](options ...svcinit.TaskInstanceOption) TaskBuildOpti
 type taskBuild[T any] struct {
 	tb              svcinit.TaskBuild
 	data            atomic.Pointer[T]
-	setupFunc       TaskBuildSetupFunc[T]
-	stepFunc        map[svcinit.Step]TaskBuildFunc[T]
+	setupFunc       BuildSetupFunc[T]
+	stepFunc        map[svcinit.Step]BuildFunc[T]
 	parentFromSetup bool
 	tbOptions       []svcinit.TaskBuildOption
 }
@@ -81,10 +81,10 @@ var _ svcinit.TaskSteps = (*taskBuild[int])(nil)
 var _ svcinit.TaskWithOptions = (*taskBuild[int])(nil)
 var _ svcinit.TaskWithInitError = (*taskBuild[int])(nil)
 
-func newTaskBuild[T any](setupFunc TaskBuildSetupFunc[T], options ...TaskBuildOption[T]) svcinit.TaskWithData[T] {
+func newTaskBuild[T any](setupFunc BuildSetupFunc[T], options ...BuildOption[T]) svcinit.TaskWithData[T] {
 	ret := &taskBuild[T]{
 		setupFunc: setupFunc,
-		stepFunc:  make(map[svcinit.Step]TaskBuildFunc[T]),
+		stepFunc:  make(map[svcinit.Step]BuildFunc[T]),
 	}
 	for _, opt := range options {
 		opt(ret)
@@ -184,7 +184,7 @@ func (t *taskBuild[T]) String() string {
 	return t.tb.String()
 }
 
-func withStep[T any](step svcinit.Step, f TaskBuildFunc[T]) TaskBuildOption[T] {
+func withStep[T any](step svcinit.Step, f BuildFunc[T]) BuildOption[T] {
 	return func(build *taskBuild[T]) {
 		build.stepFunc[step] = f
 	}

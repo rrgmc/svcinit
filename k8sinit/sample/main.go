@@ -137,7 +137,7 @@ func run(ctx context.Context) error {
 	//
 	// initialize and start the HTTP service.
 	//
-	sinit.AddTask(k8sinit.StageService, instancetask.BuildTask[svcinit.Task](
+	sinit.AddTask(k8sinit.StageService, instancetask.Build[svcinit.Task](
 		func(ctx context.Context) (svcinit.Task, error) {
 			// using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
 			// sets it as the parent task, and all of its steps are added to this one.
@@ -155,7 +155,7 @@ func run(ctx context.Context) error {
 	//
 	// initialize and start the messaging service.
 	//
-	sinit.AddTask(k8sinit.StageService, instancetask.BuildTask[MessagingService](
+	sinit.AddTask(k8sinit.StageService, instancetask.Build[MessagingService](
 		func(ctx context.Context) (MessagingService, error) {
 			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {

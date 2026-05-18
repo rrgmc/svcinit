@@ -60,7 +60,7 @@ func ExampleManager() {
 	}
 
 	// add a task to start health HTTP server before the service, and stop it after.
-	sinit.AddTask("manage", instancetask.BuildTask[*healthService](
+	sinit.AddTask("manage", instancetask.Build[*healthService](
 		// the "BuildDataTask" setup callback returns an instance that is sent to all following steps.
 		func(ctx context.Context) (*healthService, error) {
 			return newHealthService(), nil
@@ -74,7 +74,7 @@ func ExampleManager() {
 	))
 
 	// add a task to start the core HTTP server.
-	sinit.AddTask("service", instancetask.BuildTask[*http.Server](
+	sinit.AddTask("service", instancetask.Build[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			// initialize the service in the setup step.
 			// as this may take some time in bigger services, initializing here allows other tasks to initialize

@@ -8,11 +8,11 @@ import (
 	"github.com/rrgmc/svcinit/v3/instancetask"
 )
 
-func NewTaskFuture[T any](setupFunc instancetask.TaskBuildSetupFunc[T],
-	options ...instancetask.TaskBuildOption[T]) svcinit.TaskFuture[T] {
+func NewTaskFuture[T any](setupFunc instancetask.BuildSetupFunc[T],
+	options ...instancetask.BuildOption[T]) svcinit.TaskFuture[T] {
 	dr := svcinit.NewFuture[T]()
 	return &taskFuture[T]{
-		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{instancetask.BuildTask[T](func(ctx context.Context) (T, error) {
+		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{instancetask.Build[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				dr.ResolveError(err)

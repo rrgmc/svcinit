@@ -32,7 +32,7 @@ func runSingleHTTP(ctx context.Context) error {
 	sinit.SetHealthHandler(healthHandler)
 
 	// start the main HTTP server as the health task, so it starts at the right time.
-	sinit.SetHealthTask(instancetask.BuildTask[*http.Server](
+	sinit.SetHealthTask(instancetask.Build[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			mux := http.NewServeMux()
 			healthHandler.Register(mux)

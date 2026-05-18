@@ -19,7 +19,7 @@ func TestBuildDataTaskEmpty(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
 
-		sinit.AddTask(svcinit.StageDefault, BuildTask[int](nil))
+		sinit.AddTask(svcinit.StageDefault, Build[int](nil))
 
 		sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second))
 
@@ -33,7 +33,7 @@ func TestBuildDataTaskEmptyNil(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
 
-		sinit.AddTask(svcinit.StageDefault, BuildTask[int](
+		sinit.AddTask(svcinit.StageDefault, Build[int](
 			func(ctx context.Context) (int, error) {
 				return 1, nil
 			},
@@ -60,7 +60,7 @@ func TestBuildDataTask(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(svcinit.StageDefault, BuildTask(func(ctx context.Context) (*data, error) {
+			AddTask(svcinit.StageDefault, Build(func(ctx context.Context) (*data, error) {
 				return &data{
 					value1: "test",
 					value2: 13,
