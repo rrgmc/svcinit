@@ -9,6 +9,11 @@ type Task interface {
 	Run(ctx context.Context, step Step) error
 }
 
+type TaskWithData[T any] interface {
+	Task
+	TaskData() (T, error)
+}
+
 type TaskFunc func(ctx context.Context, step Step) error
 
 func (t TaskFunc) Run(ctx context.Context, step Step) error {

@@ -6,11 +6,6 @@ import (
 	"sync/atomic"
 )
 
-type TaskWithData[T any] interface {
-	Task
-	TaskData() (T, error)
-}
-
 type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
 
 type TaskBuildDataSetupFunc[T any] func(ctx context.Context) (T, error)
