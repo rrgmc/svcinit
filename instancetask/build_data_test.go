@@ -3,7 +3,6 @@ package instancetask
 import (
 	"cmp"
 	"context"
-	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
-	cmp3 "gotest.tools/v3/assert/cmp"
 )
 
 func TestBuildDataTaskEmpty(t *testing.T) {
@@ -56,7 +54,7 @@ func TestBuildDataTask(t *testing.T) {
 	}
 
 	synctest.Test(t, func(t *testing.T) {
-		items := &testList[string]{}
+		items := &testutils.TestList[string]{}
 
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
@@ -69,13 +67,13 @@ func TestBuildDataTask(t *testing.T) {
 				}, nil
 			},
 				WithDataStart(func(ctx context.Context, data *data) error {
-					items.add("start")
+					items.Add("start")
 					assert.Check(t, cmp2.Equal("test", data.value1))
 					assert.Check(t, cmp2.Equal(13, data.value2))
 					return testutils.SleepContext(ctx, time.Second)
 				}),
 				WithDataStop(func(ctx context.Context, data *data) error {
-					items.add("stop")
+					items.Add("stop")
 					assert.Check(t, cmp2.Equal("test", data.value1))
 					assert.Check(t, cmp2.Equal(13, data.value2))
 					return nil
@@ -85,31 +83,6 @@ func TestBuildDataTask(t *testing.T) {
 		err = sinit.Run(t.Context())
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"start", "stop"}, items.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"start", "stop"}, items.Get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
-}
-
-type testList[T any] struct {
-	m    sync.Mutex
-	list []T
-}
-
-func (l *testList[T]) add(item T) {
-	l.m.Lock()
-	l.list = append(l.list, item)
-	l.m.Unlock()
-}
-
-func (l *testList[T]) get() []T {
-	l.m.Lock()
-	defer l.m.Unlock()
-	return l.list
-}
-
-func (l *testList[T]) assertDeepEqual(t *testing.T, expected []T) {
-	assert.DeepEqual(t, expected, l.get(), cmpopts.SortSlices(cmp.Less[string]))
-}
-
-func (l *testList[T]) checkDeepEqual(t *testing.T, expected []T) bool {
-	return assert.Check(t, cmp3.DeepEqual(expected, l.get(), cmpopts.SortSlices(cmp.Less[string])))
 }

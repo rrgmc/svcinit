@@ -8,13 +8,14 @@ import (
 
 	cmp2 "github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
 )
 
 func TestWrapTask(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		started := &testList[string]{}
-		stopped := &testList[string]{}
+		started := &testutils.TestList[string]{}
+		stopped := &testutils.TestList[string]{}
 
 		sm, err := New(
 			WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -30,11 +31,11 @@ func TestWrapTask(t *testing.T) {
 
 		task1 := newTestTask(3, BuildTask(
 			WithStart(func(ctx context.Context) error {
-				started.add("task3")
+				started.Add("task3")
 				return nil
 			}),
 			WithStop(func(ctx context.Context) error {
-				stopped.add("task3")
+				stopped.Add("task3")
 				return nil
 			}),
 		))
@@ -44,14 +45,14 @@ func TestWrapTask(t *testing.T) {
 		err = sm.Run(t.Context())
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"task3"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
-		assert.DeepEqual(t, []string{"task3"}, stopped.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task3"}, started.Get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task3"}, stopped.Get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
 
 func TestWrapTaskImplements(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		started := &testList[string]{}
+		started := &testutils.TestList[string]{}
 
 		sm, err := New(
 			WithTaskCallback(TaskCallbackFunc(func(ctx context.Context, task Task, stage string, step Step, callbackStep CallbackStep, err error) {
@@ -81,7 +82,7 @@ func TestWrapTaskImplements(t *testing.T) {
 		task1 := &testTaskComplete{
 			task: BuildTask(
 				WithStart(func(ctx context.Context) error {
-					started.add("task3")
+					started.Add("task3")
 					return nil
 				}),
 			),
@@ -98,7 +99,7 @@ func TestWrapTaskImplements(t *testing.T) {
 		err = sm.Run(t.Context())
 		assert.NilError(t, err)
 
-		assert.DeepEqual(t, []string{"task3"}, started.get(), cmpopts.SortSlices(cmp.Less[string]))
+		assert.DeepEqual(t, []string{"task3"}, started.Get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
 
