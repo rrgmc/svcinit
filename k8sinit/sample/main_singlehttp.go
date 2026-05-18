@@ -32,7 +32,7 @@ func runSingleHTTP(ctx context.Context) error {
 	sinit.SetHealthHandler(healthHandler)
 
 	// start the main HTTP server as the health task, so it starts at the right time.
-	sinit.SetHealthTask(instancetask.BuildDataTask[*http.Server](
+	sinit.SetHealthTask(instancetask.BuildTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			mux := http.NewServeMux()
 			healthHandler.Register(mux)
@@ -41,13 +41,13 @@ func runSingleHTTP(ctx context.Context) error {
 				Addr:    ":8080",
 			}, nil
 		},
-		instancetask.WithDataStart(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithStart(func(ctx context.Context, service *http.Server) error {
 			return service.ListenAndServe()
 		}),
-		instancetask.WithDataStop(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithStop(func(ctx context.Context, service *http.Server) error {
 			return service.Shutdown(ctx)
 		}),
-		instancetask.WithDataName[*http.Server](k8sinit.TaskNameHealth),
+		instancetask.WithName[*http.Server](k8sinit.TaskNameHealth),
 	))
 
 	//

@@ -19,7 +19,7 @@ func TestBuildDataTaskEmpty(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
 
-		sinit.AddTask(svcinit.StageDefault, BuildDataTask[int](nil))
+		sinit.AddTask(svcinit.StageDefault, BuildTask[int](nil))
 
 		sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second))
 
@@ -33,11 +33,11 @@ func TestBuildDataTaskEmptyNil(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
 
-		sinit.AddTask(svcinit.StageDefault, BuildDataTask[int](
+		sinit.AddTask(svcinit.StageDefault, BuildTask[int](
 			func(ctx context.Context) (int, error) {
 				return 1, nil
 			},
-			WithDataStart[int](nil),
+			WithStart[int](nil),
 		))
 
 		sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second))
@@ -60,19 +60,19 @@ func TestBuildDataTask(t *testing.T) {
 		assert.NilError(t, err)
 
 		sinit.
-			AddTask(svcinit.StageDefault, BuildDataTask(func(ctx context.Context) (*data, error) {
+			AddTask(svcinit.StageDefault, BuildTask(func(ctx context.Context) (*data, error) {
 				return &data{
 					value1: "test",
 					value2: 13,
 				}, nil
 			},
-				WithDataStart(func(ctx context.Context, data *data) error {
+				WithStart(func(ctx context.Context, data *data) error {
 					items.Add("start")
 					assert.Check(t, cmp2.Equal("test", data.value1))
 					assert.Check(t, cmp2.Equal(13, data.value2))
 					return testutils.SleepContext(ctx, time.Second)
 				}),
-				WithDataStop(func(ctx context.Context, data *data) error {
+				WithStop(func(ctx context.Context, data *data) error {
 					items.Add("stop")
 					assert.Check(t, cmp2.Equal("test", data.value1))
 					assert.Check(t, cmp2.Equal(13, data.value2))

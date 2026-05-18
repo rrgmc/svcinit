@@ -117,13 +117,13 @@ func run(ctx context.Context) error {
 		func(ctx context.Context) (HealthService, error) {
 			return NewHealthServiceImpl(), nil
 		},
-		instancetask.WithDataStart(func(ctx context.Context, service HealthService) error {
+		instancetask.WithStart(func(ctx context.Context, service HealthService) error {
 			return service.Start(ctx)
 		}),
-		instancetask.WithDataStop(func(ctx context.Context, service HealthService) error {
+		instancetask.WithStop(func(ctx context.Context, service HealthService) error {
 			return service.Stop(ctx)
 		}),
-		instancetask.WithDataName[HealthService]("health service"),
+		instancetask.WithName[HealthService]("health service"),
 	)
 	sinit.AddTask(StageManagement, healthTask)
 
@@ -186,19 +186,19 @@ func run(ctx context.Context) error {
 			logger.InfoContext(ctx, "data initialization finished")
 			return
 		},
-		instancetask.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
+		instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
 			logger.InfoContext(ctx, "closing database connection")
 			// return data.db.Close()
 			return nil
 		}),
-		instancetask.WithDataName[*initTaskData]("init data"),
+		instancetask.WithName[*initTaskData]("init data"),
 	)
 	sinit.AddTask(StageInitialize, initTask)
 
 	//
 	// initialize and start the HTTP service.
 	//
-	sinit.AddTask(StageService, instancetask.BuildDataTask[svcinit.Task](
+	sinit.AddTask(StageService, instancetask.BuildTask[svcinit.Task](
 		func(ctx context.Context) (svcinit.Task, error) {
 			// using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
 			// sets it as the parent task, and all of its steps are added to this one.
@@ -209,14 +209,14 @@ func run(ctx context.Context) error {
 			}
 			return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
 		},
-		instancetask.WithDataParentFromSetup[svcinit.Task](true),
-		instancetask.WithDataName[svcinit.Task]("HTTP service"),
+		instancetask.WithParentFromSetup[svcinit.Task](true),
+		instancetask.WithName[svcinit.Task]("HTTP service"),
 	))
 
 	//
 	// initialize and start the messaging service.
 	//
-	sinit.AddTask(StageService, instancetask.BuildDataTask[MessagingService](
+	sinit.AddTask(StageService, instancetask.BuildTask[MessagingService](
 		func(ctx context.Context) (MessagingService, error) {
 			initData, err := initTask.Value() // get the init value from the future declared above.
 			if err != nil {
@@ -224,11 +224,11 @@ func run(ctx context.Context) error {
 			}
 			return NewMessagingServiceImpl(logger, initData.db), nil
 		},
-		instancetask.WithDataStart(func(ctx context.Context, service MessagingService) error {
+		instancetask.WithStart(func(ctx context.Context, service MessagingService) error {
 			// service is the object returned from the setup step function above.
 			return service.Start(ctx)
 		}),
-		instancetask.WithDataStop(func(ctx context.Context, service MessagingService) error {
+		instancetask.WithStop(func(ctx context.Context, service MessagingService) error {
 			// service is the object returned from the setup step function above.
 			err := service.Stop(ctx)
 			if err != nil {
@@ -254,7 +254,7 @@ func run(ctx context.Context) error {
 			}
 			return nil
 		}),
-		instancetask.WithDataName[MessagingService]("Messaging service"),
+		instancetask.WithName[MessagingService]("Messaging service"),
 	), svcinit.WithStartStepManager())
 
 	//

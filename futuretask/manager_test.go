@@ -41,7 +41,7 @@ func TestManagerInitData(t *testing.T) {
 				}
 				return &ivalue, nil
 			},
-			instancetask.WithDataName[*idata1]("idata1"))
+			instancetask.WithName[*idata1]("idata1"))
 		sinit.AddTask("init", initTask1)
 
 		initTask2 := NewTaskFuture[*idata2](
@@ -53,7 +53,7 @@ func TestManagerInitData(t *testing.T) {
 				}
 				return &ivalue, nil
 			},
-			instancetask.WithDataName[*idata2]("idata2"))
+			instancetask.WithName[*idata2]("idata2"))
 
 		sinit.AddTask("init", initTask2)
 

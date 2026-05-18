@@ -60,21 +60,21 @@ func ExampleManager() {
 	}
 
 	// add a task to start health HTTP server before the service, and stop it after.
-	sinit.AddTask("manage", instancetask.BuildDataTask[*healthService](
+	sinit.AddTask("manage", instancetask.BuildTask[*healthService](
 		// the "BuildDataTask" setup callback returns an instance that is sent to all following steps.
 		func(ctx context.Context) (*healthService, error) {
 			return newHealthService(), nil
 		},
-		instancetask.WithDataStart(func(ctx context.Context, service *healthService) error {
+		instancetask.WithStart(func(ctx context.Context, service *healthService) error {
 			return service.Start(ctx)
 		}),
-		instancetask.WithDataStop(func(ctx context.Context, service *healthService) error {
+		instancetask.WithStop(func(ctx context.Context, service *healthService) error {
 			return service.Stop(ctx)
 		}),
 	))
 
 	// add a task to start the core HTTP server.
-	sinit.AddTask("service", instancetask.BuildDataTask[*http.Server](
+	sinit.AddTask("service", instancetask.BuildTask[*http.Server](
 		func(ctx context.Context) (*http.Server, error) {
 			// initialize the service in the setup step.
 			// as this may take some time in bigger services, initializing here allows other tasks to initialize
@@ -87,7 +87,7 @@ func ExampleManager() {
 			}
 			return server, nil
 		},
-		instancetask.WithDataStart(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithStart(func(ctx context.Context, service *http.Server) error {
 			service.BaseContext = func(net.Listener) context.Context {
 				return ctx
 			}
@@ -95,7 +95,7 @@ func ExampleManager() {
 		}),
 		// stop the service. By default, the context is NOT cancelled, this method must arrange for the start
 		// function to end.
-		instancetask.WithDataStop(func(ctx context.Context, service *http.Server) error {
+		instancetask.WithStop(func(ctx context.Context, service *http.Server) error {
 			return service.Shutdown(ctx)
 		}),
 	))

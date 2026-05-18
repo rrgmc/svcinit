@@ -8,83 +8,83 @@ import (
 	"github.com/rrgmc/svcinit/v3"
 )
 
-type TaskBuildDataFunc[T any] func(ctx context.Context, data T) error
+type TaskBuildFunc[T any] func(ctx context.Context, data T) error
 
-type TaskBuildDataSetupFunc[T any] func(ctx context.Context) (T, error)
+type TaskBuildSetupFunc[T any] func(ctx context.Context) (T, error)
 
-// BuildDataTask creates a task from callback functions, where some data is created in the "setup" step and passed
+// BuildTask creates a task from callback functions, where some data is created in the "setup" step and passed
 // to all other steps.
-func BuildDataTask[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) svcinit.TaskWithData[T] {
-	return newTaskBuildData[T](setupFunc, options...)
+func BuildTask[T any](setupFunc TaskBuildSetupFunc[T], options ...TaskBuildOption[T]) svcinit.TaskWithData[T] {
+	return newTaskBuild[T](setupFunc, options...)
 }
 
-type TaskBuildDataOption[T any] func(*taskBuildData[T])
+type TaskBuildOption[T any] func(*taskBuild[T])
 
-// WithDataName sets the task name.
-func WithDataName[T any](name string) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
+// WithName sets the task name.
+func WithName[T any](name string) TaskBuildOption[T] {
+	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithName(name))
 	}
 }
 
-// WithDataStart sets a callback for the "start" step.
-func WithDataStart[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return withDataStep(svcinit.StepStart, f)
+// WithStart sets a callback for the "start" step.
+func WithStart[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+	return withStep(svcinit.StepStart, f)
 }
 
-// WithDataStop sets a callback for the "stop" step.
-func WithDataStop[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return withDataStep(svcinit.StepStop, f)
+// WithStop sets a callback for the "stop" step.
+func WithStop[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+	return withStep(svcinit.StepStop, f)
 }
 
-// WithDataTeardown sets a callback for the "teardown" step.
-func WithDataTeardown[T any](f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return withDataStep(svcinit.StepTeardown, f)
+// WithTeardown sets a callback for the "teardown" step.
+func WithTeardown[T any](f TaskBuildFunc[T]) TaskBuildOption[T] {
+	return withStep(svcinit.StepTeardown, f)
 }
 
-// WithDataParent sets a parent task. Any step not set in the built task will be forwarded to it.
-func WithDataParent[T any](parent svcinit.Task) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
+// WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
+func WithParent[T any](parent svcinit.Task) TaskBuildOption[T] {
+	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithParent(parent))
 	}
 }
 
-// WithDataParentFromSetup sets a parent task from the result of the "setup" task.
+// WithParentFromSetup sets a parent task from the result of the "setup" task.
 // If this value doesn't implement Task, an initialization error will be issued.
-func WithDataParentFromSetup[T any](parentFromSetup bool) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
+func WithParentFromSetup[T any](parentFromSetup bool) TaskBuildOption[T] {
+	return func(build *taskBuild[T]) {
 		build.parentFromSetup = parentFromSetup
 	}
 }
 
-// WithDataTaskOptions sets default task options for the TaskOption interface.
-func WithDataTaskOptions[T any](options ...svcinit.TaskInstanceOption) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
+// WithTaskOptions sets default task options for the TaskOption interface.
+func WithTaskOptions[T any](options ...svcinit.TaskInstanceOption) TaskBuildOption[T] {
+	return func(build *taskBuild[T]) {
 		build.tbOptions = append(build.tbOptions, svcinit.WithTaskOptions(options...))
 	}
 }
 
 // internal
 
-type taskBuildData[T any] struct {
+type taskBuild[T any] struct {
 	tb              svcinit.TaskBuild
 	data            atomic.Pointer[T]
-	setupFunc       TaskBuildDataSetupFunc[T]
-	stepFunc        map[svcinit.Step]TaskBuildDataFunc[T]
+	setupFunc       TaskBuildSetupFunc[T]
+	stepFunc        map[svcinit.Step]TaskBuildFunc[T]
 	parentFromSetup bool
 	tbOptions       []svcinit.TaskBuildOption
 }
 
-var _ svcinit.TaskWithData[int] = (*taskBuildData[int])(nil)
-var _ svcinit.TaskName = (*taskBuildData[int])(nil)
-var _ svcinit.TaskSteps = (*taskBuildData[int])(nil)
-var _ svcinit.TaskWithOptions = (*taskBuildData[int])(nil)
-var _ svcinit.TaskWithInitError = (*taskBuildData[int])(nil)
+var _ svcinit.TaskWithData[int] = (*taskBuild[int])(nil)
+var _ svcinit.TaskName = (*taskBuild[int])(nil)
+var _ svcinit.TaskSteps = (*taskBuild[int])(nil)
+var _ svcinit.TaskWithOptions = (*taskBuild[int])(nil)
+var _ svcinit.TaskWithInitError = (*taskBuild[int])(nil)
 
-func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...TaskBuildDataOption[T]) svcinit.TaskWithData[T] {
-	ret := &taskBuildData[T]{
+func newTaskBuild[T any](setupFunc TaskBuildSetupFunc[T], options ...TaskBuildOption[T]) svcinit.TaskWithData[T] {
+	ret := &taskBuild[T]{
 		setupFunc: setupFunc,
-		stepFunc:  make(map[svcinit.Step]TaskBuildDataFunc[T]),
+		stepFunc:  make(map[svcinit.Step]TaskBuildFunc[T]),
 	}
 	for _, opt := range options {
 		opt(ret)
@@ -122,7 +122,7 @@ func newTaskBuildData[T any](setupFunc TaskBuildDataSetupFunc[T], options ...Tas
 	return ret
 }
 
-func (t *taskBuildData[T]) TaskData() (T, error) {
+func (t *taskBuild[T]) TaskData() (T, error) {
 	if data := t.data.Load(); data == nil {
 		var empty T
 		return empty, fmt.Errorf("%w: data not initialized", svcinit.ErrNotInitialized)
@@ -131,19 +131,19 @@ func (t *taskBuildData[T]) TaskData() (T, error) {
 	}
 }
 
-func (t *taskBuildData[T]) TaskSteps() []svcinit.Step {
+func (t *taskBuild[T]) TaskSteps() []svcinit.Step {
 	return t.tb.TaskSteps()
 }
 
-func (t *taskBuildData[T]) TaskOptions() []svcinit.TaskInstanceOption {
+func (t *taskBuild[T]) TaskOptions() []svcinit.TaskInstanceOption {
 	return t.tb.TaskOptions()
 }
 
-func (t *taskBuildData[T]) TaskInitError() error {
+func (t *taskBuild[T]) TaskInitError() error {
 	return t.tb.TaskInitError()
 }
 
-func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
+func (t *taskBuild[T]) runSetup(ctx context.Context) error {
 	if t.data.Load() != nil {
 		return svcinit.ErrAlreadyInitialized
 	}
@@ -165,27 +165,27 @@ func (t *taskBuildData[T]) runSetup(ctx context.Context) error {
 	return nil
 }
 
-func (t *taskBuildData[T]) runStep(ctx context.Context, step svcinit.Step) error {
+func (t *taskBuild[T]) runStep(ctx context.Context, step svcinit.Step) error {
 	if fn, ok := t.stepFunc[step]; ok {
 		return fn(ctx, *t.data.Load())
 	}
 	return fmt.Errorf("%w: %s", svcinit.ErrInvalidTaskStep, step)
 }
 
-func (t *taskBuildData[T]) Run(ctx context.Context, step svcinit.Step) error {
+func (t *taskBuild[T]) Run(ctx context.Context, step svcinit.Step) error {
 	return t.tb.Run(ctx, step)
 }
 
-func (t *taskBuildData[T]) TaskName() string {
+func (t *taskBuild[T]) TaskName() string {
 	return t.tb.TaskName()
 }
 
-func (t *taskBuildData[T]) String() string {
+func (t *taskBuild[T]) String() string {
 	return t.tb.String()
 }
 
-func withDataStep[T any](step svcinit.Step, f TaskBuildDataFunc[T]) TaskBuildDataOption[T] {
-	return func(build *taskBuildData[T]) {
+func withStep[T any](step svcinit.Step, f TaskBuildFunc[T]) TaskBuildOption[T] {
+	return func(build *taskBuild[T]) {
 		build.stepFunc[step] = f
 	}
 }
