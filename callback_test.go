@@ -12,6 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
 	cmp2 "gotest.tools/v3/assert/cmp"
 )
@@ -52,8 +53,8 @@ func TestCallback(t *testing.T) {
 					defer func() {
 						testruncb.add(1, "s1", StepStart, CallbackStepAfter, err)
 					}()
-					return sleepContext(ctx, 2*10*time.Second,
-						withSleepContextError(true))
+					return testutils.SleepContext(ctx, 2*10*time.Second,
+						testutils.WithSleepContextError(true))
 				}),
 				WithStop(func(ctx context.Context) (err error) {
 					testruncb.add(1, "s1", StepStop, CallbackStepBefore, nil)
@@ -82,7 +83,7 @@ func TestCallback(t *testing.T) {
 				defer func() {
 					testruncb.add(2, "s2", StepStart, CallbackStepAfter, err)
 				}()
-				return sleepContext(ctx, 10*time.Second, withSleepContextError(true)) // 10 seconds, will stop before task 1 which is 20 seconds
+				return testutils.SleepContext(ctx, 10*time.Second, testutils.WithSleepContextError(true)) // 10 seconds, will stop before task 1 which is 20 seconds
 			}),
 			WithStop(func(ctx context.Context) (err error) {
 				testruncb.add(2, "s2", StepStop, CallbackStepBefore, nil)

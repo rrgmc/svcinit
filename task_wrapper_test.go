@@ -6,6 +6,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
 )
 
@@ -16,7 +17,7 @@ func TestTaskWrapper_stepCanRun(t *testing.T) {
 				return nil
 			}),
 			WithStart(func(ctx context.Context) error {
-				return sleepContext(ctx, time.Second)
+				return testutils.SleepContext(ctx, time.Second)
 			}),
 			WithStop(func(ctx context.Context) error {
 				return nil
@@ -40,7 +41,7 @@ func TestTaskWrapper_executeOrder(t *testing.T) {
 				return nil
 			}),
 			WithStart(func(ctx context.Context) error {
-				return sleepContext(ctx, time.Second)
+				return testutils.SleepContext(ctx, time.Second)
 			}),
 			WithStop(func(ctx context.Context) error {
 				return nil
@@ -83,7 +84,7 @@ func TestTaskWrapper_duplicate(t *testing.T) {
 				return nil
 			}),
 			WithStart(func(ctx context.Context) error {
-				return sleepContext(ctx, time.Second)
+				return testutils.SleepContext(ctx, time.Second)
 			}),
 			WithStop(func(ctx context.Context) error {
 				return nil

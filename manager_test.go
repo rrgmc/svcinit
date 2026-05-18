@@ -12,6 +12,7 @@ import (
 
 	cmp2 "github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/rrgmc/svcinit/v3/internal/testutils"
 	"gotest.tools/v3/assert"
 	cmp3 "gotest.tools/v3/assert/cmp"
 )
@@ -245,10 +246,10 @@ func TestManagerShutdownTimeout(t *testing.T) {
 						return nil
 					}),
 					WithStop(func(ctx context.Context) error {
-						return sleepContext(ctx, test.taskStopSleep)
+						return testutils.SleepContext(ctx, test.taskStopSleep)
 					}),
 					WithTeardown(func(ctx context.Context) error {
-						return sleepContext(ctx, test.taskTeardownSleep)
+						return testutils.SleepContext(ctx, test.taskTeardownSleep)
 					}),
 				))
 
@@ -303,10 +304,10 @@ func TestManagerTeardownTimeout(t *testing.T) {
 						return nil
 					}),
 					WithStop(func(ctx context.Context) error {
-						return sleepContext(ctx, test.taskStopSleep)
+						return testutils.SleepContext(ctx, test.taskStopSleep)
 					}),
 					WithTeardown(func(ctx context.Context) error {
-						return sleepContext(ctx, test.taskTeardownSleep)
+						return testutils.SleepContext(ctx, test.taskTeardownSleep)
 					}),
 				))
 
@@ -347,7 +348,7 @@ func TestManagerNilTask(t *testing.T) {
 			fn: func(sinit *Manager) {
 				sinit.AddTask(StageDefault, BuildTask(
 					WithStart(func(ctx context.Context) error {
-						return sleepContext(ctx, time.Second)
+						return testutils.SleepContext(ctx, time.Second)
 					}),
 					WithStop(nil),
 				),
@@ -436,8 +437,8 @@ func TestManagerTaskHandler(t *testing.T) {
 			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("start")
-					return sleepContext(ctx, time.Second,
-						withSleepContextTimeoutError(err1))
+					return testutils.SleepContext(ctx, time.Second,
+						testutils.WithSleepContextTimeoutError(err1))
 				}),
 				WithStop(func(ctx context.Context) error {
 					items.add("stop")
@@ -487,7 +488,7 @@ func TestManagerTaskErrorHandler(t *testing.T) {
 			AddTask(StageDefault, BuildTask(
 				WithStart(func(ctx context.Context) error {
 					items.add("start")
-					_ = sleepContext(ctx, time.Second)
+					_ = testutils.SleepContext(ctx, time.Second)
 					return err1
 				}),
 				WithStop(func(ctx context.Context) error {
@@ -765,7 +766,7 @@ func TestManagerErrorReturns(t *testing.T) {
 			},
 			setupFn: func(m *Manager) {
 				m.AddTask("s1", newTestTask(1, BuildTask(
-					WithStart(testDefaultStart(1, withSleepContextTimeoutError(err1))),
+					WithStart(testDefaultStart(1, testutils.WithSleepContextTimeoutError(err1))),
 					WithStop(testEmptyStep),
 					WithTeardown(testEmptyStep),
 				)))
@@ -975,10 +976,10 @@ func testEmptyStep(ctx context.Context) error {
 	return nil
 }
 
-func testDefaultStart(delay int, options ...sleepContextOption) func(ctx context.Context) error {
+func testDefaultStart(delay int, options ...testutils.SleepContextOption) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
-		return sleepContext(ctx, time.Duration(delay)*time.Second,
-			append(options, withSleepContextError(true))...)
+		return testutils.SleepContext(ctx, time.Duration(delay)*time.Second,
+			append(options, testutils.WithSleepContextError(true))...)
 	}
 }
 
