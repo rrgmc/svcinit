@@ -528,7 +528,9 @@ import (
     "os"
 
     "github.com/rrgmc/svcinit/v3"
+    "github.com/rrgmc/svcinit/v3/futuretask"
     "github.com/rrgmc/svcinit/v3/health_http"
+    "github.com/rrgmc/svcinit/v3/instancetask"
     "github.com/rrgmc/svcinit/v3/k8sinit"
 )
 
@@ -627,7 +629,7 @@ func run(ctx context.Context) error {
     type initTaskData struct {
         db *sql.DB
     }
-    initTask := svcinit.NewTaskFuture[*initTaskData](
+    initTask := futuretask.New[*initTaskData](
         func(ctx context.Context) (data *initTaskData, err error) {
             data = &initTaskData{}
 
@@ -644,37 +646,34 @@ func run(ctx context.Context) error {
             logger.InfoContext(ctx, "data initialization finished")
             return
         },
-        svcinit.WithDataTeardown(func(ctx context.Context, data *initTaskData) error {
+        instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
             logger.InfoContext(ctx, "closing database connection")
             // return data.db.Close()
             return nil
         }),
-        svcinit.WithDataName[*initTaskData]("init data"),
+        instancetask.WithName[*initTaskData]("init data"),
     )
     sinit.AddTask(k8sinit.StageInitialize, initTask)
 
     //
     // initialize and start the HTTP service.
     //
-    sinit.AddTask(k8sinit.StageService, svcinit.BuildDataTask[svcinit.Task](
+    sinit.AddTask(k8sinit.StageService, instancetask.Provider(
         func(ctx context.Context) (svcinit.Task, error) {
-            // using the WithDataParentFromSetup parameter, returning a [svcinit.Task] from this "setup" step
-            // sets it as the parent task, and all of its steps are added to this one.
-            // This makes Start and Stop be called automatically.
+            // Provide the task to be executed.
             initData, err := initTask.Value() // get the init value from the future declared above.
             if err != nil {
                 return nil, err
             }
             return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
         },
-        svcinit.WithDataParentFromSetup[svcinit.Task](true),
-        svcinit.WithDataName[svcinit.Task]("HTTP service"),
+        instancetask.WithName[svcinit.Task]("HTTP service"),
     ))
 
     //
     // initialize and start the messaging service.
     //
-    sinit.AddTask(k8sinit.StageService, svcinit.BuildDataTask[MessagingService](
+    sinit.AddTask(k8sinit.StageService, instancetask.Build[MessagingService](
         func(ctx context.Context) (MessagingService, error) {
             initData, err := initTask.Value() // get the init value from the future declared above.
             if err != nil {
@@ -682,11 +681,11 @@ func run(ctx context.Context) error {
             }
             return NewMessagingServiceImpl(logger, initData.db), nil
         },
-        svcinit.WithDataStart(func(ctx context.Context, service MessagingService) error {
+        instancetask.WithStart(func(ctx context.Context, service MessagingService) error {
             // service is the object returned from the setup step function above.
             return service.Start(ctx)
         }),
-        svcinit.WithDataStop(func(ctx context.Context, service MessagingService) error {
+        instancetask.WithStop(func(ctx context.Context, service MessagingService) error {
             // service is the object returned from the setup step function above.
             err := service.Stop(ctx)
             if err != nil {
@@ -712,7 +711,7 @@ func run(ctx context.Context) error {
             }
             return nil
         }),
-        svcinit.WithDataName[MessagingService]("Messaging service"),
+        instancetask.WithName[MessagingService]("Messaging service"),
     ), svcinit.WithStartStepManager())
 
     // //
@@ -724,87 +723,6 @@ func run(ctx context.Context) error {
     //
     // start execution
     //
-    return sinit.Run(ctx)
-}
-```
-
-#### Using same handler for health and HTTP service
-
-This is an example of using the same HTTP server for both health and the HTTP service.
-
-```go
-import (
-    "context"
-    "net/http"
-    "os"
-
-    "github.com/rrgmc/svcinit/v3"
-    "github.com/rrgmc/svcinit/v3/health_http"
-    "github.com/rrgmc/svcinit/v3/k8sinit"
-)
-
-// runSingleHTTP uses the same HTTP server for both health and the service itself.
-func runSingleHTTP(ctx context.Context) error {
-    // handler for the health endpoints
-    healthHandler := health_http.NewHandler(
-        health_http.WithStartupProbe(true), // fails startup and readiness probes until service is started.
-    )
-    // HTTP handler wrapper which handles the health requests, and forward the other to the real handler.
-    // The real handler will be set in a following step.
-    httpHandlerWrapper := health_http.NewHTTPWrapper(healthHandler)
-
-    sinit, err := k8sinit.New(
-        k8sinit.WithLogger(defaultLogger(os.Stdout)),
-    )
-    if err != nil {
-        return err
-    }
-
-    // sets the health handler, which will handle the ServiceStarted and ServiceTerminating calls.
-    sinit.SetHealthHandler(healthHandler)
-
-    // start the main HTTP server as the health task, so it starts at the right time.
-    sinit.SetHealthTask(svcinit.BuildDataTask[*http.Server](
-        func(ctx context.Context) (*http.Server, error) {
-            mux := http.NewServeMux()
-            healthHandler.Register(mux)
-            return &http.Server{
-                Handler: httpHandlerWrapper,
-                Addr:    ":8080",
-            }, nil
-        },
-        svcinit.WithDataStart(func(ctx context.Context, service *http.Server) error {
-            return service.ListenAndServe()
-        }),
-        svcinit.WithDataStop(func(ctx context.Context, service *http.Server) error {
-            return service.Shutdown(ctx)
-        }),
-        svcinit.WithDataName[*http.Server](k8sinit.TaskNameHealth),
-    ))
-
-    //
-    // initialize and start the HTTP service.
-    // It will set the real HTTP handler to the health handler wrapped one. It will handle the health endpoints,
-    // and forward the other requests to this handler.
-    //
-    sinit.AddTask(k8sinit.StageService, svcinit.BuildTask(
-        svcinit.WithSetup(func(ctx context.Context) error {
-            mux := http.NewServeMux()
-            mux.Handle("GET /test", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                w.WriteHeader(http.StatusOK)
-                _, _ = w.Write([]byte("Hello World, test"))
-            }))
-            mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                w.WriteHeader(http.StatusOK)
-                _, _ = w.Write([]byte("Hello World"))
-            }))
-            // set the real HTTP handler mux.
-            httpHandlerWrapper.SetHTTPHandler(mux)
-            return nil
-        }),
-        svcinit.WithName("HTTP service"),
-    ))
-
     return sinit.Run(ctx)
 }
 ```

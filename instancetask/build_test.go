@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestBuildDataTaskEmpty(t *testing.T) {
+func TestBuildTaskEmpty(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
@@ -28,7 +28,7 @@ func TestBuildDataTaskEmpty(t *testing.T) {
 	})
 }
 
-func TestBuildDataTaskEmptyNil(t *testing.T) {
+func TestBuildTaskEmptyNil(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		sinit, err := svcinit.New()
 		assert.NilError(t, err)
@@ -47,7 +47,7 @@ func TestBuildDataTaskEmptyNil(t *testing.T) {
 	})
 }
 
-func TestBuildDataTask(t *testing.T) {
+func TestBuildTask(t *testing.T) {
 	type data struct {
 		value1 string
 		value2 int
