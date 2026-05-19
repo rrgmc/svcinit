@@ -87,7 +87,8 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	m.tasks.add(stage, tw)
 }
 
-func ManagerAddInitTask[T Task](m *Manager, stage string, init func() T, options ...TaskOption) T {
+// ManagerInitAddTask initialize and adds a Task to be executed at the passed stage.
+func ManagerInitAddTask[T Task](m *Manager, stage string, init func() T, options ...TaskOption) T {
 	task := init()
 	m.AddTask(stage, task, options...)
 	return task
