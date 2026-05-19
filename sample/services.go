@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log/slog"
 	"net"
 	"net/http"
-	"sync/atomic"
 )
 
 //
@@ -93,53 +91,4 @@ func (s *HTTPServiceImpl) Start(ctx context.Context) error {
 
 func (s *HTTPServiceImpl) Stop(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
-}
-
-//
-// Messaging service
-//
-// Simulates a messaging service receiving and forwarding messages.
-//
-
-var _ MessagingService = (*MessagingServiceImpl)(nil)
-
-type MessagingServiceImpl struct {
-	logger    *slog.Logger
-	server    net.Listener
-	db        *sql.DB
-	isStopped atomic.Bool
-}
-
-func NewMessagingServiceImpl(logger *slog.Logger, db *sql.DB) *MessagingServiceImpl {
-	return &MessagingServiceImpl{
-		logger: logger,
-		db:     db,
-	}
-}
-
-func (s *MessagingServiceImpl) Start(ctx context.Context) error {
-	var err error
-	s.server, err = net.Listen("tcp", ":9900")
-	if err != nil {
-		return err
-	}
-
-	for {
-		conn, err := s.server.Accept()
-		if err != nil {
-			if s.isStopped.Load() {
-				return nil
-			}
-			s.logger.ErrorContext(ctx, "failed to accept connection", "error", err)
-			continue
-		}
-		go func(c net.Conn) {
-			_ = c.Close()
-		}(conn)
-	}
-}
-
-func (s *MessagingServiceImpl) Stop(ctx context.Context) error {
-	s.isStopped.Store(true)
-	return s.server.Close()
 }
