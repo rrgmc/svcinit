@@ -108,42 +108,44 @@ func run(ctx context.Context) error {
 	type initTaskData struct {
 		db *sql.DB
 	}
-	initTask := futuretask.New[*initTaskData](
-		func(ctx context.Context) (data *initTaskData, err error) {
-			data = &initTaskData{}
+	initTask := k8sinit.ManagerInitAddTask(sinit, k8sinit.StageInitialize, func() svcinit.TaskFuture[*initTaskData] {
+		return futuretask.New[*initTaskData](
+			func(ctx context.Context) (data *initTaskData, err error) {
+				data = &initTaskData{}
 
-			logger.InfoContext(ctx, "connecting to database")
-			// ret.db, err = sql.Open("pgx", "dburl")
-			data.db = &sql.DB{}
-			if err != nil {
-				return nil, err
-			}
+				logger.InfoContext(ctx, "connecting to database")
+				// ret.db, err = sql.Open("pgx", "dburl")
+				data.db = &sql.DB{}
+				if err != nil {
+					return nil, err
+				}
 
-			// send the initialized DB connection to the health service to be used by the readiness probe.
-			healthHelper.AddDBHealth(data.db)
+				// send the initialized DB connection to the health service to be used by the readiness probe.
+				healthHelper.AddDBHealth(data.db)
 
-			logger.InfoContext(ctx, "data initialization finished")
-			return
-		},
-		instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
-			logger.InfoContext(ctx, "closing database connection")
-			// return data.db.Close()
-			return nil
-		}),
-		instancetask.WithName[*initTaskData]("init data"),
-	)
-	sinit.AddTask(k8sinit.StageInitialize, initTask)
+				logger.InfoContext(ctx, "data initialization finished")
+				return
+			},
+			instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
+				logger.InfoContext(ctx, "closing database connection")
+				// return data.db.Close()
+				return nil
+			}),
+			instancetask.WithName[*initTaskData]("init data"),
+		)
+	})
 
 	//
 	// initialize and start the HTTP service.
 	//
 	sinit.AddTask(k8sinit.StageService, instancetask.Provider(
 		func(ctx context.Context) (svcinit.Task, error) {
-			// Provide the task to be executed.
-			initData, err := initTask.Value() // get the init value from the future declared above.
+			// get the init value from the future declared above.
+			initData, err := initTask.Value()
 			if err != nil {
 				return nil, err
 			}
+			// Provide the task to be executed.
 			return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
 		},
 		instancetask.WithName[svcinit.Task]("HTTP service"),
