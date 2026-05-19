@@ -88,6 +88,7 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 }
 
 // ManagerInitAddTask initialize and add a Task to be executed at the passed stage.
+// TODO: replace with [generic methods](https://github.com/golang/go/issues/77273) once available in Go 1.27+.
 func ManagerInitAddTask[T Task](m *Manager, stage string, init func() T, options ...TaskOption) T {
 	task := init()
 	m.AddTask(stage, task, options...)
@@ -95,6 +96,7 @@ func ManagerInitAddTask[T Task](m *Manager, stage string, init func() T, options
 }
 
 // ManagerInitCheckAddTask initialize and add a Task to be executed at the passed stage.
+// TODO: replace with [generic methods](https://github.com/golang/go/issues/77273) once available in Go 1.27+.
 func ManagerInitCheckAddTask[T Task](m *Manager, stage string, init func() (T, error), options ...TaskOption) (T, error) {
 	task, err := init()
 	if err != nil {

@@ -85,11 +85,13 @@ func (m *Manager) AddTask(stage string, task svcinit.Task, options ...svcinit.Ta
 }
 
 // ManagerInitAddTask initialize and add a Task to be executed at the passed stage.
+// TODO: replace with [generic methods](https://github.com/golang/go/issues/77273) once available in Go 1.27+.
 func ManagerInitAddTask[T svcinit.Task](m *Manager, stage string, init func() T, options ...svcinit.TaskOption) T {
 	return svcinit.ManagerInitAddTask[T](m.manager, stage, init, options...)
 }
 
 // ManagerInitCheckAddTask initialize and add a Task to be executed at the passed stage.
+// TODO: replace with [generic methods](https://github.com/golang/go/issues/77273) once available in Go 1.27+.
 func ManagerInitCheckAddTask[T svcinit.Task](m *Manager, stage string, init func() (T, error), options ...svcinit.TaskOption) (T, error) {
 	return svcinit.ManagerInitCheckAddTask[T](m.manager, stage, init, options...)
 }
