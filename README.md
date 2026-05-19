@@ -33,8 +33,8 @@ go get github.com/rrgmc/svcinit/v3
 - stages for managing start/stop ordering. The next stage is only initialized once the previous one was fully started.
 - `start`, `stop`, `setup` and `teardown` task steps.
 - `start` steps can stop with or without context cancellation.
-- `setup` and `teardown` steps to perform task initialization and finalization. Initialization is done in a goroutine,
-  so for example a health service can correctly manage a startup probe.
+- `setup` and `teardown` steps to perform task initialization and finalization. These are separate steps so initialization
+  error prevents all services to be started, and finalization is called even if the `stop` step failed.
 - keeps track of all steps executed, so each step is guaranteed to be called at most once, and any initialization error
   just calls the stopping steps of what was effectively started.
 - ensures no race conditions, like tasks finishing before all initialization was done.
