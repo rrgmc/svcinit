@@ -45,9 +45,9 @@ func ExampleManager() {
 	ctx := context.Background()
 
 	sinit, err := svcinit.New(
-		// initialization in 3 stages. Initialization is done in stage order, and shutdown in reverse stage order.
+		// initialization in 2 stages. Initialization is done in stage order, and shutdown in reverse stage order.
 		// all tasks added to the same stage are started/stopped in parallel.
-		svcinit.WithStages(svcinit.StageDefault, "manage", "service"),
+		svcinit.WithStages("manage", "service"),
 		// use a context with a 20-second cancellation during shutdown.
 		svcinit.WithShutdownTimeout(20*time.Second),
 		// some tasks may not check context cancellation, set enforce to true to give up waiting after the shutdown timeout.
@@ -101,10 +101,10 @@ func ExampleManager() {
 	))
 
 	// shutdown on OS signal.
-	sinit.AddTask(svcinit.StageDefault, svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
+	sinit.AddTask("manage", svcinit.SignalTask(os.Interrupt, syscall.SIGTERM))
 
 	// sleep 100ms and shutdown.
-	sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(100*time.Millisecond,
+	sinit.AddTask("manage", svcinit.TimeoutTask(100*time.Millisecond,
 		svcinit.WithTimeoutTaskError(errors.New("timed out"))))
 
 	err = sinit.Run(ctx)
