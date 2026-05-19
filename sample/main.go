@@ -16,25 +16,24 @@ import (
 const (
 	StageManagement = "management" // 1st stage: initialize telemetry, health server and signal handling
 	StageInitialize = "initialize" // 2nd stage: initialize data, like DB connections
-	StageReady      = "ready"      // 3rd stage: signals probes that the service has completely started
-	StageService    = "service"    // 4th state: initialize services
+	StageService    = "service"    // 3rd state: initialize services
 )
 
-var allStages = []string{StageManagement, StageInitialize, StageReady, StageService}
+var allStages = []string{StageManagement, StageInitialize, StageService}
 
 //
 // Health webservice
+// (implements svcinit.Service)
 //
 
 type HealthService interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	ServiceStarted()     // signal the startup / readiness probe that the service is ready
-	ServiceTerminating() // signal the readiness probe that the service is terminating and not ready
 }
 
 //
 // HTTP webservice
+// (implements svcinit.Service)
 //
 
 type HTTPService interface {
@@ -120,39 +119,42 @@ func run(ctx context.Context) error {
 	type initTaskData struct {
 		db *sql.DB
 	}
-	initTask := futuretask.New[*initTaskData](
-		func(ctx context.Context) (data *initTaskData, err error) {
-			data = &initTaskData{}
+	initTask := svcinit.ManagerAddInitTask(sinit, StageInitialize, func() svcinit.TaskFuture[*initTaskData] {
+		return futuretask.New[*initTaskData](
+			func(ctx context.Context) (data *initTaskData, err error) {
+				data = &initTaskData{}
 
-			logger.InfoContext(ctx, "connecting to database")
-			// ret.db, err = sql.Open("pgx", "dburl")
-			data.db = &sql.DB{}
-			if err != nil {
-				return nil, err
-			}
+				logger.InfoContext(ctx, "connecting to database")
+				// ret.db, err = sql.Open("pgx", "dburl")
+				data.db = &sql.DB{}
+				if err != nil {
+					return nil, err
+				}
 
-			logger.InfoContext(ctx, "data initialization finished")
-			return
-		},
-		instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
-			logger.InfoContext(ctx, "closing database connection")
-			// return data.db.Close()
-			return nil
-		}),
-		instancetask.WithName[*initTaskData]("init data"),
-	)
-	sinit.AddTask(StageInitialize, initTask)
+				logger.InfoContext(ctx, "data initialization finished")
+				return
+			},
+			instancetask.WithTeardown(func(ctx context.Context, data *initTaskData) error {
+				logger.InfoContext(ctx, "closing database connection")
+				// return data.db.Close()
+				return nil
+			}),
+			instancetask.WithName[*initTaskData]("init data"),
+		)
+	})
 
 	//
 	// initialize and start the HTTP service.
 	//
 	sinit.AddTask(StageService, instancetask.Provider(
 		func(ctx context.Context) (svcinit.Task, error) {
-			// Provide the task to be executed.
-			initData, err := initTask.Value() // get the init value from the future declared above.
+			// get the init value from the future declared above.
+			initData, err := initTask.Value()
 			if err != nil {
 				return nil, err
 			}
+			// Provide the task to be executed.
+			// svcinit.ServiceAsTask wraps a svcinit.Service (Start() and Stop()) into an svcinit.Task.
 			return svcinit.ServiceAsTask(NewHTTPServiceImpl(initData.db)), nil
 		},
 		instancetask.WithName[svcinit.Task]("HTTP service"),
