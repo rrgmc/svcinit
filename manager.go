@@ -87,11 +87,21 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 	m.tasks.add(stage, tw)
 }
 
-// ManagerInitAddTask initialize and adds a Task to be executed at the passed stage.
+// ManagerInitAddTask initialize and add a Task to be executed at the passed stage.
 func ManagerInitAddTask[T Task](m *Manager, stage string, init func() T, options ...TaskOption) T {
 	task := init()
 	m.AddTask(stage, task, options...)
 	return task
+}
+
+// ManagerInitCheckAddTask initialize and add a Task to be executed at the passed stage.
+func ManagerInitCheckAddTask[T Task](m *Manager, stage string, init func() (T, error), options ...TaskOption) (T, error) {
+	task, err := init()
+	if err != nil {
+		return task, err
+	}
+	m.AddTask(stage, task, options...)
+	return task, nil
 }
 
 // AddTaskFunc add a Task to be executed at the passed stage.
