@@ -53,7 +53,7 @@ func run(ctx context.Context) error {
 
 	sinit, err := svcinit.New(
 		svcinit.WithLogger(logger),
-		// initialization in 4 stages. Initialization is done in stage order, and shutdown in reverse stage order.
+		// initialization in 3 stages. Initialization is done in stage order, and shutdown in reverse stage order.
 		// all tasks added to the same stage are started/stopped in parallel.
 		svcinit.WithStages(allStages...),
 		// use a context with a 20-second cancellation during shutdown.
