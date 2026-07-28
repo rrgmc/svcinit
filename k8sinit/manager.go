@@ -97,11 +97,11 @@ func ManagerInitCheckAddTask[T svcinit.Task](m *Manager, stage string, init func
 }
 
 func (m *Manager) AddTaskFunc(stage string, f svcinit.TaskFunc, options ...svcinit.TaskOption) {
-	m.AddTaskFunc(stage, f, options...)
+	m.manager.AddTaskFunc(stage, f, options...)
 }
 
 func (m *Manager) AddService(stage string, service svcinit.Service, options ...svcinit.TaskOption) {
-	m.AddService(stage, service, options...)
+	m.manager.AddService(stage, service, options...)
 }
 
 // Run executes the initialization and returns the error of the first task stop step that returns.
