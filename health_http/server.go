@@ -57,7 +57,7 @@ func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 				}),
-				Addr: ":6060",
+				Addr: h.address,
 			}
 		}
 		mux := http.NewServeMux()
