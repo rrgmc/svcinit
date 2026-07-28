@@ -8,6 +8,7 @@ import (
 type HTTPWrapper struct {
 	httpHandler   atomic.Pointer[http.Handler]
 	healthHandler *Handler
+	mux           *http.ServeMux
 }
 
 var _ http.Handler = (*HTTPWrapper)(nil)
@@ -16,7 +17,12 @@ var _ http.Handler = (*HTTPWrapper)(nil)
 func NewHTTPWrapper(healthHandler *Handler) *HTTPWrapper {
 	ret := &HTTPWrapper{
 		healthHandler: healthHandler,
+		mux:           http.NewServeMux(),
 	}
+	// reuse Handler.Register so probe routes behave identically here as they would on a mux the caller
+	// registers directly (method matching, path cleaning), instead of hand-rolling divergent matching.
+	healthHandler.Register(ret.mux)
+	ret.mux.Handle("/", http.HandlerFunc(ret.serveApp))
 	return ret
 }
 
@@ -25,18 +31,10 @@ func (h *HTTPWrapper) SetHTTPHandler(handler http.Handler) {
 }
 
 func (h *HTTPWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		if r.URL.Path == h.healthHandler.StartupProbePath {
-			h.healthHandler.StartupHandler.ServeHTTP(w, r)
-			return
-		} else if r.URL.Path == h.healthHandler.LivenessProbePath {
-			h.healthHandler.LivenessHandler.ServeHTTP(w, r)
-			return
-		} else if r.URL.Path == h.healthHandler.ReadinessProbePath {
-			h.healthHandler.ReadinessHandler.ServeHTTP(w, r)
-			return
-		}
-	}
+	h.mux.ServeHTTP(w, r)
+}
+
+func (h *HTTPWrapper) serveApp(w http.ResponseWriter, r *http.Request) {
 	if !h.healthHandler.IsStarted() {
 		w.WriteHeader(http.StatusPreconditionFailed)
 		_, _ = w.Write([]byte("service not ready"))

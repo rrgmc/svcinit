@@ -148,7 +148,7 @@ func run(ctx context.Context) error {
 		svcinit.WithStop(func(ctx context.Context) error {
 			healthServer, err := healthTask.Value() // get health server from future
 			if err != nil {
-				return fmt.Errorf("error getting health server: %s", err)
+				return fmt.Errorf("error getting health server: %w", err)
 			}
 			logger.DebugContext(ctx, "service terminating, signaling probes")
 			healthServer.ServiceTerminating()

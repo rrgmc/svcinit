@@ -183,7 +183,9 @@ func (t *taskBuild) SetParent(parent Task) error {
 	} else {
 		t.parent.Store(&parent)
 	}
-	return t.init()
+	err := t.init()
+	t.initError = err
+	return err
 }
 
 func (t *taskBuild) init() error {

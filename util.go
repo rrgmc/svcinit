@@ -88,7 +88,7 @@ func (e *multiError) Error() string {
 	if len(e.errors) == 0 {
 		return "empty errors"
 	}
-	return e.errors[0].Error()
+	return e.JoinedError().Error()
 }
 
 func (e *multiError) JoinedError() error {

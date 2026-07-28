@@ -43,6 +43,7 @@ func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
 	case StepStart:
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, t.signals...)
+		defer signal.Stop(c)
 		select {
 		case sig := <-c:
 			return SignalError{Signal: sig}

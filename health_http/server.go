@@ -2,8 +2,10 @@ package health_http
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/rrgmc/svcinit/v3"
 )
@@ -57,7 +59,8 @@ func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
 				}),
-				Addr: h.address,
+				Addr:              h.address,
+				ReadHeaderTimeout: 5 * time.Second,
 			}
 		}
 		mux := http.NewServeMux()
@@ -67,7 +70,10 @@ func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 		h.server.BaseContext = func(net.Listener) context.Context {
 			return ctx
 		}
-		return h.server.ListenAndServe()
+		if err := h.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
 	case svcinit.StepStop:
 		return h.server.Shutdown(ctx)
 	default:
@@ -81,6 +87,8 @@ func (h *Server) TaskName() string {
 
 // options
 
+// WithServerAddress sets the address the server will listen on. The default is ":6060".
+// Ignored if [WithServerProvider] is used: the provider is then responsible for the server's address.
 func WithServerAddress(address string) ServerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
@@ -89,6 +97,9 @@ func WithServerAddress(address string) ServerOption {
 	}
 }
 
+// WithServerProvider sets a custom function to create the underlying [http.Server]. Any Handler already
+// set on the returned server is discarded: [Server] always installs its own mux with the health probe
+// routes as the server's Handler.
 func WithServerProvider(provider func(ctx context.Context, address string) (*http.Server, error)) ServerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {
@@ -97,6 +108,7 @@ func WithServerProvider(provider func(ctx context.Context, address string) (*htt
 	}
 }
 
+// WithServerTaskName sets the [svcinit.TaskName] returned for this task. The default is "health".
 func WithServerTaskName(name string) ServerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {

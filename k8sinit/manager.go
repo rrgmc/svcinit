@@ -55,6 +55,11 @@ func New(options ...Option) (*Manager, error) {
 		ret.AddTask(StageManagement, svcinit.SignalTask(ret.handleSignals...))
 	}
 
+	// set the noop defaults immediately so HealthHandler()/TelemetryHandler() are never nil, even before
+	// Run() is called. SetHealthHandler/SetTelemetryHandler still override these if called later.
+	ret.initRunHealth()
+	ret.initRunTelemetry()
+
 	return ret, nil
 }
 

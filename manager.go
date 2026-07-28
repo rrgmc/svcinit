@@ -28,6 +28,7 @@ type Manager struct {
 	isRunning                     atomic.Bool
 	startupCtx, taskDoneCtx       context.Context
 	startupCancel, taskDoneCancel context.CancelCauseFunc
+	pendingStartupCancel          error // set if Shutdown/AddTask request a cancel before startupCancel exists
 	tasksRunning                  sync.WaitGroup
 	initErrors                    []error
 }
@@ -55,33 +56,34 @@ func (m *Manager) Stages() []string {
 	return m.stages
 }
 
+// IsRunning returns whether [Manager.Run] has been called on this Manager. A Manager is single-use: once
+// this returns true it stays true forever, even after Run has returned, and any later call to Run always
+// fails with [ErrAlreadyRunning].
 func (m *Manager) IsRunning() bool {
 	return m.isRunning.Load()
 }
 
 // AddTask add a Task to be executed at the passed stage.
 func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
-	if m.isRunning.Load() {
-		if m.startupCancel != nil {
-			m.startupCancel(fmt.Errorf("%w: cannot add task", ErrAlreadyRunning))
-		}
-		return
-	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.isRunning.Load() {
+		m.requestStartupCancel(fmt.Errorf("%w: cannot add task", ErrAlreadyRunning))
+		return
+	}
 	if task == nil {
-		m.AddInitError(ErrNilTask)
+		m.addInitError(ErrNilTask)
 		return
 	}
 	if te, ok := task.(TaskWithInitError); ok {
 		if te.TaskInitError() != nil {
-			m.AddInitError(te.TaskInitError())
+			m.addInitError(te.TaskInitError())
 			return
 		}
 	}
 	tw := newTaskWrapper(task, options...)
 	if !slices.Contains(m.stages, stage) {
-		m.AddInitError(newInvalidStage(stage))
+		m.addInitError(newInvalidStage(stage))
 		return
 	}
 	m.tasks.add(stage, tw)
@@ -117,15 +119,32 @@ func (m *Manager) AddService(stage string, service Service, options ...TaskOptio
 }
 
 // Run executes the initialization and returns the error of the first task stop step that returns.
+//
+// If a stage's setup step fails, Run returns immediately without running any later stage at all —
+// including their stop and teardown steps. Cleanup for resources acquired in stages before the failing
+// one still runs during shutdown, but stages after the failure point never execute any step.
 func (m *Manager) Run(ctx context.Context, options ...RunOption) error {
 	cause, _ := m.RunWithStopErrors(ctx, options...)
 	return cause
 }
 
-// Shutdown starts the shutdown process as if a task finished.
+// Shutdown starts the shutdown process as if a task finished. It is safe to call from a goroutine other
+// than the one calling Run, including before Run has finished setting up.
 func (m *Manager) Shutdown() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.requestStartupCancel(ErrExit)
+}
+
+// requestStartupCancel cancels the startup context with cause if it has already been created by Run,
+// otherwise records cause so it is applied as soon as Run creates it. Must be called with m.mu held.
+func (m *Manager) requestStartupCancel(cause error) {
 	if m.startupCancel != nil {
-		m.startupCancel(ErrExit)
+		m.startupCancel(cause)
+		return
+	}
+	if m.pendingStartupCancel == nil {
+		m.pendingStartupCancel = cause
 	}
 }
 

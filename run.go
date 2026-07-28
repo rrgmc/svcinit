@@ -30,11 +30,18 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		return ErrAlreadyRunning, nil
 	}
 
-	if len(m.initErrors) > 0 {
-		return buildMultiErrors(m.initErrors), nil
+	// read under m.mu: AddTask writes m.initErrors/m.tasks under the same lock, and once isRunning is
+	// true (checked there under m.mu too) it will never write to them again.
+	m.mu.Lock()
+	initErrs := m.initErrors
+	startTaskCount := m.tasks.stepTaskCount(StepStart)
+	m.mu.Unlock()
+
+	if len(initErrs) > 0 {
+		return buildMultiErrors(initErrs), nil
 	}
 
-	if m.tasks.stepTaskCount(StepStart) == 0 {
+	if startTaskCount == 0 {
 		return ErrNoStartTask, nil
 	}
 
@@ -56,13 +63,25 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	// create the context to be used during initialization.
 	// this ensures that any task start step returning early don't cancel other start steps.
-	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
 	// create the context to be sent to start steps with cancelContext = true.
 	// It may only be cancelled after the full initialization finishes.
+	//
+	// Published under m.mu so Shutdown/AddTask calls racing with startup always either see isRunning
+	// == false (nothing to cancel yet) or observe a non-nil startupCancel via the same lock.
+	m.mu.Lock()
+	m.startupCtx, m.startupCancel = context.WithCancelCause(ctx)
 	m.taskDoneCtx, m.taskDoneCancel = context.WithCancelCause(ctx)
+	pendingCancel := m.pendingStartupCancel
+	m.mu.Unlock()
 
 	defer m.taskDoneCancel(nil) // must cancel all contexts to avoid resource leak
 	defer m.startupCancel(nil)  // must cancel all contexts to avoid resource leak
+
+	if pendingCancel != nil {
+		// Shutdown (or a rejected AddTask) was requested before startupCancel existed; apply it now
+		// instead of silently dropping it.
+		m.startupCancel(pendingCancel)
+	}
 
 	// run setup and start steps.
 	setupErr := m.start(ctx)
@@ -263,6 +282,13 @@ func (m *Manager) shutdown(ctx context.Context) (err error) {
 }
 
 func (m *Manager) AddInitError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.addInitError(err)
+}
+
+// addInitError appends err to m.initErrors. Must be called with m.mu held.
+func (m *Manager) addInitError(err error) {
 	if m.isRunning.Load() {
 		return
 	}
@@ -365,9 +391,6 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, stage string, s
 		}
 		go func() {
 			defer wg.Done()
-			if waitStart {
-				startWg.Done()
-			}
 			taskCtx := taskDoneCtx
 			var taskCancelOnStop context.CancelCauseFunc
 			switch step {
@@ -408,6 +431,12 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, stage string, s
 					}
 				}
 			default:
+			}
+			// signal the goroutine has started only after any per-step state above (e.g. the
+			// StartStepManager fields) is fully set up, so a concurrent Stop step's
+			// StartStepManagerFromContext never observes a partially-initialized state.
+			if waitStart {
+				startWg.Done()
 			}
 			if tw.checkRunStep(step) {
 				if loggerTask.Enabled(ctx, slog.LevelInfo) {

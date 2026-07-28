@@ -8,9 +8,18 @@ import (
 	"github.com/rrgmc/svcinit/v3/instancetask"
 )
 
+// New creates a task that resolves a [svcinit.Future] from the result of setupFunc's "setup" step.
+// setupFunc must not be nil: unlike [instancetask.Build], there would be no data to resolve the future
+// with.
 func New[T any](setupFunc instancetask.BuildSetupFunc[T],
 	options ...instancetask.BuildOption[T]) svcinit.TaskFuture[T] {
 	dr := svcinit.NewFuture[T]()
+	if setupFunc == nil {
+		setupFunc = func(context.Context) (T, error) {
+			var empty T
+			return empty, svcinit.ErrNilTask
+		}
+	}
 	return &taskFuture[T]{
 		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{instancetask.Build[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
