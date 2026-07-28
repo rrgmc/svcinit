@@ -66,7 +66,11 @@ func WithTeardown(f TaskBuildFunc) TaskBuildOption {
 // WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
 func WithParent(parent Task) TaskBuildOption {
 	return func(build *taskBuild) {
-		build.parent.Store(&parent)
+		if parent == nil {
+			build.parent.Store(nil)
+		} else {
+			build.parent.Store(&parent)
+		}
 	}
 }
 

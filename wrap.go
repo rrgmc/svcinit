@@ -123,7 +123,7 @@ var _ TaskWithWrapped = (*wrappedTask)(nil)
 
 func newWrappedTask(task Task, options ...WrapTaskOption) *wrappedTask {
 	ret := &wrappedTask{
-		baseWrappedTaskPrivate: NewBaseWrappedTask[Task](task),
+		baseWrappedTaskPrivate: NewBaseWrappedTask[Task](checkNilTask(task)),
 	}
 	for _, option := range options {
 		option(ret)
