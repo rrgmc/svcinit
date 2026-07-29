@@ -90,7 +90,7 @@ func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
 	select {
 	case <-ctxDone:
 		var empty T
-		return empty, context.Cause(optns.ctx)
+		return empty, optns.ctx.Err()
 	case <-f.l.Done():
 		return f.v, f.err
 	}
