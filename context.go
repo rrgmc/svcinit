@@ -94,6 +94,8 @@ func (s *startStepManager) FinishedErr() error {
 	if s.finished == nil {
 		return nil
 	}
+	// finished is created and its CancelCauseFunc (taskCancelOnStop) is only ever called by us, with either
+	// the start step's own error or startStepManagerNilError, so Cause always reflects one of those two.
 	cause := context.Cause(s.finished)
 	if errors.Is(cause, startStepManagerNilError) {
 		return nil

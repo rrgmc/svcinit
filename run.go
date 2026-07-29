@@ -97,8 +97,13 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	// get the error returned by the first exiting task. It will be the cause of exit.
 	select {
 	case <-ctx.Done():
+		// ctx is the caller's own context (borrowed, not ours to cancel): if they cancel it themselves,
+		// surfacing whatever cause they attached is the whole point, so Cause is intentional here.
 		cause = context.Cause(ctx)
 	case <-m.startupCtx.Done():
+		// startupCtx is created above and its CancelCauseFunc (m.startupCancel) is only ever called by us,
+		// so Cause always reflects a value we chose (a task error, ErrExit, or an init error) - safe to use
+		// unconditionally, whatever that value is.
 		cause = context.Cause(m.startupCtx)
 	}
 	if setupErr != nil {
@@ -232,6 +237,10 @@ func (m *Manager) shutdown(ctx context.Context) (err error) {
 	isTeardownTimeout := m.teardownTimeout > 0
 
 	if isTeardownTimeout && shutdownCtx.Err() != nil {
+		// shutdownCtx is our own WithTimeout wrapping a caller-supplied base (WithoutCancel(ctx) by default,
+		// or the ctx passed to WithRunShutdownContext). DeadlineExceeded means our own timeout fired (owned,
+		// remapped below); anything else means the caller cancelled their own base context, so surfacing
+		// their cause is intentional, same as the caller ctx case in runWithStopErrors.
 		ctxCause := context.Cause(shutdownCtx)
 		if errors.Is(ctxCause, context.DeadlineExceeded) {
 			ctxCause = ErrShutdownTimeout
@@ -262,6 +271,8 @@ func (m *Manager) shutdown(ctx context.Context) (err error) {
 	}
 
 	if teardownCtx.Err() != nil {
+		// teardownCtx is either shutdownCtx (see the comment above) or our own separate WithTimeout wrapping
+		// the shutdown() ctx argument when a teardown timeout is configured; same reasoning applies either way.
 		ctxCause := context.Cause(teardownCtx)
 		if errors.Is(ctxCause, context.DeadlineExceeded) {
 			ctxCause = ErrShutdownTimeout

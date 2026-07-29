@@ -48,6 +48,8 @@ func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
 		case sig := <-c:
 			return SignalError{Signal: sig}
 		case <-ctx.Done():
+			// safe: TaskOptions() below always sets WithCancelContext(true), so ctx here is taskDoneCtx-derived,
+			// whose CancelCauseFunc is only ever called by the Manager itself.
 			return context.Cause(ctx)
 		}
 	default:

@@ -89,6 +89,9 @@ func (f *future[T]) Value(options ...FutureValueOption) (T, error) {
 
 	select {
 	case <-ctxDone:
+		// optns.ctx is supplied by the caller via WithFutureCtx: we never cancel it ourselves, so its
+		// ancestry may carry a Cause from some unrelated cancellation upstream. Use Err() rather than Cause()
+		// so this always reports why *this* wait gave up, not why some borrowed context was cancelled.
 		var empty T
 		return empty, optns.ctx.Err()
 	case <-f.l.Done():
