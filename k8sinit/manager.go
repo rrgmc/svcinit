@@ -117,7 +117,7 @@ func (m *Manager) Run(ctx context.Context) error {
 }
 
 // Shutdown starts the shutdown process as if a task finished.
-func (m *Manager) Shutdown(ctx context.Context) {
+func (m *Manager) Shutdown() {
 	m.manager.Shutdown()
 }
 
