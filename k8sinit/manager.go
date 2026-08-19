@@ -91,12 +91,12 @@ func (m *Manager) AddTask(stage string, task svcinit.Task, options ...svcinit.Ta
 
 // InitAddTask initialize and add a Task to be executed at the passed stage.
 func (m *Manager) InitAddTask[T svcinit.Task](stage string, init func() T, options ...svcinit.TaskOption) T {
-	return svcinit.ManagerInitAddTask[T](m.manager, stage, init, options...)
+	return m.manager.InitAddTask[T](stage, init, options...)
 }
 
 // InitCheckAddTask initialize and add a Task to be executed at the passed stage.
 func (m *Manager) InitCheckAddTask[T svcinit.Task](stage string, init func() (T, error), options ...svcinit.TaskOption) (T, error) {
-	return svcinit.ManagerInitCheckAddTask[T](m.manager, stage, init, options...)
+	return m.manager.InitCheckAddTask[T](stage, init, options...)
 }
 
 func (m *Manager) AddTaskFunc(stage string, f svcinit.TaskFunc, options ...svcinit.TaskOption) {
