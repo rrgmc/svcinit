@@ -108,7 +108,7 @@ func run(ctx context.Context) error {
 	type initTaskData struct {
 		db *sql.DB
 	}
-	initTask := k8sinit.ManagerInitAddTask(sinit, k8sinit.StageInitialize, func() svcinit.TaskFuture[*initTaskData] {
+	initTask := sinit.InitAddTask(k8sinit.StageInitialize, func() svcinit.TaskFuture[*initTaskData] {
 		return futuretask.New[*initTaskData](
 			func(ctx context.Context) (data *initTaskData, err error) {
 				data = &initTaskData{}
