@@ -9,8 +9,8 @@ import (
 var allSteps = []Step{StepSetup, StepStart, StepStop, StepTeardown} // order matters
 
 func taskSteps(task Task) []Step {
-	if ts, ok := task.(TaskSteps); ok {
-		return ts.TaskSteps()
+	if steps := GetTaskInfo(task).Steps; steps != nil {
+		return steps
 	}
 	return allSteps
 }

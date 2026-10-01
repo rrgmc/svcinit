@@ -2,6 +2,7 @@ package svcinit
 
 import (
 	"context"
+	"slices"
 )
 
 // Service is an abstraction of Task as an interface, for convenience.
@@ -21,11 +22,6 @@ type ServiceWithTeardown interface {
 	Teardown(ctx context.Context) error
 }
 
-// ServiceName allows services to have a name.
-type ServiceName interface {
-	TaskName
-}
-
 // ServiceTask allows getting the source Service of the Task.
 type ServiceTask interface {
 	Task
@@ -33,6 +29,8 @@ type ServiceTask interface {
 }
 
 // ServiceAsTask wraps a Service into a Task.
+// The Service may implement [TaskWithInfo]; its info is used for the task, except for [TaskInfo.Steps], which is
+// computed from the Service interfaces it implements.
 func ServiceAsTask(service Service) ServiceTask {
 	t := &serviceTask{
 		service: service,
@@ -53,8 +51,7 @@ type serviceTask struct {
 }
 
 var _ ServiceTask = (*serviceTask)(nil)
-var _ TaskName = (*serviceTask)(nil)
-var _ TaskSteps = (*serviceTask)(nil)
+var _ TaskWithInfo = (*serviceTask)(nil)
 
 func (t *serviceTask) Run(ctx context.Context, step Step) error {
 	switch step {
@@ -75,23 +72,21 @@ func (t *serviceTask) Run(ctx context.Context, step Step) error {
 	return nil
 }
 
-func (t *serviceTask) TaskSteps() []Step {
-	return t.steps
+func (t *serviceTask) TaskInfo() TaskInfo {
+	var info TaskInfo
+	if ti, ok := t.service.(TaskWithInfo); ok {
+		info = ti.TaskInfo()
+	}
+	info.Steps = slices.Clone(t.steps)
+	return info
 }
 
 func (t *serviceTask) Service() Service {
 	return t.service
 }
 
-func (t *serviceTask) TaskName() string {
-	if ts, ok := t.service.(ServiceName); ok {
-		return ts.TaskName()
-	}
-	return ""
-}
-
 func (t *serviceTask) String() string {
-	if tn := t.TaskName(); tn != "" {
+	if tn := GetTaskName(t); tn != "" {
 		return tn
 	}
 	return getDefaultTaskDescription(t.service)

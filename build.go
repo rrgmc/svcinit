@@ -1,6 +1,7 @@
 package svcinit
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -11,10 +12,9 @@ import (
 
 type TaskBuild interface {
 	Task
-	TaskName
-	TaskSteps
-	TaskWithOptions
-	TaskWithInitError
+	TaskWithInfo
+	// SetParent sets the parent task, returning the new initialization error, which is also returned from
+	// [TaskInfo.InitError].
 	SetParent(parent Task) error
 	String() string
 }
@@ -22,6 +22,10 @@ type TaskBuild interface {
 type TaskBuildFunc func(ctx context.Context) error
 
 // BuildTask creates a task from callback functions.
+//
+// It is also the way to decorate an existing task: use [WithParent] to forward all steps not set here to it,
+// and [WithName], [WithTaskOptions] and [WithNotRun] to add to its [TaskInfo]. To customize how the steps are
+// called, use [WithHandler] in [Manager.AddTask].
 func BuildTask(options ...TaskBuildOption) TaskBuild {
 	return newTaskBuild(options...)
 }
@@ -63,6 +67,8 @@ func WithTeardown(f TaskBuildFunc) TaskBuildOption {
 }
 
 // WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
+// Its [TaskInfo] is merged into the built task one: its name is used if one is not set, its options are applied
+// before the built task ones, its initialization error is returned, and its [TaskInfo.NotRun] is called.
 func WithParent(parent Task) TaskBuildOption {
 	return func(build *taskBuild) {
 		if parent == nil {
@@ -73,29 +79,40 @@ func WithParent(parent Task) TaskBuildOption {
 	}
 }
 
-// WithTaskOptions sets default task options for the TaskOption interface.
+// WithTaskOptions sets default task options for [TaskInfo.Options].
 func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 	return func(build *taskBuild) {
 		build.options = append(build.options, options...)
 	}
 }
 
+// WithNotRun adds a callback for [TaskInfo.NotRun]. All callbacks are called in order, before the parent one.
+func WithNotRun(f func(ctx context.Context, cause error)) TaskBuildOption {
+	return func(build *taskBuild) {
+		if f != nil {
+			build.notRun = append(build.notRun, f)
+		}
+	}
+}
+
 // internal
 
 type taskBuild struct {
-	stepFunc  map[Step]TaskBuildFunc
-	parent    atomic.Pointer[Task]
-	steps     []Step
-	options   []TaskInstanceOption
-	initError error
-	name      string
+	stepFunc map[Step]TaskBuildFunc
+	parent   atomic.Pointer[Task]
+	state    atomic.Pointer[taskBuildState]
+	options  []TaskInstanceOption
+	notRun   []func(ctx context.Context, cause error)
+	name     string
 }
 
-var _ Task = (*taskBuild)(nil)
-var _ TaskName = (*taskBuild)(nil)
-var _ TaskSteps = (*taskBuild)(nil)
-var _ TaskWithOptions = (*taskBuild)(nil)
-var _ TaskWithInitError = (*taskBuild)(nil)
+// taskBuildState is the state computed from the step callbacks and the parent.
+type taskBuildState struct {
+	steps     []Step
+	initError error
+}
+
+var _ TaskBuild = (*taskBuild)(nil)
 
 func newTaskBuild(options ...TaskBuildOption) *taskBuild {
 	ret := &taskBuild{
@@ -104,26 +121,39 @@ func newTaskBuild(options ...TaskBuildOption) *taskBuild {
 	for _, opt := range options {
 		opt(ret)
 	}
-	ret.initError = ret.init()
+	ret.init()
 	return ret
 }
 
-func (t *taskBuild) TaskSteps() []Step {
-	return t.steps
-}
-
-func (t *taskBuild) TaskOptions() []TaskInstanceOption {
-	return t.options
-}
-
-func (t *taskBuild) TaskInitError() error {
-	return t.initError
+func (t *taskBuild) TaskInfo() TaskInfo {
+	var parentInfo TaskInfo
+	if parent := t.loadParent(); parent != nil {
+		parentInfo = GetTaskInfo(parent)
+	}
+	state := t.state.Load()
+	ret := TaskInfo{
+		Name:      cmp.Or(t.name, parentInfo.Name),
+		Steps:     slices.Clone(state.steps),
+		Options:   slices.Concat(parentInfo.Options, t.options),
+		InitError: state.initError,
+	}
+	if len(t.notRun) > 0 || parentInfo.NotRun != nil {
+		ret.NotRun = func(ctx context.Context, cause error) {
+			for _, f := range t.notRun {
+				f(ctx, cause)
+			}
+			if parentInfo.NotRun != nil {
+				parentInfo.NotRun(ctx, cause)
+			}
+		}
+	}
+	return ret
 }
 
 func (t *taskBuild) Run(ctx context.Context, step Step) error {
 	var parent Task
-	if p := t.parent.Load(); p != nil && taskHasStep(*p, step) {
-		parent = *p
+	if p := t.loadParent(); p != nil && taskHasStep(p, step) {
+		parent = p
 	}
 
 	if fn, ok := t.stepFunc[step]; ok {
@@ -138,28 +168,34 @@ func (t *taskBuild) Run(ctx context.Context, step Step) error {
 	return newInvalidTaskStep(step)
 }
 
-func (t *taskBuild) TaskName() string {
-	if t.name != "" {
-		return t.name
-	}
-	if parent := t.parent.Load(); parent != nil {
-		return GetTaskName(*parent)
-	}
-	return ""
-}
-
 func (t *taskBuild) String() string {
-	if tn := t.TaskName(); tn != "" {
+	if tn := GetTaskName(t); tn != "" {
 		return tn
 	}
 	return getDefaultTaskDescription(t)
+}
+
+func (t *taskBuild) SetParent(parent Task) error {
+	if parent == nil {
+		t.parent.Store(nil)
+	} else {
+		t.parent.Store(&parent)
+	}
+	return t.init()
+}
+
+func (t *taskBuild) loadParent() Task {
+	if p := t.parent.Load(); p != nil {
+		return *p
+	}
+	return nil
 }
 
 // hasMissingStep returns whether any step callback is nil, or if there are no steps at all (neither callbacks
 // nor a parent to forward to).
 func (t *taskBuild) hasMissingStep() bool {
 	if len(t.stepFunc) == 0 {
-		return t.parent.Load() == nil
+		return t.loadParent() == nil
 	}
 	for _, sf := range t.stepFunc {
 		if sf == nil {
@@ -169,44 +205,46 @@ func (t *taskBuild) hasMissingStep() bool {
 	return false
 }
 
-func (t *taskBuild) SetParent(parent Task) error {
-	if parent == nil {
-		t.parent.Store(nil)
-	} else {
-		t.parent.Store(&parent)
-	}
-	t.initError = t.init()
-	return t.initError
-}
-
-// init computes the task steps and returns any initialization error.
+// init computes the task steps and initialization error, and returns the error.
 func (t *taskBuild) init() error {
-	var nilTaskErr error
+	var errs []error
 	if t.hasMissingStep() {
-		nilTaskErr = ErrNilTask
+		errs = append(errs, ErrNilTask)
 	}
 
-	var duplicatedSteps []Step
+	// never nil, as it would mean "all steps".
+	steps := slices.AppendSeq(make([]Step, 0, len(allSteps)), maps.Keys(t.stepFunc))
 
-	t.steps = slices.Collect(maps.Keys(t.stepFunc))
-
-	if parent := t.parent.Load(); parent != nil {
-		for _, step := range taskSteps(*parent) {
-			if !slices.Contains(t.steps, step) {
-				t.steps = append(t.steps, step)
+	if parent := t.loadParent(); parent != nil {
+		var duplicatedSteps []Step
+		for _, step := range taskSteps(parent) {
+			if !slices.Contains(steps, step) {
+				steps = append(steps, step)
 			} else {
 				duplicatedSteps = append(duplicatedSteps, step)
 			}
 		}
+		if len(duplicatedSteps) > 0 {
+			errs = append(errs, fmt.Errorf("%w: build task parent already has '%s' step(s)", ErrDuplicateStep,
+				stringerString(duplicatedSteps)))
+		}
+		if err := GetTaskInfo(parent).InitError; err != nil {
+			errs = append(errs, err)
+		}
 	}
 
-	if len(duplicatedSteps) == 0 {
-		return nilTaskErr
+	state := &taskBuildState{
+		steps:     steps,
+		initError: buildJoinedErrors(errs),
 	}
-	dupErr := fmt.Errorf("%w: build task parent already has '%s' step(s)", ErrDuplicateStep,
-		stringerString(duplicatedSteps))
-	if nilTaskErr != nil {
-		return errors.Join(nilTaskErr, dupErr)
+	t.state.Store(state)
+	return state.initError
+}
+
+// buildJoinedErrors returns nil for no errors, the error itself if only one, or [errors.Join] of all of them.
+func buildJoinedErrors(errs []error) error {
+	if len(errs) == 1 {
+		return errs[0]
 	}
-	return dupErr
+	return errors.Join(errs...)
 }

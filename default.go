@@ -30,9 +30,7 @@ type TaskSignalTask struct {
 }
 
 var _ Task = (*TaskSignalTask)(nil)
-var _ TaskName = (*TaskSignalTask)(nil)
-var _ TaskSteps = (*TaskSignalTask)(nil)
-var _ TaskWithOptions = (*TaskSignalTask)(nil)
+var _ TaskWithInfo = (*TaskSignalTask)(nil)
 
 func (t *TaskSignalTask) Signals() []os.Signal {
 	return t.signals
@@ -48,7 +46,7 @@ func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
 		case sig := <-c:
 			return SignalError{Signal: sig}
 		case <-ctx.Done():
-			// safe: TaskOptions() below always sets WithCancelContext(true), so ctx here is taskDoneCtx-derived,
+			// safe: TaskInfo() below always sets WithCancelContext(true), so ctx here is taskDoneCtx-derived,
 			// whose CancelCauseFunc is only ever called by the Manager itself.
 			return context.Cause(ctx)
 		}
@@ -57,18 +55,14 @@ func (t *TaskSignalTask) Run(ctx context.Context, step Step) error {
 	return nil
 }
 
-func (t *TaskSignalTask) TaskSteps() []Step {
-	return []Step{StepStart}
-}
-
-func (t *TaskSignalTask) TaskOptions() []TaskInstanceOption {
-	return []TaskInstanceOption{
-		WithCancelContext(true),
+func (t *TaskSignalTask) TaskInfo() TaskInfo {
+	return TaskInfo{
+		Name:  TaskNameSignals,
+		Steps: []Step{StepStart},
+		Options: []TaskInstanceOption{
+			WithCancelContext(true),
+		},
 	}
-}
-
-func (t *TaskSignalTask) TaskName() string {
-	return TaskNameSignals
 }
 
 func (t *TaskSignalTask) String() string {
@@ -82,9 +76,7 @@ type TaskTimeoutTask struct {
 }
 
 var _ Task = (*TaskTimeoutTask)(nil)
-var _ TaskName = (*TaskTimeoutTask)(nil)
-var _ TaskSteps = (*TaskTimeoutTask)(nil)
-var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
+var _ TaskWithInfo = (*TaskTimeoutTask)(nil)
 
 func (t *TaskTimeoutTask) Timeout() time.Duration {
 	return t.timeout
@@ -110,18 +102,14 @@ func (t *TaskTimeoutTask) Run(ctx context.Context, step Step) error {
 	return nil
 }
 
-func (t *TaskTimeoutTask) TaskSteps() []Step {
-	return []Step{StepStart}
-}
-
-func (t *TaskTimeoutTask) TaskOptions() []TaskInstanceOption {
-	return []TaskInstanceOption{
-		WithCancelContext(true),
+func (t *TaskTimeoutTask) TaskInfo() TaskInfo {
+	return TaskInfo{
+		Name:  TaskNameTimeout,
+		Steps: []Step{StepStart},
+		Options: []TaskInstanceOption{
+			WithCancelContext(true),
+		},
 	}
-}
-
-func (t *TaskTimeoutTask) TaskName() string {
-	return TaskNameTimeout
 }
 
 func (t *TaskTimeoutTask) String() string {

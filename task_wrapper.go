@@ -8,8 +8,8 @@ import (
 )
 
 type taskWrapper struct {
-	task    Task
-	options taskOptions
+	task       Task
+	addOptions taskOptions // options passed to [Manager.AddTask]. Use [taskWrapper.currentOptions] to read.
 
 	mu           sync.Mutex
 	executeSteps []Step
@@ -22,14 +22,20 @@ func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 		task: task,
 	}
 	for _, option := range options {
-		option.applyTaskOpt(&ret.options)
-	}
-	if to, ok := task.(TaskWithOptions); ok {
-		for _, option := range to.TaskOptions() {
-			option.applyTaskInstanceOpt(&ret.options)
-		}
+		option.applyTaskOpt(&ret.addOptions)
 	}
 	return ret
+}
+
+// currentOptions returns the task options: the [Manager.AddTask] ones, with the task [TaskInfo.Options] applied
+// over them. It is computed on each call, as the task info may change after the setup step, for example when
+// its parent is set from the setup step result like in [instancetask.Provider].
+func (t *taskWrapper) currentOptions() taskOptions {
+	options := t.addOptions
+	for _, option := range GetTaskInfo(t.task).Options {
+		option.applyTaskInstanceOpt(&options)
+	}
+	return options
 }
 
 // checkStartStep checks if the step can be started for this task.
@@ -63,8 +69,8 @@ func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callback
 		// setup is only added if no run error, so start and stop are not called in that case.
 		t.addStepDone(step)
 	}
-	if t.options.handler != nil {
-		err = t.options.handler(ctx, t.task, step)
+	if handler := t.currentOptions().handler; handler != nil {
+		err = handler(ctx, t.task, step)
 	} else {
 		err = t.task.Run(ctx, step)
 	}
@@ -80,7 +86,7 @@ func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callback
 
 func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step, callbackStep CallbackStep, err error,
 	callbacks []TaskCallback) {
-	for _, cbs := range [2][]TaskCallback{callbacks, t.options.callbacks} {
+	for _, cbs := range [2][]TaskCallback{callbacks, t.currentOptions().callbacks} {
 		for _, callback := range cbs {
 			callback.Callback(ctx, t.task, stage, step, callbackStep, err)
 		}
@@ -103,7 +109,7 @@ func (t *taskWrapper) internalCanStartStep(step Step) bool {
 	}
 	// if SSM is enabled, a stop step must exist for it to work. If it don't exist, create an internal one.
 	if step == StepStop {
-		return t.options.startStepManager
+		return t.currentOptions().startStepManager
 	}
 	return false
 }

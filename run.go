@@ -429,15 +429,16 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 			defer wg.Done()
 			taskCtx := taskDoneCtx
 			var taskCancelOnStop context.CancelCauseFunc
+			taskOpts := tw.currentOptions()
 			switch step {
 			case StepStart:
 				logAttrs = append(logAttrs,
-					slog.Bool("cancelContext", tw.options.cancelContext),
+					slog.Bool("cancelContext", taskOpts.cancelContext),
 				)
-				if !tw.options.cancelContext {
+				if !taskOpts.cancelContext {
 					taskCtx = ctx // don't cancel context automatically using the global task done context
 				}
-				if tw.options.startStepManager {
+				if taskOpts.startStepManager {
 					logAttrs = append(logAttrs, slog.Bool("ssm", true))
 					// create cancellable context for the start step.
 					tw.mu.Lock()
@@ -449,7 +450,7 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 					tw.mu.Unlock()
 				}
 			case StepStop:
-				if tw.options.startStepManager {
+				if taskOpts.startStepManager {
 					logAttrs = append(logAttrs, slog.Bool("ssm", true))
 					startStepMan := &startStepManager{
 						logger: loggerTask,
@@ -514,17 +515,17 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 	return int(taskCount.Load())
 }
 
-// notifyTasksNotRun calls [TaskWithNotRun.TaskNotRun] for all tasks of the passed stages, which must be stages
+// notifyTasksNotRun calls [TaskInfo.NotRun] for all tasks of the passed stages, which must be stages
 // that will never run any step.
 func (m *Manager) notifyTasksNotRun(ctx context.Context, stages []string, cause error) {
 	ctx = context.WithoutCancel(ctx)
 	for _, stage := range stages {
 		for tw := range m.tasks.stageTasks(stage) {
-			if tn, ok := tw.task.(TaskWithNotRun); ok {
+			if notRun := GetTaskInfo(tw.task).NotRun; notRun != nil {
 				m.logger.Log(ctx, slog2.LevelTrace, "notifying task not run",
 					"stage", stage,
 					"task", GetTaskDescription(tw.task))
-				tn.TaskNotRun(ctx, cause)
+				notRun(ctx, cause)
 			}
 		}
 	}

@@ -159,18 +159,53 @@ func TestNotRunInitError(t *testing.T) {
 	assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
 }
 
-func TestNotRunWrapped(t *testing.T) {
-	sinit, err := svcinit.New()
-	assert.NilError(t, err)
+// TestNotRunDecorated is a regression test: decorating a future task with svcinit.BuildTask used to drop its
+// "not run" notification, so the future was never resolved and its waiters blocked forever.
+func TestNotRunDecorated(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		decorate func(task svcinit.Task) svcinit.Task
+	}{
+		{
+			name: "BuildTask parent",
+			decorate: func(task svcinit.Task) svcinit.Task {
+				return svcinit.BuildTask(svcinit.WithParent(task), svcinit.WithName("decorated"))
+			},
+		},
+		{
+			name: "nested BuildTask parent",
+			decorate: func(task svcinit.Task) svcinit.Task {
+				return svcinit.BuildTask(svcinit.WithParent(svcinit.BuildTask(svcinit.WithParent(task))))
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				errSetup := errors.New("setup error")
 
-	future := New[int](func(ctx context.Context) (int, error) {
-		return 10, nil
-	})
-	sinit.AddTask(svcinit.StageDefault, svcinit.WrapTask(future))
-	sinit.AddInitError(errors.New("init error"))
+				sinit, err := svcinit.New(svcinit.WithStages("s1", "s2"))
+				assert.NilError(t, err)
 
-	_ = sinit.Run(t.Context())
+				future := New[int](func(ctx context.Context) (int, error) {
+					return 10, nil
+				})
+				sinit.AddTask("s1", svcinit.BuildTask(
+					svcinit.WithSetup(func(ctx context.Context) error {
+						return errSetup
+					}),
+					svcinit.WithStart(func(ctx context.Context) error {
+						return nil
+					}),
+				))
+				sinit.AddTask("s2", tc.decorate(future))
 
-	_, err = future.Value(svcinit.WithoutFutureWait())
-	assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
+				err = sinit.Run(t.Context())
+				assert.ErrorIs(t, err, errSetup)
+
+				_, err = future.Value(svcinit.WithoutFutureWait())
+				assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
+				assert.ErrorIs(t, err, errSetup)
+			})
+		})
+	}
 }
