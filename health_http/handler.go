@@ -181,6 +181,10 @@ func (h *Handler) probeHTTPHandler(probe Probe) http.Handler {
 	})
 }
 
+// DefaultProbeHandler is the default [ProbeHandler].
+//   - liveness: always 200 OK.
+//   - startup and readiness: 412 Precondition Failed until the service has started.
+//   - readiness: 503 Service Unavailable once the service is terminating.
 func DefaultProbeHandler(probe Probe, status Status, w http.ResponseWriter, r *http.Request) {
 	if probe == ProbeLiveness {
 		w.WriteHeader(http.StatusOK)
@@ -193,7 +197,7 @@ func DefaultProbeHandler(probe Probe, status Status, w http.ResponseWriter, r *h
 	}
 	if probe == ProbeReadiness {
 		if status.IsTerminating {
-			w.WriteHeader(499) // https://www.webfx.com/web-development/glossary/http-status-codes/what-is-a-499-status-code/
+			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("service shutting down"))
 			return
 		}

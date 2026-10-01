@@ -1073,3 +1073,34 @@ func TestDefaultTaskStepsCopy(t *testing.T) {
 func ptr[T any](v T) *T {
 	return &v
 }
+
+func TestManagerAddAfterRun(t *testing.T) {
+	errLate := errors.New("late init error")
+
+	for name, add := range map[string]func(m *Manager){
+		"AddInitError": func(m *Manager) { m.AddInitError(errLate) },
+		"AddTask":      func(m *Manager) { m.AddTask(StageDefault, TimeoutTask(time.Second)) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m, err := New()
+				assert.NilError(t, err)
+
+				m.AddTask(StageDefault, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						add(m)
+						<-ctx.Done()
+						return nil
+					}),
+					WithTaskOptions(WithCancelContext(true)),
+				))
+
+				err = m.Run(t.Context())
+				assert.ErrorIs(t, err, ErrAlreadyRunning)
+				if name == "AddInitError" {
+					assert.ErrorIs(t, err, errLate)
+				}
+			})
+		})
+	}
+}

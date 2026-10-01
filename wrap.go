@@ -55,6 +55,7 @@ var _ TaskName = (*BaseOverloadedTask[Task])(nil)
 var _ TaskSteps = (*BaseOverloadedTask[Task])(nil)
 var _ TaskWithOptions = (*BaseOverloadedTask[Task])(nil)
 var _ TaskWithInitError = (*BaseOverloadedTask[Task])(nil)
+var _ TaskWithNotRun = (*BaseOverloadedTask[Task])(nil)
 
 func (t *BaseOverloadedTask[T]) TaskOptions() []TaskInstanceOption {
 	if tt, ok := any(t.Task).(TaskWithOptions); ok {
@@ -75,6 +76,12 @@ func (t *BaseOverloadedTask[T]) TaskInitError() error {
 		return tt.TaskInitError()
 	}
 	return nil
+}
+
+func (t *BaseOverloadedTask[T]) TaskNotRun(ctx context.Context, cause error) {
+	if tt, ok := any(t.Task).(TaskWithNotRun); ok {
+		tt.TaskNotRun(ctx, cause)
+	}
 }
 
 func (t *BaseOverloadedTask[T]) TaskName() string {

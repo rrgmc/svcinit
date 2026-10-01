@@ -36,6 +36,14 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 		return ErrAlreadyRunning, nil
 	}
 
+	// if returning before any stage runs, notify all tasks that they will never run.
+	notRunNotified := false
+	defer func() {
+		if !notRunNotified {
+			m.notifyTasksNotRun(ctx, m.stages, cause)
+		}
+	}()
+
 	// read under m.mu: AddTask writes m.initErrors/m.tasks under the same lock, and once isRunning is
 	// true (checked there under m.mu too) it will never write to them again.
 	m.mu.Lock()
@@ -90,11 +98,16 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 
 	// run setup and start steps.
-	setupErr := m.start(ctx)
+	stagesRun, setupErr := m.start(ctx)
 	if setupErr != nil {
 		m.logger.ErrorContext(ctx, "setup error",
 			slog2.ErrorKey, setupErr)
 	}
+
+	// stages after a setup failure will never run any step, notify their tasks now so anything waiting on
+	// them (like a Future) is released before shutdown starts waiting for tasks to finish.
+	notRunNotified = true
+	m.notifyTasksNotRun(ctx, m.stages[stagesRun:], setupErr)
 
 	if setupErr == nil {
 		m.logger.InfoContext(ctx, "waiting for first task to return")
@@ -167,8 +180,9 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 }
 
 // start runs the setup and start steps.
-func (m *Manager) start(ctx context.Context) error {
-	for stage := range stagesIter(m.stages, false) {
+// Returns the number of stages that were run (including a failed one).
+func (m *Manager) start(ctx context.Context) (int, error) {
+	for stageIdx, stage := range m.stages {
 		loggerStage := m.logger.With("stage", stage)
 
 		// run setup tasks
@@ -184,7 +198,7 @@ func (m *Manager) start(ctx context.Context) error {
 			})
 
 		if setupErr.hasErrors() {
-			return setupErr.build()
+			return stageIdx + 1, setupErr.build()
 		}
 
 		// run start tasks
@@ -198,7 +212,7 @@ func (m *Manager) start(ctx context.Context) error {
 			})
 	}
 
-	return nil
+	return len(m.stages), nil
 }
 
 // shutdown runs the stop step.
@@ -298,15 +312,23 @@ func (m *Manager) shutdown(ctx context.Context) (err error) {
 	return eb.build()
 }
 
+// AddInitError adds an initialization error, which makes [Manager.Run] fail without running any task.
+// If called after Run has started, like [Manager.AddTask], it starts the shutdown process using the error as
+// the cause.
 func (m *Manager) AddInitError(err error) {
+	if err == nil {
+		return
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.addInitError(err)
 }
 
-// addInitError appends err to m.initErrors. Must be called with m.mu held.
+// addInitError appends err to m.initErrors, or requests a shutdown if already running.
+// Must be called with m.mu held.
 func (m *Manager) addInitError(err error) {
 	if m.isRunning.Load() {
+		m.requestStartupCancel(fmt.Errorf("%w: initialization error: %w", ErrAlreadyRunning, err))
 		return
 	}
 	m.initErrors = append(m.initErrors, err)
@@ -490,6 +512,22 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 	}
 
 	return int(taskCount.Load())
+}
+
+// notifyTasksNotRun calls [TaskWithNotRun.TaskNotRun] for all tasks of the passed stages, which must be stages
+// that will never run any step.
+func (m *Manager) notifyTasksNotRun(ctx context.Context, stages []string, cause error) {
+	ctx = context.WithoutCancel(ctx)
+	for _, stage := range stages {
+		for tw := range m.tasks.stageTasks(stage) {
+			if tn, ok := tw.task.(TaskWithNotRun); ok {
+				m.logger.Log(ctx, slog2.LevelTrace, "notifying task not run",
+					"stage", stage,
+					"task", GetTaskDescription(tw.task))
+				tn.TaskNotRun(ctx, cause)
+			}
+		}
+	}
 }
 
 func (m *Manager) runManagerCallbacks(ctx context.Context, stage string, step Step, callbackStep CallbackStep) {
