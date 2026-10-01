@@ -39,7 +39,7 @@ func New(options ...Option) (*Manager, error) {
 		tasks:                  newStageTasks(),
 		shutdownTimeout:        10 * time.Second,
 		enforceShutdownTimeout: true,
-		logger:                 slog.New(slog.DiscardHandler),
+		logger:                 nullLogger,
 	}
 	for _, option := range options {
 		option(ret)
@@ -76,17 +76,16 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 		return
 	}
 	if te, ok := task.(TaskWithInitError); ok {
-		if te.TaskInitError() != nil {
-			m.addInitError(te.TaskInitError())
+		if err := te.TaskInitError(); err != nil {
+			m.addInitError(err)
 			return
 		}
 	}
-	tw := newTaskWrapper(task, options...)
 	if !slices.Contains(m.stages, stage) {
 		m.addInitError(newInvalidStage(stage))
 		return
 	}
-	m.tasks.add(stage, tw)
+	m.tasks.add(stage, newTaskWrapper(task, options...))
 }
 
 // InitAddTask initialize and add a Task to be executed at the passed stage.

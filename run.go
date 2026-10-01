@@ -335,7 +335,7 @@ func (m *Manager) runStage(ctx, taskDoneCtx context.Context, logger *slog.Logger
 		waitWG = &sync.WaitGroup{}
 	}
 
-	taskCount := m.runStageStep(ctx, taskDoneCtx, stage, step, waitWG, !isWait, func(logOnly bool) {
+	taskCount := m.runStageStep(ctx, taskDoneCtx, loggerStep, stage, step, waitWG, !isWait, func(logOnly bool) {
 		loggerStepOnce.Do(loggerStepFn)
 		if !logOnly {
 			cbStepOnce.Do(cbStepFn)
@@ -361,11 +361,8 @@ func (m *Manager) runStage(ctx, taskDoneCtx context.Context, logger *slog.Logger
 	}
 }
 
-func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, stage string, step Step, wg *sync.WaitGroup,
-	waitStart bool, onTask func(logOnly bool), onError func(err error)) int {
-	loggerStage := m.logger.With(
-		"stage", stage,
-		"step", step.String())
+func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *slog.Logger, stage string, step Step,
+	wg *sync.WaitGroup, waitStart bool, onTask func(logOnly bool), onError func(err error)) int {
 
 	var startWg sync.WaitGroup
 	var taskCount atomic.Int64
@@ -437,10 +434,8 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, stage string, s
 					}
 
 					tw.mu.Lock()
-					if tw.options.startStepManager {
-						startStepMan.cancel = tw.startCancel
-						startStepMan.finished = tw.finishCtx
-					}
+					startStepMan.cancel = tw.startCancel
+					startStepMan.finished = tw.finishCtx
 					tw.mu.Unlock()
 
 					if startStepMan.cancel != nil || startStepMan.finished != nil {

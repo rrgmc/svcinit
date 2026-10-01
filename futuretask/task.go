@@ -21,7 +21,7 @@ func New[T any](setupFunc instancetask.BuildSetupFunc[T],
 		}
 	}
 	return &taskFuture[T]{
-		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{instancetask.Build[T](func(ctx context.Context) (T, error) {
+		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{Task: instancetask.Build[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				dr.ResolveError(err)

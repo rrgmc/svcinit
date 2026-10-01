@@ -3,7 +3,6 @@ package svcinit
 import (
 	"io"
 	"log/slog"
-	"sync"
 
 	slog2 "github.com/rrgmc/svcinit/v3/slog"
 )
@@ -16,14 +15,5 @@ func defaultLogger(output io.Writer) *slog.Logger {
 	}))
 }
 
-var (
-	nullLoggerDefault *slog.Logger
-	nullLoggerOnce    sync.Once
-)
-
-func nullLogger() *slog.Logger {
-	nullLoggerOnce.Do(func() {
-		nullLoggerDefault = slog.New(slog.DiscardHandler)
-	})
-	return nullLoggerDefault
-}
+// nullLogger is a logger that discards all output.
+var nullLogger = slog.New(slog.DiscardHandler)

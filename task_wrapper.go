@@ -80,8 +80,10 @@ func (t *taskWrapper) run(ctx context.Context, stage string, step Step, callback
 
 func (t *taskWrapper) runCallbacks(ctx context.Context, stage string, step Step, callbackStep CallbackStep, err error,
 	callbacks []TaskCallback) {
-	for _, callback := range slices.Concat(callbacks, t.options.callbacks) {
-		callback.Callback(ctx, t.task, stage, step, callbackStep, err)
+	for _, cbs := range [2][]TaskCallback{callbacks, t.options.callbacks} {
+		for _, callback := range cbs {
+			callback.Callback(ctx, t.task, stage, step, callbackStep, err)
+		}
 	}
 }
 

@@ -106,10 +106,11 @@ func newTaskBuild[T any](setupFunc BuildSetupFunc[T], options ...BuildOption[T])
 		if stepFn != nil {
 			ret.tbOptions = append(ret.tbOptions,
 				svcinit.WithStep(step, func(ctx context.Context) error {
-					if data := ret.data.Load(); data == nil {
+					data := ret.data.Load()
+					if data == nil {
 						return fmt.Errorf("%w: data not initialized", svcinit.ErrNotInitialized)
 					}
-					return stepFn(ctx, *ret.data.Load())
+					return stepFn(ctx, *data)
 				}))
 		} else {
 			ret.tbOptions = append(ret.tbOptions,
@@ -163,13 +164,6 @@ func (t *taskBuild[T]) runSetup(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func (t *taskBuild[T]) runStep(ctx context.Context, step svcinit.Step) error {
-	if fn, ok := t.stepFunc[step]; ok {
-		return fn(ctx, *t.data.Load())
-	}
-	return fmt.Errorf("%w: %s", svcinit.ErrInvalidTaskStep, step)
 }
 
 func (t *taskBuild[T]) Run(ctx context.Context, step svcinit.Step) error {

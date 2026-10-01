@@ -1069,3 +1069,7 @@ func TestDefaultTaskStepsCopy(t *testing.T) {
 	DefaultTaskSteps()[0] = StepTeardown
 	assert.DeepEqual(t, []Step{StepSetup, StepStart, StepStop, StepTeardown}, DefaultTaskSteps())
 }
+
+func ptr[T any](v T) *T {
+	return &v
+}

@@ -166,20 +166,15 @@ func (h *Handler) init() {
 	if !h.startupProbe {
 		h.isStarted.Store(true)
 	}
-	h.StartupHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler.ServeHTTP(ProbeStartup, Status{
-			IsStarted:     h.isStarted.Load(),
-			IsTerminating: h.isTerminating.Load(),
-		}, w, r)
-	})
-	h.LivenessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler.ServeHTTP(ProbeLiveness, Status{
-			IsStarted:     h.isStarted.Load(),
-			IsTerminating: h.isTerminating.Load(),
-		}, w, r)
-	})
-	h.ReadinessHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.probeHandler.ServeHTTP(ProbeReadiness, Status{
+	h.StartupHandler = h.probeHTTPHandler(ProbeStartup)
+	h.LivenessHandler = h.probeHTTPHandler(ProbeLiveness)
+	h.ReadinessHandler = h.probeHTTPHandler(ProbeReadiness)
+}
+
+// probeHTTPHandler returns an [http.Handler] which calls the probe handler for the passed probe.
+func (h *Handler) probeHTTPHandler(probe Probe) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.probeHandler.ServeHTTP(probe, Status{
 			IsStarted:     h.isStarted.Load(),
 			IsTerminating: h.isTerminating.Load(),
 		}, w, r)
