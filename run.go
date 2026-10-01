@@ -429,15 +429,16 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 			defer wg.Done()
 			taskCtx := taskDoneCtx
 			var taskCancelOnStop context.CancelCauseFunc
+			taskOpts := tw.currentOptions()
 			switch step {
 			case StepStart:
 				logAttrs = append(logAttrs,
-					slog.Bool("cancelContext", tw.options.cancelContext),
+					slog.Bool("cancelContext", taskOpts.cancelContext),
 				)
-				if !tw.options.cancelContext {
+				if !taskOpts.cancelContext {
 					taskCtx = ctx // don't cancel context automatically using the global task done context
 				}
-				if tw.options.startStepManager {
+				if taskOpts.startStepManager {
 					logAttrs = append(logAttrs, slog.Bool("ssm", true))
 					// create cancellable context for the start step.
 					tw.mu.Lock()
@@ -449,7 +450,7 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 					tw.mu.Unlock()
 				}
 			case StepStop:
-				if tw.options.startStepManager {
+				if taskOpts.startStepManager {
 					logAttrs = append(logAttrs, slog.Bool("ssm", true))
 					startStepMan := &startStepManager{
 						logger: loggerTask,

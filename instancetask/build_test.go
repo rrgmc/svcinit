@@ -3,6 +3,7 @@ package instancetask
 import (
 	"cmp"
 	"context"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -125,5 +126,55 @@ func TestProviderInitErrorFromSetup(t *testing.T) {
 
 		err = sinit.Run(t.Context())
 		assert.ErrorIs(t, err, svcinit.ErrNilTask)
+	})
+}
+
+// TestProviderTaskOptions is a regression test: the options of the task returned by the Provider callback used to
+// be ignored, as task options were computed when the task was added, before the "setup" step set the parent.
+func TestProviderTaskOptions(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var startCancelled, ssmCanCancel atomic.Bool
+
+		sinit, err := svcinit.New(
+			// if the options are ignored, the start steps are never cancelled: give up waiting instead of blocking.
+			svcinit.WithEnforceShutdownTimeout(true),
+		)
+		assert.NilError(t, err)
+
+		sinit.AddTask(svcinit.StageDefault, Provider(func(ctx context.Context) (svcinit.Task, error) {
+			return svcinit.BuildTask(
+				svcinit.WithStart(func(ctx context.Context) error {
+					// only cancelled by the Manager because of the WithCancelContext(true) option.
+					<-ctx.Done()
+					startCancelled.Store(true)
+					return nil
+				}),
+				svcinit.WithTaskOptions(svcinit.WithCancelContext(true)),
+			), nil
+		}))
+
+		sinit.AddTask(svcinit.StageDefault, Provider(func(ctx context.Context) (svcinit.Task, error) {
+			return svcinit.BuildTask(
+				svcinit.WithStart(func(ctx context.Context) error {
+					<-ctx.Done()
+					return nil
+				}),
+				svcinit.WithStop(func(ctx context.Context) error {
+					// only available because of the WithStartStepManager() option.
+					ssm := svcinit.StartStepManagerFromContext(ctx)
+					ssmCanCancel.Store(ssm.CanContextCancel())
+					ssm.ContextCancel(context.Canceled)
+					return nil
+				}),
+				svcinit.WithTaskOptions(svcinit.WithStartStepManager()),
+			), nil
+		}))
+
+		sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second, svcinit.WithoutTimeoutTaskError()))
+
+		err = sinit.Run(t.Context())
+		assert.NilError(t, err)
+		assert.Check(t, startCancelled.Load())
+		assert.Check(t, ssmCanCancel.Load())
 	})
 }
