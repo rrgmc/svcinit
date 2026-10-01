@@ -1049,3 +1049,23 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 		assert.Assert(t, false, "unexpected error type %T (%v)", err, err)
 	}
 }
+
+func TestManagerInvalidStages(t *testing.T) {
+	_, err := New(WithStages("a", "b", "a"))
+	assert.ErrorIs(t, err, ErrInvalidStage)
+
+	_, err = New(WithStages("a", ""))
+	assert.ErrorIs(t, err, ErrInvalidStage)
+
+	stages := []string{"a", "b"}
+	m, err := New(WithStages(stages...))
+	assert.NilError(t, err)
+	stages[0] = "x"
+	m.Stages()[1] = "y"
+	assert.DeepEqual(t, []string{"a", "b"}, m.Stages())
+}
+
+func TestDefaultTaskStepsCopy(t *testing.T) {
+	DefaultTaskSteps()[0] = StepTeardown
+	assert.DeepEqual(t, []Step{StepSetup, StepStart, StepStop, StepTeardown}, DefaultTaskSteps())
+}

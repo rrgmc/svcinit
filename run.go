@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,8 +17,15 @@ func (m *Manager) init() error {
 		return ErrNoStage
 	}
 
-	if slices.Contains(m.stages, "") {
-		return fmt.Errorf("%w: blank stage not allowed", ErrInvalidStage)
+	seen := make(map[string]struct{}, len(m.stages))
+	for _, stage := range m.stages {
+		if stage == "" {
+			return fmt.Errorf("%w: blank stage not allowed", ErrInvalidStage)
+		}
+		if _, ok := seen[stage]; ok {
+			return fmt.Errorf("%w: duplicate stage '%s'", ErrInvalidStage, stage)
+		}
+		seen[stage] = struct{}{}
 	}
 
 	return nil

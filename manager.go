@@ -53,7 +53,7 @@ func New(options ...Option) (*Manager, error) {
 
 // Stages returns the stages configured for execution.
 func (m *Manager) Stages() []string {
-	return m.stages
+	return slices.Clone(m.stages)
 }
 
 // IsRunning returns whether [Manager.Run] has been called on this Manager. A Manager is single-use: once
@@ -168,7 +168,7 @@ func WithLogger(logger *slog.Logger) Option {
 // The default value is "[StageDEFAULT]".
 func WithStages(stages ...string) Option {
 	return func(m *Manager) {
-		m.stages = stages
+		m.stages = slices.Clone(stages)
 	}
 }
 

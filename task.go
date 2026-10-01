@@ -3,6 +3,7 @@ package svcinit
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 type Task interface {
@@ -42,7 +43,7 @@ type TaskName interface {
 
 // DefaultTaskSteps returns the default value for [TaskSteps.TaskSteps], which is the list of all steps.
 func DefaultTaskSteps() []Step {
-	return allSteps
+	return slices.Clone(allSteps)
 }
 
 // GetTaskName gets the name of task, or blank if it don't have one.
