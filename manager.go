@@ -113,6 +113,10 @@ func (m *Manager) AddTaskFunc(stage string, f TaskFunc, options ...TaskOption) {
 
 // AddService add a Service to be executed at the passed stage.
 func (m *Manager) AddService(stage string, service Service, options ...TaskOption) {
+	if service == nil {
+		m.AddTask(stage, nil, options...)
+		return
+	}
 	m.AddTask(stage, ServiceAsTask(service), options...)
 }
 

@@ -88,3 +88,18 @@ func TestManagerInitData(t *testing.T) {
 		items.AssertDeepEqual(t, []string{"i1setup", "i2setup", "sstart"})
 	})
 }
+
+func TestInitError(t *testing.T) {
+	sinit, err := svcinit.New()
+	assert.NilError(t, err)
+
+	sinit.AddTask(svcinit.StageDefault, New[int](
+		func(ctx context.Context) (int, error) {
+			return 1, nil
+		},
+		instancetask.WithStop[int](nil),
+	))
+
+	err = sinit.Run(t.Context())
+	assert.ErrorIs(t, err, svcinit.ErrNilTask)
+}

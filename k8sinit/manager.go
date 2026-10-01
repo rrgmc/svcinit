@@ -16,8 +16,10 @@ type Manager struct {
 	logger                *slog.Logger
 	managerOptions        []svcinit.Option
 	healthHandler         svcinit.HealthHandler
+	healthHandlerSet      bool
 	healthTask            svcinit.Task
 	telemetryHandler      TelemetryHandler
+	telemetryHandlerSet   bool
 	telemetryTask         svcinit.Task
 	shutdownTimeout       time.Duration
 	teardownTimeout       time.Duration
@@ -27,10 +29,12 @@ type Manager struct {
 
 func New(options ...Option) (*Manager, error) {
 	ret := &Manager{
-		logger:          slog.New(slog.DiscardHandler),
-		handleSignals:   []os.Signal{os.Interrupt, syscall.SIGTERM},
-		shutdownTimeout: time.Second * 20,
-		teardownTimeout: time.Second * 5,
+		logger:           slog.New(slog.DiscardHandler),
+		healthHandler:    &noopHealthHandler{},
+		telemetryHandler: &noopTelemetryHandler{},
+		handleSignals:    []os.Signal{os.Interrupt, syscall.SIGTERM},
+		shutdownTimeout:  time.Second * 20,
+		teardownTimeout:  time.Second * 5,
 	}
 	for _, option := range options {
 		option(ret)
@@ -54,11 +58,6 @@ func New(options ...Option) (*Manager, error) {
 	if !ret.disableSignalHandling && len(ret.handleSignals) > 0 {
 		ret.AddTask(StageManagement, svcinit.SignalTask(ret.handleSignals...))
 	}
-
-	// set the noop defaults immediately so HealthHandler()/TelemetryHandler() are never nil, even before
-	// Run() is called. SetHealthHandler/SetTelemetryHandler still override these if called later.
-	ret.initRunHealth()
-	ret.initRunTelemetry()
 
 	return ret, nil
 }
@@ -109,8 +108,6 @@ func (m *Manager) AddService(stage string, service svcinit.Service, options ...s
 
 // Run executes the initialization and returns the error of the first task stop step that returns.
 func (m *Manager) Run(ctx context.Context) error {
-	m.initRunHealth()
-	m.initRunTelemetry()
 	return m.manager.Run(ctx)
 }
 

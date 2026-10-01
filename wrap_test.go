@@ -124,3 +124,13 @@ func (t *testTaskComplete) TaskSteps() []Step {
 func (t *testTaskComplete) TaskOptions() []TaskInstanceOption {
 	return t.options
 }
+
+func TestWrapTaskInitError(t *testing.T) {
+	sinit, err := New()
+	assert.NilError(t, err)
+
+	sinit.AddTask(StageDefault, WrapTask(BuildTask(WithStart(nil))))
+
+	err = sinit.Run(t.Context())
+	assert.ErrorIs(t, err, ErrNilTask)
+}
