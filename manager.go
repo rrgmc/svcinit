@@ -75,11 +75,9 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 		m.addInitError(ErrNilTask)
 		return
 	}
-	if te, ok := task.(TaskWithInitError); ok {
-		if err := te.TaskInitError(); err != nil {
-			m.addInitError(err)
-			return
-		}
+	if err := GetTaskInfo(task).InitError; err != nil {
+		m.addInitError(err)
+		return
 	}
 	if !slices.Contains(m.stages, stage) {
 		m.addInitError(newInvalidStage(stage))

@@ -62,6 +62,26 @@ type Task interface {
 }
 ```
 
+A task can optionally describe itself by implementing `TaskWithInfo`. All fields are optional:
+
+```go
+type TaskWithInfo interface {
+    TaskInfo() TaskInfo
+}
+
+type TaskInfo struct {
+    Name      string                                  // task name
+    Steps     []Step                                  // steps the task implements (nil = all)
+    Options   []TaskInstanceOption                    // task options set by the task itself
+    InitError error                                   // initialization error
+    NotRun    func(ctx context.Context, cause error) // called if Run returns without running any step
+}
+```
+
+To decorate an existing task, use `BuildTask` with `WithParent`: steps not set are forwarded to the parent,
+and its `TaskInfo` is merged into the built task one. To customize how steps are called, use `WithHandler` when
+adding the task.
+
 ## Example
 
 ```go

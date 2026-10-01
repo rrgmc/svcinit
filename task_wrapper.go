@@ -24,10 +24,8 @@ func newTaskWrapper(task Task, options ...TaskOption) *taskWrapper {
 	for _, option := range options {
 		option.applyTaskOpt(&ret.options)
 	}
-	if to, ok := task.(TaskWithOptions); ok {
-		for _, option := range to.TaskOptions() {
-			option.applyTaskInstanceOpt(&ret.options)
-		}
+	for _, option := range GetTaskInfo(task).Options {
+		option.applyTaskInstanceOpt(&ret.options)
 	}
 	return ret
 }

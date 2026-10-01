@@ -35,7 +35,7 @@ func NewServer(options ...ServerOption) *Server {
 }
 
 var _ svcinit.Task = (*Server)(nil)
-var _ svcinit.TaskName = (*Server)(nil)
+var _ svcinit.TaskWithInfo = (*Server)(nil)
 var _ svcinit.HealthHandler = (*Server)(nil)
 
 func (h *Server) ServiceStarted(ctx context.Context) {
@@ -78,8 +78,8 @@ func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 	return nil
 }
 
-func (h *Server) TaskName() string {
-	return h.taskName
+func (h *Server) TaskInfo() svcinit.TaskInfo {
+	return svcinit.TaskInfo{Name: h.taskName}
 }
 
 // options
@@ -105,7 +105,7 @@ func WithServerProvider(provider func(ctx context.Context, address string) (*htt
 	}
 }
 
-// WithServerTaskName sets the [svcinit.TaskName] returned for this task. The default is "health".
+// WithServerTaskName sets the [svcinit.TaskInfo.Name] returned for this task. The default is "health".
 func WithServerTaskName(name string) ServerOption {
 	return &optionImpl{
 		serverOpt: func(server *Server) {

@@ -86,3 +86,44 @@ func TestBuildTask(t *testing.T) {
 		assert.DeepEqual(t, []string{"start", "stop"}, items.Get(), cmpopts.SortSlices(cmp.Less[string]))
 	})
 }
+
+func TestBuildTaskInfoFromParent(t *testing.T) {
+	var calls []string
+	parent := svcinit.BuildTask(
+		svcinit.WithName("parent"),
+		svcinit.WithStart(func(ctx context.Context) error { return nil }),
+		svcinit.WithTaskOptions(svcinit.WithCancelContext(true)),
+		svcinit.WithNotRun(func(ctx context.Context, cause error) { calls = append(calls, "parent") }),
+	)
+
+	task := Build[int](func(ctx context.Context) (int, error) { return 1, nil },
+		WithParent[int](parent),
+		WithNotRun[int](func(ctx context.Context, cause error) { calls = append(calls, "task") }),
+	)
+
+	info := svcinit.GetTaskInfo(task)
+	assert.NilError(t, info.InitError)
+	assert.Equal(t, "parent", info.Name)
+	assert.DeepEqual(t, []svcinit.Step{svcinit.StepSetup, svcinit.StepStart}, info.Steps,
+		cmpopts.SortSlices(cmp.Less[svcinit.Step]))
+	assert.Equal(t, 1, len(info.Options))
+	assert.Assert(t, info.NotRun != nil)
+	info.NotRun(t.Context(), nil)
+	assert.DeepEqual(t, []string{"task", "parent"}, calls)
+}
+
+func TestProviderInitErrorFromSetup(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		sinit, err := svcinit.New()
+		assert.NilError(t, err)
+
+		sinit.AddTask(svcinit.StageDefault, Provider(func(ctx context.Context) (svcinit.Task, error) {
+			// a provided task with an initialization error must fail the setup step.
+			return svcinit.BuildTask(svcinit.WithStart(nil)), nil
+		}))
+		sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second))
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, svcinit.ErrNilTask)
+	})
+}

@@ -994,7 +994,7 @@ type testTask struct {
 	task   Task
 }
 
-var _ TaskSteps = (*testTask)(nil)
+var _ TaskWithInfo = (*testTask)(nil)
 
 func newTestTask(taskNo int, task Task) *testTask {
 	return &testTask{
@@ -1007,11 +1007,8 @@ func (t *testTask) TaskNo() int {
 	return t.taskNo
 }
 
-func (t *testTask) TaskSteps() []Step {
-	if tt, ok := t.task.(TaskSteps); ok {
-		return tt.TaskSteps()
-	}
-	return allSteps
+func (t *testTask) TaskInfo() TaskInfo {
+	return GetTaskInfo(t.task)
 }
 
 func (t *testTask) Run(ctx context.Context, step Step) error {

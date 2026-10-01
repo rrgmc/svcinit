@@ -84,5 +84,3 @@ type noopTelemetryHandler struct {
 func (h *noopTelemetryHandler) FlushTelemetry(context.Context) error {
 	return nil
 }
-
-type privateBaseOverloadedTask[T svcinit.Task] = svcinit.BaseOverloadedTask[T]

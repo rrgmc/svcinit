@@ -31,27 +31,48 @@ func (t TaskFunc) String() string {
 // the steps out of order or multiple times.
 type TaskHandler func(ctx context.Context, task Task, step Step) error
 
-// TaskSteps returns the steps that the task implements. They will be the only ones called.
-type TaskSteps interface {
-	TaskSteps() []Step
+// TaskInfo describes the optional metadata and behavior of a task. All fields are optional, and the zero value
+// is the default for a task.
+// It is the single extension point of a task: a task decorating another one should merge the inner task's
+// TaskInfo instead of forwarding a set of interfaces. [BuildTask] with [WithParent] does this.
+type TaskInfo struct {
+	// Name is the task name.
+	Name string
+	// Steps are the steps that the task implements. They will be the only ones called.
+	// If nil, all steps are called.
+	Steps []Step
+	// Options are task options set by the task itself. They have priority over options set via [Manager.AddTask].
+	Options []TaskInstanceOption
+	// InitError is a task initialization error. If not nil, [Manager.AddTask] won't add the task, and
+	// [Manager.Run] will return the error.
+	InitError error
+	// NotRun is called when [Manager.Run] returns without having run any of the task steps, for example because
+	// a setup step of a previous stage failed. cause is the error returned from Run, and may be nil.
+	// It can be used to release anything waiting on the task, like an unresolved [Future].
+	NotRun func(ctx context.Context, cause error)
 }
 
-// TaskName allows tasks to have a name.
-type TaskName interface {
-	TaskName() string
+// TaskWithInfo allows a task to describe its optional metadata and behavior.
+type TaskWithInfo interface {
+	TaskInfo() TaskInfo
 }
 
-// DefaultTaskSteps returns the default value for [TaskSteps.TaskSteps], which is the list of all steps.
+// GetTaskInfo returns the task info, or the zero value if the task don't implement [TaskWithInfo].
+func GetTaskInfo(task Task) TaskInfo {
+	if ti, ok := task.(TaskWithInfo); ok {
+		return ti.TaskInfo()
+	}
+	return TaskInfo{}
+}
+
+// DefaultTaskSteps returns the list of all steps, which is the default for [TaskInfo.Steps].
 func DefaultTaskSteps() []Step {
 	return slices.Clone(allSteps)
 }
 
 // GetTaskName gets the name of task, or blank if it don't have one.
 func GetTaskName(task Task) string {
-	if ts, ok := task.(TaskName); ok {
-		return ts.TaskName()
-	}
-	return ""
+	return GetTaskInfo(task).Name
 }
 
 // GetTaskDescription returns the task description, be it the String method, a task name, or its variable type.
@@ -63,24 +84,6 @@ func GetTaskDescription(task Task) string {
 		return tn
 	}
 	return getDefaultTaskDescription(task)
-}
-
-// TaskWithOptions allows the task to set some of the task options. They have priority over options set via
-// [Manager.AddTask].
-type TaskWithOptions interface {
-	TaskOptions() []TaskInstanceOption
-}
-
-// TaskWithInitError allows a task to report an initialization error. The error might be nil.
-type TaskWithInitError interface {
-	TaskInitError() error
-}
-
-// TaskWithNotRun allows a task to be notified when [Manager.Run] returns without having run any of its steps,
-// for example because a setup step of a previous stage failed. cause is the error returned from Run, and may be nil.
-// It can be used to release anything waiting on the task, like an unresolved [Future].
-type TaskWithNotRun interface {
-	TaskNotRun(ctx context.Context, cause error)
 }
 
 // WithCancelContext sets whether to automatically cancel the task start step context when the first task finishes.

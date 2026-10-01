@@ -3,6 +3,7 @@ package futuretask
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/rrgmc/svcinit/v3"
 	"github.com/rrgmc/svcinit/v3/instancetask"
@@ -11,63 +12,52 @@ import (
 // New creates a task that resolves a [svcinit.Future] from the result of setupFunc's "setup" step.
 // setupFunc must not be nil: unlike [instancetask.Build], there would be no data to resolve the future
 // with.
-func New[T any](setupFunc instancetask.BuildSetupFunc[T],
-	options ...instancetask.BuildOption[T]) svcinit.TaskFuture[T] {
-	dr := svcinit.NewFuture[T]()
+// If the task never runs, for example because a previous stage failed, the future is resolved with
+// [svcinit.ErrTaskNotRun], so waiters don't block forever.
+func New[T any](setupFunc instancetask.BuildSetupFunc[T], options ...instancetask.BuildOption[T]) *Task[T] {
+	future := svcinit.NewFuture[T]()
 	if setupFunc == nil {
 		setupFunc = func(context.Context) (T, error) {
 			var empty T
 			return empty, svcinit.ErrNilTask
 		}
 	}
-	return &taskFuture[T]{
-		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{Task: instancetask.Build[T](func(ctx context.Context) (T, error) {
+	return &Task[T]{
+		instanceTask: instancetask.Build[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
-				dr.ResolveError(err)
+				future.ResolveError(err)
 				var empty T
 				return empty, err
 			}
-			dr.Resolve(data)
+			future.Resolve(data)
 			return data, nil
-		}, options...)},
-		future: dr,
+		}, append(slices.Clip(options), instancetask.WithNotRun[T](func(_ context.Context, cause error) {
+			select {
+			case <-future.Done():
+				return // resolving twice panics.
+			default:
+			}
+			if cause != nil {
+				future.ResolveError(fmt.Errorf("%w: %w", svcinit.ErrTaskNotRun, cause))
+			} else {
+				future.ResolveError(svcinit.ErrTaskNotRun)
+			}
+		}))...),
+		future: future,
 	}
 }
 
-// internal
-
-type taskFuture[T any] struct {
-	*svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]
-	future svcinit.FutureResolver[T]
+// Task is a task created by [New], which is also the [svcinit.Future] resolved by its "setup" step.
+type Task[T any] struct {
+	*instanceTask[T]
+	future svcinit.Future[T]
 }
 
-var _ svcinit.Future[int] = (*taskFuture[int])(nil)
-var _ svcinit.Task = (*taskFuture[int])(nil)
-var _ svcinit.TaskSteps = (*taskFuture[int])(nil)
-var _ svcinit.TaskWithOptions = (*taskFuture[int])(nil)
-var _ svcinit.TaskWithNotRun = (*taskFuture[int])(nil)
+var _ svcinit.TaskFuture[int] = (*Task[int])(nil)
+var _ svcinit.TaskWithInfo = (*Task[int])(nil)
 
-func (t *taskFuture[T]) Run(ctx context.Context, step svcinit.Step) error {
-	return t.Task.Run(ctx, step)
-}
-
-// TaskNotRun resolves the future with [svcinit.ErrTaskNotRun], so waiters don't block forever when the
-// "setup" step never runs, for example because a previous stage failed.
-func (t *taskFuture[T]) TaskNotRun(_ context.Context, cause error) {
-	select {
-	case <-t.future.Done():
-		return
-	default:
-	}
-	if cause != nil {
-		t.future.ResolveError(fmt.Errorf("%w: %w", svcinit.ErrTaskNotRun, cause))
-	} else {
-		t.future.ResolveError(svcinit.ErrTaskNotRun)
-	}
-}
-
-func (t *taskFuture[T]) Value(options ...svcinit.FutureValueOption) (T, error) {
+func (t *Task[T]) Value(options ...svcinit.FutureValueOption) (T, error) {
 	ret, err := t.future.Value(options...)
 	if err != nil {
 		return ret, fmt.Errorf("error resolving task data: %w", err)
@@ -75,6 +65,10 @@ func (t *taskFuture[T]) Value(options ...svcinit.FutureValueOption) (T, error) {
 	return ret, nil
 }
 
-func (t *taskFuture[T]) Done() <-chan struct{} {
+func (t *Task[T]) Done() <-chan struct{} {
 	return t.future.Done()
 }
+
+// internal
+
+type instanceTask[T any] = instancetask.Task[T]
