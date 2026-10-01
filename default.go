@@ -32,7 +32,7 @@ type TaskSignalTask struct {
 var _ Task = (*TaskSignalTask)(nil)
 var _ TaskName = (*TaskSignalTask)(nil)
 var _ TaskSteps = (*TaskSignalTask)(nil)
-var _ TaskWithOptions = (*TaskTimeoutTask)(nil)
+var _ TaskWithOptions = (*TaskSignalTask)(nil)
 
 func (t *TaskSignalTask) Signals() []os.Signal {
 	return t.signals

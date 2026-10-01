@@ -39,7 +39,7 @@ func New(options ...Option) (*Manager, error) {
 		tasks:                  newStageTasks(),
 		shutdownTimeout:        10 * time.Second,
 		enforceShutdownTimeout: true,
-		logger:                 slog.New(slog.DiscardHandler),
+		logger:                 nullLogger,
 	}
 	for _, option := range options {
 		option(ret)
@@ -53,7 +53,7 @@ func New(options ...Option) (*Manager, error) {
 
 // Stages returns the stages configured for execution.
 func (m *Manager) Stages() []string {
-	return m.stages
+	return slices.Clone(m.stages)
 }
 
 // IsRunning returns whether [Manager.Run] has been called on this Manager. A Manager is single-use: once
@@ -76,17 +76,16 @@ func (m *Manager) AddTask(stage string, task Task, options ...TaskOption) {
 		return
 	}
 	if te, ok := task.(TaskWithInitError); ok {
-		if te.TaskInitError() != nil {
-			m.addInitError(te.TaskInitError())
+		if err := te.TaskInitError(); err != nil {
+			m.addInitError(err)
 			return
 		}
 	}
-	tw := newTaskWrapper(task, options...)
 	if !slices.Contains(m.stages, stage) {
 		m.addInitError(newInvalidStage(stage))
 		return
 	}
-	m.tasks.add(stage, tw)
+	m.tasks.add(stage, newTaskWrapper(task, options...))
 }
 
 // InitAddTask initialize and add a Task to be executed at the passed stage.
@@ -113,6 +112,10 @@ func (m *Manager) AddTaskFunc(stage string, f TaskFunc, options ...TaskOption) {
 
 // AddService add a Service to be executed at the passed stage.
 func (m *Manager) AddService(stage string, service Service, options ...TaskOption) {
+	if service == nil {
+		m.AddTask(stage, nil, options...)
+		return
+	}
 	m.AddTask(stage, ServiceAsTask(service), options...)
 }
 
@@ -164,7 +167,7 @@ func WithLogger(logger *slog.Logger) Option {
 // The default value is "[StageDEFAULT]".
 func WithStages(stages ...string) Option {
 	return func(m *Manager) {
-		m.stages = stages
+		m.stages = slices.Clone(stages)
 	}
 }
 

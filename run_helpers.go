@@ -20,19 +20,13 @@ func (s *stageTasks) add(stage string, tw *taskWrapper) {
 }
 
 func (s *stageTasks) stageTasks(stage string) iter.Seq[*taskWrapper] {
-	return func(yield func(*taskWrapper) bool) {
-		for _, t := range s.tasks[stage] {
-			if !yield(t) {
-				return
-			}
-		}
-	}
+	return slices.Values(s.tasks[stage])
 }
 
 func (s *stageTasks) stepTaskCount(step Step) (ct int) {
 	for _, tasks := range s.tasks {
 		for _, task := range tasks {
-			if slices.Contains(taskSteps(task.task), step) {
+			if taskHasStep(task.task, step) {
 				ct++
 			}
 		}

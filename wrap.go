@@ -54,6 +54,8 @@ type BaseOverloadedTask[T Task] struct {
 var _ TaskName = (*BaseOverloadedTask[Task])(nil)
 var _ TaskSteps = (*BaseOverloadedTask[Task])(nil)
 var _ TaskWithOptions = (*BaseOverloadedTask[Task])(nil)
+var _ TaskWithInitError = (*BaseOverloadedTask[Task])(nil)
+var _ TaskWithNotRun = (*BaseOverloadedTask[Task])(nil)
 
 func (t *BaseOverloadedTask[T]) TaskOptions() []TaskInstanceOption {
 	if tt, ok := any(t.Task).(TaskWithOptions); ok {
@@ -67,6 +69,19 @@ func (t *BaseOverloadedTask[T]) TaskSteps() []Step {
 		return tt.TaskSteps()
 	}
 	return DefaultTaskSteps()
+}
+
+func (t *BaseOverloadedTask[T]) TaskInitError() error {
+	if tt, ok := any(t.Task).(TaskWithInitError); ok {
+		return tt.TaskInitError()
+	}
+	return nil
+}
+
+func (t *BaseOverloadedTask[T]) TaskNotRun(ctx context.Context, cause error) {
+	if tt, ok := any(t.Task).(TaskWithNotRun); ok {
+		tt.TaskNotRun(ctx, cause)
+	}
 }
 
 func (t *BaseOverloadedTask[T]) TaskName() string {
@@ -97,6 +112,7 @@ func NewBaseWrappedTask[T Task](task T) *BaseWrappedTask[T] {
 var _ TaskName = (*BaseWrappedTask[Task])(nil)
 var _ TaskSteps = (*BaseWrappedTask[Task])(nil)
 var _ TaskWithOptions = (*BaseWrappedTask[Task])(nil)
+var _ TaskWithInitError = (*BaseWrappedTask[Task])(nil)
 var _ TaskWithWrapped = (*BaseWrappedTask[Task])(nil)
 
 func (t *BaseWrappedTask[T]) Run(ctx context.Context, step Step) error {
@@ -119,6 +135,7 @@ var _ Task = (*wrappedTask)(nil)
 var _ TaskName = (*wrappedTask)(nil)
 var _ TaskSteps = (*wrappedTask)(nil)
 var _ TaskWithOptions = (*wrappedTask)(nil)
+var _ TaskWithInitError = (*wrappedTask)(nil)
 var _ TaskWithWrapped = (*wrappedTask)(nil)
 
 func newWrappedTask(task Task, options ...WrapTaskOption) *wrappedTask {

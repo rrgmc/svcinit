@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 	"sync/atomic"
 )
 
@@ -105,13 +104,7 @@ func newTaskBuild(options ...TaskBuildOption) *taskBuild {
 	for _, opt := range options {
 		opt(ret)
 	}
-	err := ret.init()
-	if err != nil {
-		ret.initError = err
-	}
-	if ret.isEmpty() {
-		ret.initError = errors.Join(ret.initError, ErrNilTask)
-	}
+	ret.initError = ret.init()
 	return ret
 }
 
@@ -128,22 +121,19 @@ func (t *taskBuild) TaskInitError() error {
 }
 
 func (t *taskBuild) Run(ctx context.Context, step Step) error {
-	var parentHasStep bool
-	if parent := t.parent.Load(); parent != nil {
-		parentHasStep = taskHasStep(*parent, step)
+	var parent Task
+	if p := t.parent.Load(); p != nil && taskHasStep(*p, step) {
+		parent = *p
 	}
 
 	if fn, ok := t.stepFunc[step]; ok {
-		if parentHasStep {
+		if parent != nil {
 			return fmt.Errorf("%w: build task parent already has '%s' step", ErrDuplicateStep, step.String())
 		}
 		return fn(ctx)
 	}
-	if parentHasStep {
-		if parent := t.parent.Load(); parent != nil {
-			return (*parent).Run(ctx, step)
-		}
-
+	if parent != nil {
+		return parent.Run(ctx, step)
 	}
 	return newInvalidTaskStep(step)
 }
@@ -165,9 +155,11 @@ func (t *taskBuild) String() string {
 	return getDefaultTaskDescription(t)
 }
 
-func (t *taskBuild) isEmpty() bool {
+// hasMissingStep returns whether any step callback is nil, or if there are no steps at all (neither callbacks
+// nor a parent to forward to).
+func (t *taskBuild) hasMissingStep() bool {
 	if len(t.stepFunc) == 0 {
-		return true
+		return t.parent.Load() == nil
 	}
 	for _, sf := range t.stepFunc {
 		if sf == nil {
@@ -183,12 +175,17 @@ func (t *taskBuild) SetParent(parent Task) error {
 	} else {
 		t.parent.Store(&parent)
 	}
-	err := t.init()
-	t.initError = err
-	return err
+	t.initError = t.init()
+	return t.initError
 }
 
+// init computes the task steps and returns any initialization error.
 func (t *taskBuild) init() error {
+	var nilTaskErr error
+	if t.hasMissingStep() {
+		nilTaskErr = ErrNilTask
+	}
+
 	var duplicatedSteps []Step
 
 	t.steps = slices.Collect(maps.Keys(t.stepFunc))
@@ -203,12 +200,13 @@ func (t *taskBuild) init() error {
 		}
 	}
 
-	if len(duplicatedSteps) > 0 {
-		return fmt.Errorf("%w: build task parent already has '%s' step(s)", ErrDuplicateStep,
-			strings.Join(sliceMap(duplicatedSteps, func(i int, e Step) string {
-				return e.String()
-			}), ","))
+	if len(duplicatedSteps) == 0 {
+		return nilTaskErr
 	}
-
-	return nil
+	dupErr := fmt.Errorf("%w: build task parent already has '%s' step(s)", ErrDuplicateStep,
+		stringerString(duplicatedSteps))
+	if nilTaskErr != nil {
+		return errors.Join(nilTaskErr, dupErr)
+	}
+	return dupErr
 }

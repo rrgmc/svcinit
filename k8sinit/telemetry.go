@@ -17,11 +17,12 @@ func (m *Manager) SetTelemetryHandler(handler TelemetryHandler, options ...svcin
 		m.manager.AddInitError(fmt.Errorf("%w: telemetry handler cannot be nil", svcinit.ErrInitialization))
 		return
 	}
-	if m.telemetryHandler != nil {
+	if m.telemetryHandlerSet {
 		m.manager.AddInitError(fmt.Errorf("%w: telemetry handler was already set", svcinit.ErrAlreadyInitialized))
 		return
 	}
 	m.telemetryHandler = handler
+	m.telemetryHandlerSet = true
 
 	// flush the metrics as fast as possible on SIGTERM.
 	m.AddTask(StageService, svcinit.BuildTask(
@@ -43,12 +44,6 @@ func (m *Manager) SetTelemetryTask(task svcinit.Task, options ...svcinit.TaskOpt
 
 	// telemetry server must be the first to start and last to stop.
 	m.AddTask(StageManagement, task, options...)
-}
-
-func (m *Manager) initRunTelemetry() {
-	if m.telemetryHandler == nil {
-		m.telemetryHandler = &noopTelemetryHandler{}
-	}
 }
 
 // BuildTelemetryHandler builds a TelemetryHandler from callback functions.

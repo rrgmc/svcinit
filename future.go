@@ -156,6 +156,16 @@ func (l *latch) resolve(fn func()) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	// check before calling fn, so a second resolve never mutates a value readers may already be using.
+	if l.done != nil {
+		select {
+		case <-l.done:
+			panic(ErrAlreadyResolved)
+		default:
+			// Intentionally left blank.
+		}
+	}
+
 	if fn != nil {
 		fn()
 	}
@@ -163,13 +173,6 @@ func (l *latch) resolve(fn func()) {
 	if l.done == nil {
 		l.done = closedchan
 		return
-	}
-
-	select {
-	case <-l.done:
-		panic(ErrAlreadyResolved)
-	default:
-		// Intentionally left blank.
 	}
 
 	close(l.done)

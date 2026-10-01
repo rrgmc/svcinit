@@ -13,11 +13,12 @@ func (m *Manager) SetHealthHandler(handler svcinit.HealthHandler, options ...svc
 		m.manager.AddInitError(fmt.Errorf("%w: health handler cannot be nil", svcinit.ErrInitialization))
 		return
 	}
-	if m.healthHandler != nil {
+	if m.healthHandlerSet {
 		m.manager.AddInitError(fmt.Errorf("%w: health handler was already set", svcinit.ErrAlreadyInitialized))
 		return
 	}
 	m.healthHandler = handler
+	m.healthHandlerSet = true
 
 	// the "ready" stage is executed after all initialization already happened. It is used to signal the
 	// startup probes that the service is ready.
@@ -53,12 +54,6 @@ func (m *Manager) SetHealthTask(task svcinit.Task, options ...svcinit.TaskOption
 
 	// health server must be the first to start and last to stop.
 	m.AddTask(StageManagement, task, options...)
-}
-
-func (m *Manager) initRunHealth() {
-	if m.healthHandler == nil {
-		m.healthHandler = &noopHealthHandler{}
-	}
 }
 
 type noopHealthHandler struct {

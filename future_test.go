@@ -122,3 +122,29 @@ func TestLatch_alreadyResolved(t *testing.T) {
 
 	assert.Equal(t, 1, counter, "expect resolve func to be called at most once")
 }
+
+func TestFuture_alreadyResolvedKeepsValue(t *testing.T) {
+	for name, waitFirst := range map[string]bool{
+		"not waited": false,
+		"waited":     true,
+	} {
+		t.Run(name, func(t *testing.T) {
+			fut := NewFuture[string]()
+			if waitFirst {
+				_ = fut.Done()
+			}
+			fut.Resolve("first")
+
+			func() {
+				defer func() {
+					assert.Equal(t, recover(), ErrAlreadyResolved)
+				}()
+				fut.Resolve("second")
+			}()
+
+			v, err := fut.Value()
+			assert.NilError(t, err)
+			assert.Equal(t, "first", v)
+		})
+	}
+}

@@ -56,9 +56,6 @@ func (h *Server) Run(ctx context.Context, step svcinit.Step) (err error) {
 			}
 		} else {
 			h.server = &http.Server{
-				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusOK)
-				}),
 				Addr:              h.address,
 				ReadHeaderTimeout: 5 * time.Second,
 			}

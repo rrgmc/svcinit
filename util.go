@@ -10,10 +10,6 @@ import (
 	"sync"
 )
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 // waitGroupWaitWithContext waits for the WaitGroup or the context to be done.
 // Returns false if waiting timed out.
 func waitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
@@ -28,24 +24,6 @@ func waitGroupWaitWithContext(ctx context.Context, wg *sync.WaitGroup) bool {
 	case <-ctx.Done():
 		return false // timed out
 	}
-}
-
-func sliceMap[S ~[]E, E, R any](slice S, mapper func(int, E) R) []R {
-	mappedSlice := make([]R, len(slice))
-	for i, v := range slice {
-		mappedSlice[i] = mapper(i, v)
-	}
-	return mappedSlice
-}
-
-func sliceFilter[S ~[]E, E any](slice S, filter func(int, E) bool) []E {
-	filteredSlice := make([]E, 0, len(slice))
-	for i, v := range slice {
-		if filter(i, v) {
-			filteredSlice = append(filteredSlice, v)
-		}
-	}
-	return slices.Clip(filteredSlice)
 }
 
 // reversedSlice returns a reversed iterator to a slice.
@@ -67,14 +45,6 @@ func stringerList[T fmt.Stringer](s []T) []string {
 	ss := make([]string, len(s))
 	for i, v := range s {
 		ss[i] = v.String()
-	}
-	return ss
-}
-
-func stringerIter[T fmt.Stringer](s iter.Seq[T]) []string {
-	var ss []string
-	for v := range s {
-		ss = append(ss, v.String())
 	}
 	return ss
 }
@@ -132,14 +102,7 @@ func (b *multiErrorBuilder) add(err error) {
 func (b *multiErrorBuilder) build() error {
 	b.m.Lock()
 	defer b.m.Unlock()
-	if len(b.errs) == 0 {
-		return nil
-	} else if len(b.errs) == 1 {
-		return b.errs[0]
-	}
-	return &multiError{
-		errors: slices.Clone(b.errs),
-	}
+	return buildMultiErrors(b.errs)
 }
 
 func buildMultiErrors(errs []error) error {

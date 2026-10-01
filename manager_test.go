@@ -1049,3 +1049,58 @@ func checkTestTaskError(t *testing.T, err error, taskNo int) {
 		assert.Assert(t, false, "unexpected error type %T (%v)", err, err)
 	}
 }
+
+func TestManagerInvalidStages(t *testing.T) {
+	_, err := New(WithStages("a", "b", "a"))
+	assert.ErrorIs(t, err, ErrInvalidStage)
+
+	_, err = New(WithStages("a", ""))
+	assert.ErrorIs(t, err, ErrInvalidStage)
+
+	stages := []string{"a", "b"}
+	m, err := New(WithStages(stages...))
+	assert.NilError(t, err)
+	stages[0] = "x"
+	m.Stages()[1] = "y"
+	assert.DeepEqual(t, []string{"a", "b"}, m.Stages())
+}
+
+func TestDefaultTaskStepsCopy(t *testing.T) {
+	DefaultTaskSteps()[0] = StepTeardown
+	assert.DeepEqual(t, []Step{StepSetup, StepStart, StepStop, StepTeardown}, DefaultTaskSteps())
+}
+
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func TestManagerAddAfterRun(t *testing.T) {
+	errLate := errors.New("late init error")
+
+	for name, add := range map[string]func(m *Manager){
+		"AddInitError": func(m *Manager) { m.AddInitError(errLate) },
+		"AddTask":      func(m *Manager) { m.AddTask(StageDefault, TimeoutTask(time.Second)) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m, err := New()
+				assert.NilError(t, err)
+
+				m.AddTask(StageDefault, BuildTask(
+					WithStart(func(ctx context.Context) error {
+						add(m)
+						<-ctx.Done()
+						return nil
+					}),
+					WithTaskOptions(WithCancelContext(true)),
+				))
+
+				err = m.Run(t.Context())
+				assert.ErrorIs(t, err, ErrAlreadyRunning)
+				if name == "AddInitError" {
+					assert.ErrorIs(t, err, errLate)
+				}
+			})
+		})
+	}
+}

@@ -2,6 +2,7 @@ package futuretask
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -87,4 +88,89 @@ func TestManagerInitData(t *testing.T) {
 
 		items.AssertDeepEqual(t, []string{"i1setup", "i2setup", "sstart"})
 	})
+}
+
+func TestInitError(t *testing.T) {
+	sinit, err := svcinit.New()
+	assert.NilError(t, err)
+
+	sinit.AddTask(svcinit.StageDefault, New[int](
+		func(ctx context.Context) (int, error) {
+			return 1, nil
+		},
+		instancetask.WithStop[int](nil),
+	))
+
+	err = sinit.Run(t.Context())
+	assert.ErrorIs(t, err, svcinit.ErrNilTask)
+}
+
+func TestNotRunAfterSetupError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		errSetup := errors.New("setup error")
+
+		sinit, err := svcinit.New(
+			svcinit.WithStages("s1", "s2", "s3"),
+			// without enforcing the timeout, a never resolved future would block shutdown forever.
+			svcinit.WithEnforceShutdownTimeout(false),
+		)
+		assert.NilError(t, err)
+
+		future := New[int](func(ctx context.Context) (int, error) {
+			return 10, nil
+		})
+
+		var valueErr error
+		sinit.AddTask("s1", svcinit.BuildTask(
+			svcinit.WithStart(func(ctx context.Context) error {
+				_, valueErr = future.Value()
+				return nil
+			}),
+		))
+		sinit.AddTask("s2", svcinit.BuildTask(
+			svcinit.WithSetup(func(ctx context.Context) error {
+				return errSetup
+			}),
+		))
+		sinit.AddTask("s3", future)
+
+		err = sinit.Run(t.Context())
+		assert.ErrorIs(t, err, errSetup)
+		assert.ErrorIs(t, valueErr, svcinit.ErrTaskNotRun)
+		assert.ErrorIs(t, valueErr, errSetup)
+	})
+}
+
+func TestNotRunInitError(t *testing.T) {
+	sinit, err := svcinit.New()
+	assert.NilError(t, err)
+
+	future := New[int](func(ctx context.Context) (int, error) {
+		return 10, nil
+	})
+	sinit.AddTask(svcinit.StageDefault, future)
+	sinit.AddTask(svcinit.StageDefault, svcinit.TimeoutTask(time.Second))
+	sinit.AddTask(svcinit.StageDefault, nil)
+
+	err = sinit.Run(t.Context())
+	assert.ErrorIs(t, err, svcinit.ErrNilTask)
+
+	_, err = future.Value(svcinit.WithoutFutureWait())
+	assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
+}
+
+func TestNotRunWrapped(t *testing.T) {
+	sinit, err := svcinit.New()
+	assert.NilError(t, err)
+
+	future := New[int](func(ctx context.Context) (int, error) {
+		return 10, nil
+	})
+	sinit.AddTask(svcinit.StageDefault, svcinit.WrapTask(future))
+	sinit.AddInitError(errors.New("init error"))
+
+	_ = sinit.Run(t.Context())
+
+	_, err = future.Value(svcinit.WithoutFutureWait())
+	assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
 }

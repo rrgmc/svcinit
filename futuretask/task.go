@@ -21,7 +21,7 @@ func New[T any](setupFunc instancetask.BuildSetupFunc[T],
 		}
 	}
 	return &taskFuture[T]{
-		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{instancetask.Build[T](func(ctx context.Context) (T, error) {
+		BaseOverloadedTask: &svcinit.BaseOverloadedTask[svcinit.TaskWithData[T]]{Task: instancetask.Build[T](func(ctx context.Context) (T, error) {
 			data, err := setupFunc(ctx)
 			if err != nil {
 				dr.ResolveError(err)
@@ -46,9 +46,25 @@ var _ svcinit.Future[int] = (*taskFuture[int])(nil)
 var _ svcinit.Task = (*taskFuture[int])(nil)
 var _ svcinit.TaskSteps = (*taskFuture[int])(nil)
 var _ svcinit.TaskWithOptions = (*taskFuture[int])(nil)
+var _ svcinit.TaskWithNotRun = (*taskFuture[int])(nil)
 
 func (t *taskFuture[T]) Run(ctx context.Context, step svcinit.Step) error {
 	return t.Task.Run(ctx, step)
+}
+
+// TaskNotRun resolves the future with [svcinit.ErrTaskNotRun], so waiters don't block forever when the
+// "setup" step never runs, for example because a previous stage failed.
+func (t *taskFuture[T]) TaskNotRun(_ context.Context, cause error) {
+	select {
+	case <-t.future.Done():
+		return
+	default:
+	}
+	if cause != nil {
+		t.future.ResolveError(fmt.Errorf("%w: %w", svcinit.ErrTaskNotRun, cause))
+	} else {
+		t.future.ResolveError(svcinit.ErrTaskNotRun)
+	}
 }
 
 func (t *taskFuture[T]) Value(options ...svcinit.FutureValueOption) (T, error) {

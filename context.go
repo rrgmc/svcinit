@@ -13,7 +13,7 @@ func LoggerFromContext(ctx context.Context) *slog.Logger {
 	if logger, ok := ctx.Value(loggerContextKey{}).(*slog.Logger); ok {
 		return logger
 	}
-	return nullLogger()
+	return nullLogger
 }
 
 // StartStepManager allows the "stop" step to cancel the start step and/or wait for it to finish.

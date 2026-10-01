@@ -77,3 +77,11 @@ func (t *testService2) Stop(ctx context.Context) error {
 	t.tl.Add("Stop")
 	return nil
 }
+
+func TestServiceNil(t *testing.T) {
+	m, err := New()
+	assert.NilError(t, err)
+	m.AddService(StageDefault, nil)
+	err = m.Run(t.Context())
+	assert.ErrorIs(t, err, ErrNilTask)
+}
