@@ -105,7 +105,7 @@ func TestInitError(t *testing.T) {
 	assert.ErrorIs(t, err, svcinit.ErrNilTask)
 }
 
-func TestNotRunAfterSetupError(t *testing.T) {
+func TestSkippedAfterSetupError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		errSetup := errors.New("setup error")
 
@@ -136,12 +136,12 @@ func TestNotRunAfterSetupError(t *testing.T) {
 
 		err = sinit.Run(t.Context())
 		assert.ErrorIs(t, err, errSetup)
-		assert.ErrorIs(t, valueErr, svcinit.ErrTaskNotRun)
+		assert.ErrorIs(t, valueErr, svcinit.ErrTaskSkipped)
 		assert.ErrorIs(t, valueErr, errSetup)
 	})
 }
 
-func TestNotRunInitError(t *testing.T) {
+func TestSkippedInitError(t *testing.T) {
 	sinit, err := svcinit.New()
 	assert.NilError(t, err)
 
@@ -156,12 +156,12 @@ func TestNotRunInitError(t *testing.T) {
 	assert.ErrorIs(t, err, svcinit.ErrNilTask)
 
 	_, err = future.Value(svcinit.WithoutFutureWait())
-	assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
+	assert.ErrorIs(t, err, svcinit.ErrTaskSkipped)
 }
 
-// TestNotRunDecorated is a regression test: decorating a future task with svcinit.BuildTask used to drop its
-// "not run" notification, so the future was never resolved and its waiters blocked forever.
-func TestNotRunDecorated(t *testing.T) {
+// TestSkippedDecorated is a regression test: decorating a future task with svcinit.BuildTask used to drop its
+// "skipped" notification, so the future was never resolved and its waiters blocked forever.
+func TestSkippedDecorated(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		decorate func(task svcinit.Task) svcinit.Task
@@ -203,7 +203,7 @@ func TestNotRunDecorated(t *testing.T) {
 				assert.ErrorIs(t, err, errSetup)
 
 				_, err = future.Value(svcinit.WithoutFutureWait())
-				assert.ErrorIs(t, err, svcinit.ErrTaskNotRun)
+				assert.ErrorIs(t, err, svcinit.ErrTaskSkipped)
 				assert.ErrorIs(t, err, errSetup)
 			})
 		})

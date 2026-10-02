@@ -74,7 +74,7 @@ type TaskInfo struct {
     Steps     []Step                                  // steps the task implements (nil = all)
     Options   []TaskInstanceOption                    // task options set by the task itself
     InitError error                                   // initialization error
-    NotRun    func(ctx context.Context, cause error) // called if Run returns without running any step
+    Skipped   func(ctx context.Context, cause error)  // called if Run returns without running any step
 }
 ```
 

@@ -37,10 +37,10 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 	}
 
 	// if returning before any stage runs, notify all tasks that they will never run.
-	notRunNotified := false
+	skippedNotified := false
 	defer func() {
-		if !notRunNotified {
-			m.notifyTasksNotRun(ctx, m.stages, cause)
+		if !skippedNotified {
+			m.notifyTasksSkipped(ctx, m.stages, cause)
 		}
 	}()
 
@@ -106,8 +106,8 @@ func (m *Manager) runWithStopErrors(ctx context.Context, options ...RunOption) (
 
 	// stages after a setup failure will never run any step, notify their tasks now so anything waiting on
 	// them (like a Future) is released before shutdown starts waiting for tasks to finish.
-	notRunNotified = true
-	m.notifyTasksNotRun(ctx, m.stages[stagesRun:], setupErr)
+	skippedNotified = true
+	m.notifyTasksSkipped(ctx, m.stages[stagesRun:], setupErr)
 
 	if setupErr == nil {
 		m.logger.InfoContext(ctx, "waiting for first task to return")
@@ -515,17 +515,17 @@ func (m *Manager) runStageStep(ctx, taskDoneCtx context.Context, loggerStage *sl
 	return int(taskCount.Load())
 }
 
-// notifyTasksNotRun calls [TaskInfo.NotRun] for all tasks of the passed stages, which must be stages
+// notifyTasksSkipped calls [TaskInfo.Skipped] for all tasks of the passed stages, which must be stages
 // that will never run any step.
-func (m *Manager) notifyTasksNotRun(ctx context.Context, stages []string, cause error) {
+func (m *Manager) notifyTasksSkipped(ctx context.Context, stages []string, cause error) {
 	ctx = context.WithoutCancel(ctx)
 	for _, stage := range stages {
 		for tw := range m.tasks.stageTasks(stage) {
-			if notRun := GetTaskInfo(tw.task).NotRun; notRun != nil {
-				m.logger.Log(ctx, slog2.LevelTrace, "notifying task not run",
+			if skipped := GetTaskInfo(tw.task).Skipped; skipped != nil {
+				m.logger.Log(ctx, slog2.LevelTrace, "notifying task skipped",
 					"stage", stage,
 					"task", GetTaskDescription(tw.task))
-				notRun(ctx, cause)
+				skipped(ctx, cause)
 			}
 		}
 	}

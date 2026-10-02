@@ -24,7 +24,7 @@ type TaskBuildFunc func(ctx context.Context) error
 // BuildTask creates a task from callback functions.
 //
 // It is also the way to decorate an existing task: use [WithParent] to forward all steps not set here to it,
-// and [WithName], [WithTaskOptions] and [WithNotRun] to add to its [TaskInfo]. To customize how the steps are
+// and [WithName], [WithTaskOptions] and [WithSkipped] to add to its [TaskInfo]. To customize how the steps are
 // called, use [WithHandler] in [Manager.AddTask].
 func BuildTask(options ...TaskBuildOption) TaskBuild {
 	return newTaskBuild(options...)
@@ -68,7 +68,7 @@ func WithTeardown(f TaskBuildFunc) TaskBuildOption {
 
 // WithParent sets a parent task. Any step not set in the built task will be forwarded to it.
 // Its [TaskInfo] is merged into the built task one: its name is used if one is not set, its options are applied
-// before the built task ones, its initialization error is returned, and its [TaskInfo.NotRun] is called.
+// before the built task ones, its initialization error is returned, and its [TaskInfo.Skipped] is called.
 func WithParent(parent Task) TaskBuildOption {
 	return func(build *taskBuild) {
 		if parent == nil {
@@ -86,11 +86,11 @@ func WithTaskOptions(options ...TaskInstanceOption) TaskBuildOption {
 	}
 }
 
-// WithNotRun adds a callback for [TaskInfo.NotRun]. All callbacks are called in order, before the parent one.
-func WithNotRun(f func(ctx context.Context, cause error)) TaskBuildOption {
+// WithSkipped adds a callback for [TaskInfo.Skipped]. All callbacks are called in order, before the parent one.
+func WithSkipped(f func(ctx context.Context, cause error)) TaskBuildOption {
 	return func(build *taskBuild) {
 		if f != nil {
-			build.notRun = append(build.notRun, f)
+			build.skipped = append(build.skipped, f)
 		}
 	}
 }
@@ -102,7 +102,7 @@ type taskBuild struct {
 	parent   atomic.Pointer[Task]
 	state    atomic.Pointer[taskBuildState]
 	options  []TaskInstanceOption
-	notRun   []func(ctx context.Context, cause error)
+	skipped  []func(ctx context.Context, cause error)
 	name     string
 }
 
@@ -137,13 +137,13 @@ func (t *taskBuild) TaskInfo() TaskInfo {
 		Options:   slices.Concat(parentInfo.Options, t.options),
 		InitError: state.initError,
 	}
-	if len(t.notRun) > 0 || parentInfo.NotRun != nil {
-		ret.NotRun = func(ctx context.Context, cause error) {
-			for _, f := range t.notRun {
+	if len(t.skipped) > 0 || parentInfo.Skipped != nil {
+		ret.Skipped = func(ctx context.Context, cause error) {
+			for _, f := range t.skipped {
 				f(ctx, cause)
 			}
-			if parentInfo.NotRun != nil {
-				parentInfo.NotRun(ctx, cause)
+			if parentInfo.Skipped != nil {
+				parentInfo.Skipped(ctx, cause)
 			}
 		}
 	}
