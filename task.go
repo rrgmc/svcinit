@@ -46,10 +46,10 @@ type TaskInfo struct {
 	// InitError is a task initialization error. If not nil, [Manager.AddTask] won't add the task, and
 	// [Manager.Run] will return the error.
 	InitError error
-	// NotRun is called when [Manager.Run] returns without having run any of the task steps, for example because
+	// Skipped is called when [Manager.Run] returns without having run any of the task steps, for example because
 	// a setup step of a previous stage failed. cause is the error returned from Run, and may be nil.
 	// It can be used to release anything waiting on the task, like an unresolved [Future].
-	NotRun func(ctx context.Context, cause error)
+	Skipped func(ctx context.Context, cause error)
 }
 
 // TaskWithInfo allows a task to describe its optional metadata and behavior.

@@ -132,28 +132,28 @@ func TestBuildTaskParentInitError(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNilTask)
 }
 
-func TestBuildTaskNotRun(t *testing.T) {
+func TestBuildTaskSkipped(t *testing.T) {
 	var calls []string
 	errCause := errors.New("cause")
 
 	task := BuildTask(
 		WithParent(BuildTask(
 			WithStart(func(ctx context.Context) error { return nil }),
-			WithNotRun(func(ctx context.Context, cause error) {
+			WithSkipped(func(ctx context.Context, cause error) {
 				assert.Check(t, errors.Is(cause, errCause))
 				calls = append(calls, "parent")
 			}),
 		)),
-		WithNotRun(func(ctx context.Context, cause error) { calls = append(calls, "task1") }),
-		WithNotRun(func(ctx context.Context, cause error) { calls = append(calls, "task2") }),
+		WithSkipped(func(ctx context.Context, cause error) { calls = append(calls, "task1") }),
+		WithSkipped(func(ctx context.Context, cause error) { calls = append(calls, "task2") }),
 	)
 
-	notRun := task.TaskInfo().NotRun
-	assert.Assert(t, notRun != nil)
-	notRun(t.Context(), errCause)
+	skipped := task.TaskInfo().Skipped
+	assert.Assert(t, skipped != nil)
+	skipped(t.Context(), errCause)
 	assert.DeepEqual(t, []string{"task1", "task2", "parent"}, calls)
 
-	assert.Assert(t, BuildTask(WithStart(func(ctx context.Context) error { return nil })).TaskInfo().NotRun == nil)
+	assert.Assert(t, BuildTask(WithStart(func(ctx context.Context) error { return nil })).TaskInfo().Skipped == nil)
 }
 
 type testTaskInfo struct {

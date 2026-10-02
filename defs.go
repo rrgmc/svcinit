@@ -19,7 +19,7 @@ var (
 	ErrAlreadyInitialized = errors.New("already initialized")
 	ErrNotInitialized     = errors.New("not initialized")
 	ErrDuplicateStep      = errors.New("duplicate step")
-	ErrTaskNotRun         = errors.New("task not run")
+	ErrTaskSkipped        = errors.New("task skipped")
 )
 
 const (

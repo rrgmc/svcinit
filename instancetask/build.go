@@ -141,9 +141,9 @@ func WithTaskOptions[T any](options ...svcinit.TaskInstanceOption) BuildOption[T
 	return withBuildOption[T](svcinit.WithTaskOptions(options...))
 }
 
-// WithNotRun adds a callback for [svcinit.TaskInfo.NotRun]. See [svcinit.WithNotRun].
-func WithNotRun[T any](f func(ctx context.Context, cause error)) BuildOption[T] {
-	return withBuildOption[T](svcinit.WithNotRun(f))
+// WithSkipped adds a callback for [svcinit.TaskInfo.Skipped]. See [svcinit.WithSkipped].
+func WithSkipped[T any](f func(ctx context.Context, cause error)) BuildOption[T] {
+	return withBuildOption[T](svcinit.WithSkipped(f))
 }
 
 // internal

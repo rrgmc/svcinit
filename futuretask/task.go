@@ -13,7 +13,7 @@ import (
 // setupFunc must not be nil: unlike [instancetask.Build], there would be no data to resolve the future
 // with.
 // If the task never runs, for example because a previous stage failed, the future is resolved with
-// [svcinit.ErrTaskNotRun], so waiters don't block forever.
+// [svcinit.ErrTaskSkipped], so waiters don't block forever.
 func New[T any](setupFunc instancetask.BuildSetupFunc[T], options ...instancetask.BuildOption[T]) *Task[T] {
 	future := svcinit.NewFuture[T]()
 	if setupFunc == nil {
@@ -32,16 +32,16 @@ func New[T any](setupFunc instancetask.BuildSetupFunc[T], options ...instancetas
 			}
 			future.Resolve(data)
 			return data, nil
-		}, append(slices.Clip(options), instancetask.WithNotRun[T](func(_ context.Context, cause error) {
+		}, append(slices.Clip(options), instancetask.WithSkipped[T](func(_ context.Context, cause error) {
 			select {
 			case <-future.Done():
 				return // resolving twice panics.
 			default:
 			}
 			if cause != nil {
-				future.ResolveError(fmt.Errorf("%w: %w", svcinit.ErrTaskNotRun, cause))
+				future.ResolveError(fmt.Errorf("%w: %w", svcinit.ErrTaskSkipped, cause))
 			} else {
-				future.ResolveError(svcinit.ErrTaskNotRun)
+				future.ResolveError(svcinit.ErrTaskSkipped)
 			}
 		}))...),
 		future: future,

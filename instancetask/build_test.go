@@ -94,12 +94,12 @@ func TestBuildTaskInfoFromParent(t *testing.T) {
 		svcinit.WithName("parent"),
 		svcinit.WithStart(func(ctx context.Context) error { return nil }),
 		svcinit.WithTaskOptions(svcinit.WithCancelContext(true)),
-		svcinit.WithNotRun(func(ctx context.Context, cause error) { calls = append(calls, "parent") }),
+		svcinit.WithSkipped(func(ctx context.Context, cause error) { calls = append(calls, "parent") }),
 	)
 
 	task := Build[int](func(ctx context.Context) (int, error) { return 1, nil },
 		WithParent[int](parent),
-		WithNotRun[int](func(ctx context.Context, cause error) { calls = append(calls, "task") }),
+		WithSkipped[int](func(ctx context.Context, cause error) { calls = append(calls, "task") }),
 	)
 
 	info := svcinit.GetTaskInfo(task)
@@ -108,8 +108,8 @@ func TestBuildTaskInfoFromParent(t *testing.T) {
 	assert.DeepEqual(t, []svcinit.Step{svcinit.StepSetup, svcinit.StepStart}, info.Steps,
 		cmpopts.SortSlices(cmp.Less[svcinit.Step]))
 	assert.Equal(t, 1, len(info.Options))
-	assert.Assert(t, info.NotRun != nil)
-	info.NotRun(t.Context(), nil)
+	assert.Assert(t, info.Skipped != nil)
+	info.Skipped(t.Context(), nil)
 	assert.DeepEqual(t, []string{"task", "parent"}, calls)
 }
 
